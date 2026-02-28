@@ -1,0 +1,134 @@
+/* AeroSync Global Styles */
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* background handled by index.css sky */
+}
+
+#root {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+
+/* General Styles */
+h1, h2, h3, h4, h5, h6 {
+  margin-top: 0;
+  /* White by default for dark background; components inside white cards
+     override this with their own inline color styles. */
+  color: rgba(255, 255, 255, 0.95);
+}
+
+a {
+  font-weight: 500;
+  color: var(--primary-dark);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--primary-gold);
+  text-decoration: underline;
+}
+
+/* Agent portal: override global dark-link rule so all anchors are white */
+.as-agent-navbar a,
+.as-agent-mobile a {
+  color: rgba(255,255,255,0.85);
+  text-decoration: none;
+}
+.as-agent-navbar a:hover,
+.as-agent-mobile a:hover {
+  color: #20c997;
+  text-decoration: none;
+}
+
+input {
+  font-family: inherit;
+  font-size: 100%;
+  line-height: 1.15;
+  margin: 0;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--primary-gold);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
+}
+
+/* Utility Classes */
+.text-center {
+  text-align: center;
+}
+
+.text-success {
+  color: var(--success);
+}
+
+.text-warning {
+  color: var(--warning);
+}
+
+.text-danger {
+  color: var(--danger);
+}
+
+.bg-light {
+  background-color: var(--light);
+}
+
+.d-flex {
+  display: flex;
+}
+
+.justify-content-center {
+  justify-content: center;
+}
+
+.align-items-center {
+  align-items: center;
+}
+
+/* ── Admin data tables ──────────────────────────────────────────────────────
+   All admin tables use white/light card backgrounds.
+   Override the global white text so cells are readable. */
+.as-admin-table,
+.as-admin-table td {
+  color: #212529;
+}
+
+/* ── Light-card form controls ───────────────────────────────────────────────
+   Any white/light card that contains inputs or selects should carry the
+   .light-card class.  The global color-scheme:dark makes browsers render
+   native form controls with dark defaults; this overrides that for
+   explicitly light surfaces. */
+.light-card input,
+.light-card select,
+.light-card textarea {
+  color: #212529;
+  color-scheme: light;
+  background-color: white;
+  box-sizing: border-box;
+}
+.light-card input::placeholder {
+  color: #6c757d;
+}
+
+/* Payment provider content fade+slide animation */
+@keyframes providerFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.payment-provider-content {
+  animation: providerFadeIn 0.22s ease;
+}
