@@ -1,0 +1,21 @@
+# Systemd service file for AeroSync Django application
+# Place this file in /etc/systemd/system/aerosync.service
+
+[Unit]
+Description=AeroSync Django Application
+After=network.target
+
+[Service]
+Type=simple
+User=nixii
+Group=nixii
+WorkingDirectory=/home/nixii/projectsem2/aerosync-backend
+Environment=PATH=/home/nixii/projectsem2/aerosync-backend/venv/bin
+Environment=DJANGO_DEBUG=0
+ExecStart=/home/nixii/projectsem2/aerosync-backend/venv/bin/gunicorn --config /home/nixii/projectsem2/aerosync-backend/gunicorn_config.py aerosync.wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

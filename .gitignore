@@ -1,16 +1,25 @@
-# Python
+# Python / Django
 venv/
 __pycache__/
 *.pyc
-
-# Django
+*.pyo
+*.log
 *.sqlite3
+
+# Django collected/static/media (adjust to your project)
 staticfiles/
+media/
 
-# Node
+# Node / React
 node_modules/
-build/
 dist/
+build/
+.cache/
 
-# OS
+# Editor/OS
+.idea/
+.vscode/
 .DS_Store
+
+# Swap files
+*.swp
