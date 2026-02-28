@@ -1,0 +1,139 @@
+[2026-02-27 12:34:03 +0300] [349171] [INFO] Starting gunicorn 25.1.0
+[2026-02-27 12:34:03 +0300] [349171] [INFO] Listening at: http://127.0.0.1:8000 (349171)
+[2026-02-27 12:34:03 +0300] [349171] [INFO] Using worker: sync
+[2026-02-27 12:34:03 +0300] [349171] [INFO] Control socket listening at /home/nixii/projectsem2/aerosync-backend/gunicorn.ctl
+[2026-02-27 12:34:03 +0300] [349176] [INFO] Booting worker with pid: 349176
+[2026-02-27 12:34:03 +0300] [349177] [INFO] Booting worker with pid: 349177
+[2026-02-27 12:34:03 +0300] [349178] [INFO] Booting worker with pid: 349178
+[2026-02-27 12:43:32 +0300] [349171] [CRITICAL] WORKER TIMEOUT (pid:349178)
+[2026-02-27 12:43:32 +0300] [349178] [ERROR] Error handling request (no URI read)
+Traceback (most recent call last):
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/workers/sync.py", line 141, in handle
+    req = next(parser)
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/http/parser.py", line 56, in __next__
+    self.mesg = self.mesg_class(self.cfg, self.unreader, self.source_addr, self.req_count)
+                ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/http/message.py", line 324, in __init__
+    super().__init__(cfg, unreader, peer_addr)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/http/message.py", line 110, in __init__
+    unused = self.parse(self.unreader)
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/http/message.py", line 336, in parse
+    self.read_into(unreader, buf, stop=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/http/message.py", line 375, in read_into
+    data = unreader.read()
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/http/unreader.py", line 36, in read
+    d = self.chunk()
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/http/unreader.py", line 65, in chunk
+    return self.sock.recv(self.mxchunk)
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/workers/base.py", line 198, in handle_abort
+    sys.exit(1)
+    ~~~~~~~~^^^
+SystemExit: 1
+[2026-02-27 12:43:32 +0300] [349178] [INFO] Worker exiting (pid: 349178)
+[2026-02-27 12:43:32 +0300] [353158] [INFO] Booting worker with pid: 353158
+[2026-02-27 12:47:31 +0300] [349176] [INFO] Worker exiting (pid: 349176)
+[2026-02-27 12:47:31 +0300] [349171] [INFO] Handling signal: term
+[2026-02-27 12:47:31 +0300] [353158] [INFO] Worker exiting (pid: 353158)
+[2026-02-27 12:47:31 +0300] [349177] [INFO] Worker exiting (pid: 349177)
+[2026-02-27 12:47:32 +0300] [349171] [INFO] Worker (pid:349176) was sent SIGTERM!
+[2026-02-27 12:47:32 +0300] [349171] [INFO] Shutting down: Master
+[2026-02-27 12:47:47 +0300] [355013] [INFO] Starting gunicorn 25.1.0
+[2026-02-27 12:47:47 +0300] [355013] [INFO] Listening at: http://127.0.0.1:8000 (355013)
+[2026-02-27 12:47:47 +0300] [355013] [INFO] Using worker: sync
+[2026-02-27 12:47:47 +0300] [355013] [INFO] Control socket listening at /home/nixii/projectsem2/aerosync-backend/gunicorn.ctl
+[2026-02-27 12:47:47 +0300] [355019] [INFO] Booting worker with pid: 355019
+[2026-02-27 12:47:47 +0300] [355021] [INFO] Booting worker with pid: 355021
+[2026-02-27 12:49:17 +0300] [355013] [CRITICAL] WORKER TIMEOUT (pid:355021)
+[2026-02-27 12:49:17 +0300] [355021] [ERROR] Error handling request (no URI read)
+Traceback (most recent call last):
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/workers/sync.py", line 141, in handle
+    req = next(parser)
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/http/parser.py", line 56, in __next__
+    self.mesg = self.mesg_class(self.cfg, self.unreader, self.source_addr, self.req_count)
+                ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/http/message.py", line 324, in __init__
+    super().__init__(cfg, unreader, peer_addr)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/http/message.py", line 110, in __init__
+    unused = self.parse(self.unreader)
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/http/message.py", line 336, in parse
+    self.read_into(unreader, buf, stop=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/http/message.py", line 375, in read_into
+    data = unreader.read()
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/http/unreader.py", line 36, in read
+    d = self.chunk()
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/http/unreader.py", line 65, in chunk
+    return self.sock.recv(self.mxchunk)
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/workers/base.py", line 198, in handle_abort
+    sys.exit(1)
+    ~~~~~~~~^^^
+SystemExit: 1
+[2026-02-27 12:49:17 +0300] [355021] [INFO] Worker exiting (pid: 355021)
+[2026-02-27 12:49:17 +0300] [355722] [INFO] Booting worker with pid: 355722
+Not Found: /static/admin/js/cancel.js
+Not Found: /static/admin/js/calendar.js
+Not Found: /static/admin/js/admin/DateTimeShortcuts.js
+Not Found: /api/flights/cities/
+Not Found: /api/flights/cities/
+Not Found: /api/flights/cities/
+Not Found: /api/flights/cities/
+Not Found: /api/flights/cities/
+Not Found: /api/flights/cities/
+Not Found: /api/flights/cities/
+Not Found: /api/flights/cities/
+Not Found: /api/flights/cities/
+Not Found: /api/flights/cities/
+Not Found: /api/flights/cities/
+Not Found: /api/flights/cities/
+Not Found: /api/flights/cities/
+Not Found: /api/flights/cities/
+Not Found: /api/flights/cities/
+Not Found: /api/flights/cities/
+Not Found: /api/flights/cities/
+Not Found: /api/flights/cities/
+Not Found: /api/flights/cities/
+Not Found: /api/flights/cities/
+Not Found: /api/flights/cities/
+Not Found: /api/flights/cities/
+[2026-02-27 13:23:56 +0300] [355013] [CRITICAL] WORKER TIMEOUT (pid:355019)
+[2026-02-27 13:23:56 +0300] [355019] [ERROR] Error handling request (no URI read)
+Traceback (most recent call last):
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/workers/sync.py", line 141, in handle
+    req = next(parser)
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/http/parser.py", line 56, in __next__
+    self.mesg = self.mesg_class(self.cfg, self.unreader, self.source_addr, self.req_count)
+                ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/http/message.py", line 324, in __init__
+    super().__init__(cfg, unreader, peer_addr)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/http/message.py", line 110, in __init__
+    unused = self.parse(self.unreader)
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/http/message.py", line 336, in parse
+    self.read_into(unreader, buf, stop=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/http/message.py", line 375, in read_into
+    data = unreader.read()
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/http/unreader.py", line 36, in read
+    d = self.chunk()
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/http/unreader.py", line 65, in chunk
+    return self.sock.recv(self.mxchunk)
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/home/nixii/projectsem2/aerosync-backend/venv/lib/python3.13/site-packages/gunicorn/workers/base.py", line 198, in handle_abort
+    sys.exit(1)
+    ~~~~~~~~^^^
+SystemExit: 1
+[2026-02-27 13:23:56 +0300] [355019] [INFO] Worker exiting (pid: 355019)
+[2026-02-27 13:23:56 +0300] [370882] [INFO] Booting worker with pid: 370882
+Not Found: /api/flights/cities/
+Unauthorized: /api/flights/cities/
+[2026-02-27 13:32:19 +0300] [355722] [INFO] Worker exiting (pid: 355722)
+[2026-02-27 13:32:19 +0300] [355013] [INFO] Handling signal: term
+[2026-02-27 13:32:19 +0300] [370882] [INFO] Worker exiting (pid: 370882)
+[2026-02-27 13:32:19 +0300] [355013] [INFO] Worker (pid:355722) was sent SIGTERM!
+[2026-02-27 13:32:19 +0300] [355013] [INFO] Worker (pid:370882) was sent SIGTERM!
+[2026-02-27 13:32:49 +0300] [355013] [INFO] Shutting down: Master
