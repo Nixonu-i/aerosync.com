@@ -57,8 +57,9 @@ fi
 # Activate virtual environment and install dependencies
 source venv/bin/activate
 pip install --upgrade pip
-pip install django djangorestframework django-cors-headers pillow qrcode[pil] djangorestframework-simplejwt gunicorn
-
+            # install from requirements.txt so new dependencies (whitenoise)
+            # are picked up automatically
+            pip install -r requirements.txt
 # Run migrations
 print_status "Running database migrations..."
 python manage.py migrate
