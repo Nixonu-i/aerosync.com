@@ -1,3 +1,6 @@
+// Determine API base URL based on environment
+// Local development: vite proxy will forward /api/ to http://localhost:8000
+// Production: use the VITE_API_URL environment variable (proxied through Cloudflare tunnel)
 import axios from "axios";
 
 // Use relative paths for API calls to automatically adapt to the current origin
@@ -23,7 +26,8 @@ API.interceptors.response.use(
     throw err;
   }
 );
-
+    baseURL: import.meta.env.VITE_API_URL || "/api/",
+// Request interceptor to attach JWT token to all requests
 API.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) config.headers.Authorization = `Bearer ${token}`;

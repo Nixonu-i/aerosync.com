@@ -12,3 +12,4 @@ PyJWT==2.11.0
 python-dotenv==1.2.1
 qrcode==8.2
 sqlparse==0.5.5
+whitenoise==6.5.0
