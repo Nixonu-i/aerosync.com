@@ -7,10 +7,28 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv("DJANGO_SECRET", "dev-secret-change-me")
-DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"  # Changed from DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
+# -------------------------------------------------------------------
+# Core Security
+# -------------------------------------------------------------------
 
-ALLOWED_HOSTS = [h.strip() for h in os.getenv("DJANGO_ALLOWED_HOSTS", "*").split(",") if h.strip()]
+SECRET_KEY = os.getenv("DJANGO_SECRET")
+if not SECRET_KEY:
+    raise Exception("DJANGO_SECRET must be set in production")
+
+DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"
+
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",")
+    if h.strip()
+]
+
+if not DEBUG and not ALLOWED_HOSTS:
+    raise Exception("DJANGO_ALLOWED_HOSTS must be set in production")
+
+# -------------------------------------------------------------------
+# Installed Apps
+# -------------------------------------------------------------------
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -20,40 +38,89 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "corsheaders",
-
     "rest_framework",
-
     "accounts",
     "core",
 ]
 
+# -------------------------------------------------------------------
+# Middleware
+# -------------------------------------------------------------------
+
+# middleware configuration
+# WhiteNoise is only needed when DEBUG=False; in development Django's
+# staticfiles app will serve admin/css/js itself.  When WhiteNoise is
+# active it intercepts /static/ requests first and will return 404 if the
+# collected STATIC_ROOT is empty (which it is in dev), hence the missing
+# admin styles you saw.
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+]
+if not DEBUG:
+    MIDDLEWARE.append("whitenoise.middleware.WhiteNoiseMiddleware")
+
+MIDDLEWARE += [
     "corsheaders.middleware.CorsMiddleware",
-    "core.middleware.UserActivityMiddleware",  # File logging
-    "core.db_middleware.DatabaseActivityMiddleware",  # Database logging
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "core.middleware.UserActivityMiddleware",
+    "core.db_middleware.DatabaseActivityMiddleware",
 ]
 
-# Trust X-Forwarded-Proto header to detect HTTPS when behind reverse proxy (like ngrok)
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+# -------------------------------------------------------------------
+# Cloudflare / Reverse Proxy Support
+# -------------------------------------------------------------------
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 USE_X_FORWARDED_HOST = True
 
+# Defaults suitable for development (prevents devserver redirecting to HTTPS)
+SECURE_SSL_REDIRECT = False
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+SECURE_HSTS_SECONDS = 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+SECURE_HSTS_PRELOAD = False
+SECURE_BROWSER_XSS_FILTER = False
+SECURE_CONTENT_TYPE_NOSNIFF = False
+X_FRAME_OPTIONS = "SAMEORIGIN"
+
+# Force HTTPS in production
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = "DENY"
+
+# Ensure local hosts are never forced to HTTPS (defensive override for development)
+if '127.0.0.1' in ALLOWED_HOSTS or 'localhost' in ALLOWED_HOSTS:
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+
+# -------------------------------------------------------------------
+# Templates
+# -------------------------------------------------------------------
+
 ROOT_URLCONF = "aerosync.urls"
+WSGI_APPLICATION = "aerosync.wsgi.application"
+ASGI_APPLICATION = "aerosync.asgi.application"
 
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
-                "django.template.context_processors.debug",
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
@@ -62,76 +129,64 @@ TEMPLATES = [
     }
 ]
 
-WSGI_APPLICATION = "aerosync.wsgi.application"
-ASGI_APPLICATION = "aerosync.asgi.application"
+# -------------------------------------------------------------------
+# Database
+# -------------------------------------------------------------------
 
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("DB_NAME", "aerosync"),
-        "USER": os.getenv("DB_USER", "aerosync"),
-        "PASSWORD": os.getenv("DB_PASSWORD", "aerosync"),
-        "HOST": os.getenv("DB_HOST", "127.0.0.1"),
+        "NAME": os.getenv("DB_NAME"),
+        "USER": os.getenv("DB_USER"),
+        "PASSWORD": os.getenv("DB_PASSWORD"),
+        "HOST": os.getenv("DB_HOST"),
         "PORT": os.getenv("DB_PORT", "5432"),
-        "CONN_MAX_AGE": 60,
+        "CONN_MAX_AGE": 600,
+        "OPTIONS": {
+            "sslmode": "require" if not DEBUG else "disable",
+        },
     }
 }
 
 AUTH_USER_MODEL = "accounts.User"
 
-AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
-    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
-]
-# Old incorrect setting name (commented out)
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:5173",
-#     "http://localhost:5174",
-#     "http://localhost:5175",
-# ]
+# -------------------------------------------------------------------
+# CORS (Cloudflare + Vercel Compatible)
+# -------------------------------------------------------------------
+
+CORS_ALLOW_CREDENTIALS = False  # JWT via Authorization header
+
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "https://f680-196-96-69-155.ngrok-free.app",
-    "http://localhost:5174",
-    "http://localhost:5175",
-    "http://127.0.0.1:5174",
+    "https://aerosync.live",
+    "https://www.aerosync.live",
+    "https://api.aerosync.live",  # <-- add backend tunnel domain
+    "http://127.0.0.1:5173",       # local dev
+    "http://localhost:5173",       # local dev
 ]
 
-# Additional CORS settings for JWT authentication
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = False  # Set to True only for development
-
-# Allow credentials (cookies, authorization headers, etc.) to be included in requests
-CORS_ALLOWED_ORIGINS_REGEXES = [
-    r"^https://.*\.vercel\.app$",  # Example for Vercel deployments
+# Allow Vercel deployments
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://.*\.vercel\.app$",
 ]
 
-# Specify which headers can be used during the actual request
+# Allow your Cloudflare tunnel domain
+cloudflare_domain = os.getenv("CLOUDFLARE_DOMAIN")
+if cloudflare_domain:
+    CORS_ALLOWED_ORIGINS.append(f"https://{cloudflare_domain}")
+
 CORS_ALLOW_HEADERS = [
     "accept",
     "authorization",
     "content-type",
-    "dnt",
     "origin",
     "user-agent",
     "x-csrftoken",
     "x-requested-with",
-    "access-control-allow-origin",
 ]
 
-LANGUAGE_CODE = "en-us"
-TIME_ZONE = "Africa/Nairobi"
-USE_I18N = True
-USE_TZ = True
-
-STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+# -------------------------------------------------------------------
+# REST Framework / JWT
+# -------------------------------------------------------------------
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -143,58 +198,67 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(os.getenv("JWT_ACCESS_MIN", "60"))),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(os.getenv("JWT_ACCESS_MIN", "15"))),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=int(os.getenv("JWT_REFRESH_DAYS", "7"))),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
 }
 
-# Logging configuration
+# -------------------------------------------------------------------
+# Static / Media
+# -------------------------------------------------------------------
+
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# -------------------------------------------------------------------
+# Logging
+# -------------------------------------------------------------------
+
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(exist_ok=True)
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
         "verbose": {
-            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
-            "style": "{",
-        },
-        "simple": {
-            "format": "{levelname} {message}",
-            "style": "{",
-        },
-        "json": {
-            "format": "{message}",
+            "format": "{levelname} {asctime} {module} {message}",
             "style": "{",
         },
     },
     "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "simple"
-        },
-        "user_activity_file": {
+        "file": {
             "class": "logging.FileHandler",
-            "filename": "user_activity.log",
-            "formatter": "json",
-        },
-        "user_activity_error": {
-            "class": "logging.FileHandler",
-            "filename": "user_activity_errors.log",
+            "filename": LOG_DIR / "django.log",
             "formatter": "verbose",
         },
     },
-    "loggers": {
-        "user_activity": {
-            "handlers": ["user_activity_file", "user_activity_error"],
-            "level": "INFO",
-            "propagate": False,
-        },
-        "django": {
-            "handlers": ["console"],
-            "level": "INFO",
-            "propagate": True,
-        },
-    },
     "root": {
-        "handlers": ["console"],
+        "handlers": ["file"],
         "level": "INFO",
     },
 }
+
+# -------------------------------------------------------------------
+# Cloudflare Tunnel
+# -------------------------------------------------------------------
+
+TUNNEL = "aerosync-backend"
+CREDENTIALS_FILE = "/home/nixii/.cloudflared/aerosync-backend.json"
+
+INGRESS = [
+    {
+        "hostname": "api.aerosync.live",
+        "service": "http://localhost:8000",
+    },
+    {
+        "service": "http_status:404",
+    },
+]
