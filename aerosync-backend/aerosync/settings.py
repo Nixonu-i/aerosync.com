@@ -71,6 +71,8 @@ INSTALLED_APPS = [
 # admin styles you saw.
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # ensure users complete their profile on first login (customers/agents)
+    "accounts.middleware.ProfileCompletionMiddleware",
 ]
 if not DEBUG:
     MIDDLEWARE.append("whitenoise.middleware.WhiteNoiseMiddleware")

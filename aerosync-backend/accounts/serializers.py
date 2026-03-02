@@ -57,13 +57,21 @@ class ProfileSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Profile
-        fields = ["date_of_birth", "gender", "nationality", "phone_area_code", "phone_number", "profile_photo", "profile_photo_url"]
+        fields = ["date_of_birth", "gender", "nationality", "phone_area_code", "phone_number", "profile_photo", "profile_photo_url", "initial_setup_done"]
     
     def get_profile_photo_url(self, obj):
         try:
             if obj.profile_photo:
-                # Return relative URL to be resolved by the frontend
-                return obj.profile_photo.url
+                # When the frontend lives on a different host (Cloudflare, Vercel)
+                # a relative path will be resolved against the *frontend* origin
+                # which doesn't serve media.  build an absolute URI using the
+                # request context so callers always get a URL that points back
+                # at the API host.
+                request = self.context.get('request')
+                url = obj.profile_photo.url
+                if request:
+                    return request.build_absolute_uri(url)
+                return url
         except (AttributeError, ValueError, TypeError):
             # Handle any potential errors accessing the profile photo URL
             pass
@@ -76,13 +84,22 @@ class ProfileDetailSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Profile
-        fields = ["date_of_birth", "gender", "nationality", "phone_area_code", "phone_number", "profile_photo", "profile_photo_url"]
+        fields = ["date_of_birth", "gender", "nationality", "phone_area_code", "phone_number", "profile_photo", "profile_photo_url", "initial_setup_done"]
     
     def get_profile_photo_url(self, obj):
         try:
             if obj.profile_photo:
-                # Return relative URL to be resolved by the frontend
-                return obj.profile_photo.url
+                # Same reasoning as in ProfileSerializer above: when the
+                # frontend is hosted on a different origin (Cloudflare,
+                # Vercel, etc.) a bare "/media/..." URL will be interpreted
+                # relative to the frontend domain.  Build an absolute URI
+                # based on the incoming request so the browser always hits
+                # the API host.
+                request = self.context.get("request")
+                url = obj.profile_photo.url
+                if request:
+                    return request.build_absolute_uri(url)
+                return url
         except (AttributeError, ValueError, TypeError):
             # Handle any potential errors accessing the profile photo URL
             pass
