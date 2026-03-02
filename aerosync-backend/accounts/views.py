@@ -30,5 +30,21 @@ def profile_view(request):
         serializer = ProfileSerializer(profile, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
             serializer.save()
+            # mark initial_setup_done for first-time customer/agent users
+            if not profile.initial_setup_done and request.user.role in (
+                request.user.Role.CUST,
+                request.user.Role.AGENT,
+            ):
+                data = serializer.data
+                required = [
+                    'date_of_birth',
+                    'gender',
+                    'nationality',
+                    'phone_number',
+                    'profile_photo_url',
+                ]
+                if all(data.get(f) for f in required):
+                    profile.initial_setup_done = True
+                    profile.save(update_fields=['initial_setup_done'])
             return Response(serializer.data)
         return Response(serializer.errors, status=400)

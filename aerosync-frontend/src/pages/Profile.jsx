@@ -40,9 +40,8 @@ export default function Profile() {
           setIsProfileComplete(true);
           setSaved(true); // already saved previously — show green button
           
-          // Check if this is first time by checking a flag
-          const hasCompletedProfile = localStorage.getItem(`profile_completed_${user?.id}`);
-          if (!hasCompletedProfile) {
+          // if API tells us the setup flag still false, mark first-time
+          if (!profileData.initial_setup_done) {
             setIsFirstTime(true);
           }
         } else {
@@ -134,8 +133,8 @@ export default function Profile() {
         }
       });
       
-      // Mark profile as completed to prevent future edits
-      localStorage.setItem(`profile_completed_${user?.id}`, "true");
+      // the API sets initial_setup_done; frontend state will be
+      // updated by re‑fetching or by the existing logic above.
       setIsProfileComplete(true);
       setIsFirstTime(false);
       setSaved(true); // flip button to green "Saved"
