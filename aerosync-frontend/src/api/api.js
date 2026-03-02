@@ -4,7 +4,13 @@ import axios from "axios";
 const API = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "/api/",
   timeout: 20000,
-  withCredentials: true,
+  // we use JWT tokens sent in the Authorization header, so there is no
+  // need to send cookies by default.  enabling `withCredentials` causes
+  // the browser to preflight with `credentials=include` which in turn
+  // requires the backend to set Access-Control-Allow-Credentials.  if you
+  // ever switch to cookie-based auth you can flip this flag or set it per
+  // request.
+  withCredentials: false,
 });
 
 // Attach JWT token

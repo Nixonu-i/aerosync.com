@@ -17,11 +17,27 @@ if not SECRET_KEY:
 
 DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"
 
+# ALLOWED_HOSTS is read from environment so that CI and production
+# can control valid hostnames.  Earlier we were manually adding
+# everything, but when the frontend is served from a custom URL such as
+# `https://api.aerosync.live` you also need the backend to accept that
+# host header.  A convenient pattern is to specify the base domain and
+# then allow all its subdomains as well.
 ALLOWED_HOSTS = [
     h.strip()
     for h in os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",")
     if h.strip()
 ]
+
+# automatically allow subdomains for each explicit host by inserting a
+# leading-dot variant (Django treats ".example.com" as a wildcard).
+# this saves you from having to update the env every time a new subdomain
+# is used in development/tunneling.
+expanded = set(ALLOWED_HOSTS)
+for h in list(ALLOWED_HOSTS):
+    if h and not h.startswith('.') and '.' in h:
+        expanded.add('.' + h)
+ALLOWED_HOSTS = list(expanded)
 
 if not DEBUG and not ALLOWED_HOSTS:
     raise Exception("DJANGO_ALLOWED_HOSTS must be set in production")
@@ -154,7 +170,13 @@ AUTH_USER_MODEL = "accounts.User"
 # CORS (Cloudflare + Vercel Compatible)
 # -------------------------------------------------------------------
 
-CORS_ALLOW_CREDENTIALS = False  # JWT via Authorization header
+# Some requests (our frontend sets axios.withCredentials) are sent with
+# credentials mode "include".  if so the browser requires the response
+# to include Access-Control-Allow-Credentials: true.  we previously kept
+# this False because JSON‑Web‑Tokens live in the Authorization header, but
+# setting it to True is harmless and simplifies local tunnelling / proxy
+# scenarios where the browser might still attach cookies.
+CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
     "https://aerosync.live",
