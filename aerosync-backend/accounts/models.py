@@ -53,6 +53,10 @@ class Profile(models.Model):
     phone_area_code = models.CharField(max_length=10, default='+254')
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     profile_photo = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
+    # track whether the user has completed all required fields during the
+    # initial sign‑up flow.  once True we will stop forcing them to fill the
+    # profile again.
+    initial_setup_done = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

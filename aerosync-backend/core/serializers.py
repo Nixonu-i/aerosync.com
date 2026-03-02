@@ -187,7 +187,11 @@ class AdminUserSerializer(serializers.ModelSerializer):
         try:
             profile = obj.profile
             if profile.profile_photo:
-                return profile.profile_photo.url
+                request = self.context.get("request")
+                url = profile.profile_photo.url
+                if request:
+                    return request.build_absolute_uri(url)
+                return url
             return None
         except (AttributeError, ValueError, TypeError):
             # Handle any potential errors accessing the profile photo URL

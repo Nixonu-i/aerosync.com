@@ -64,7 +64,7 @@ export default function App() {
 }
 
 function PrivateContent() {
-  const { user, loading } = useContext(AuthContext);
+  const { user, loading, profileComplete } = useContext(AuthContext);
   const location = useLocation();
 
   if (loading) {
@@ -84,6 +84,12 @@ function PrivateContent() {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // force onboarding: customers/agents must complete profile once
+  if (!profileComplete && location.pathname !== "/profile" && !user.is_admin) {
+    // admin users are exempt
+    return <Navigate to="/profile" replace />;
   }
 
   // Admin users get their own panel

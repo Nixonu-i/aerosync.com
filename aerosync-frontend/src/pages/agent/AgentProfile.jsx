@@ -40,9 +40,8 @@ export default function AgentProfile() {
           setIsProfileComplete(true);
           setSaved(true); // already saved previously — show green button
           
-          // Check if this is first time by checking a flag
-          const hasCompletedProfile = localStorage.getItem(`profile_completed_${user?.id}`);
-          if (!hasCompletedProfile) {
+          // if back-end flag indicates setup incomplete, treat as first time
+          if (!profileData.initial_setup_done) {
             setIsFirstTime(true);
           }
         } else {
@@ -134,8 +133,7 @@ export default function AgentProfile() {
         }
       });
       
-      // Mark profile as completed to prevent future edits
-      localStorage.setItem(`profile_completed_${user?.id}`, "true");
+      // backend will set initial_setup_done; frontend state will update
       setIsProfileComplete(true);
       setIsFirstTime(false);
       setSaved(true); // flip button to green "Saved"
