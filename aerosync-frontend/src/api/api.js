@@ -1,19 +1,20 @@
-// Determine API base URL based on environment
-// Local development: vite proxy will forward /api/ to http://localhost:8000
-// Production: use the VITE_API_URL environment variable (proxied through Cloudflare tunnel)
 import axios from "axios";
 
-// Use relative paths for API calls to automatically adapt to the current origin
-// This ensures that whether accessed locally or via ngrok, the API calls go to the correct server
+// Use environment variable in production, fallback to relative in development
 const API = axios.create({
-  baseURL: "/api/",
+  baseURL: import.meta.env.VITE_API_URL || "/api/",
   timeout: 20000,
+  withCredentials: true,
 });
 
-// Simple dynamic API configuration without complex fallback
-// This will ensure that when accessed from ngrok, it uses the correct API endpoint
+// Attach JWT token
+API.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 
-// Ensure interceptors are applied to the API instance with the correct baseURL
+// Normalize error messages
 API.interceptors.response.use(
   (res) => res,
   (err) => {
@@ -22,16 +23,12 @@ API.interceptors.response.use(
       err?.response?.data?.error ||
       err?.response?.data ||
       err.message;
-    err.normalizedMessage = typeof msg === "string" ? msg : JSON.stringify(msg);
+
+    err.normalizedMessage =
+      typeof msg === "string" ? msg : JSON.stringify(msg);
+
     throw err;
   }
 );
-    baseURL: import.meta.env.VITE_API_URL || "/api/",
-// Request interceptor to attach JWT token to all requests
-API.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
 
 export default API;
