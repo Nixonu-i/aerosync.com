@@ -1,5 +1,14 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+import os
+import uuid
+
+def profile_photo_upload_to(instance, filename):
+    # generate a unique filename using user id and uuid4 to avoid collisions
+    base, ext = os.path.splitext(filename)
+    ext = ext.lower()
+    return os.path.join('profile_photos', f"user{instance.user.id}-{uuid.uuid4().hex}{ext}")
+
 
 class User(AbstractUser):
     GENDER_CHOICES = [
@@ -52,7 +61,7 @@ class Profile(models.Model):
     nationality = models.CharField(max_length=50, blank=True, null=True)
     phone_area_code = models.CharField(max_length=10, default='+254')
     phone_number = models.CharField(max_length=20, blank=True, null=True)
-    profile_photo = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
+    profile_photo = models.ImageField(upload_to=profile_photo_upload_to, blank=True, null=True)
     # track whether the user has completed all required fields during the
     # initial sign‑up flow.  once True we will stop forcing them to fill the
     # profile again.
