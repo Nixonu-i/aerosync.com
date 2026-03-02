@@ -15,7 +15,7 @@ SECRET_KEY = os.getenv("DJANGO_SECRET")
 if not SECRET_KEY:
     raise Exception("DJANGO_SECRET must be set in production")
 
-DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"
+DEBUG = False
 
 # ALLOWED_HOSTS is read from environment so that CI and production
 # can control valid hostnames.  Earlier we were manually adding
