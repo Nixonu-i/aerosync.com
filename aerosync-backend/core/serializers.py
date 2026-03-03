@@ -187,11 +187,13 @@ class AdminUserSerializer(serializers.ModelSerializer):
         try:
             profile = obj.profile
             if profile.profile_photo:
+                # Return the protected media URL that requires authentication
                 request = self.context.get("request")
-                url = profile.profile_photo.url
+                # Build the relative path to the protected media endpoint
+                protected_url = f"/api/auth/media/{profile.profile_photo.name}"
                 if request:
-                    return request.build_absolute_uri(url)
-                return url
+                    return request.build_absolute_uri(protected_url)
+                return protected_url
             return None
         except (AttributeError, ValueError, TypeError):
             # Handle any potential errors accessing the profile photo URL

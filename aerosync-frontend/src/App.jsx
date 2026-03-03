@@ -87,9 +87,22 @@ function PrivateContent() {
   }
 
   // force onboarding: customers/agents must complete profile once
-  if (!profileComplete && location.pathname !== "/profile" && !user.is_admin) {
-    // admin users are exempt
-    return <Navigate to="/profile" replace />;
+  if (!profileComplete && !user.is_admin) {
+    // Redirect to appropriate profile page based on role
+    const isAgentPath = location.pathname.startsWith('/agent');
+    const isProfilePath = location.pathname === '/profile';
+    const isAgentProfilePath = location.pathname === '/agent/profile';
+    
+    // Allow access to profile pages and auth endpoints
+    if (isProfilePath || isAgentProfilePath) {
+      // Let them stay on profile page
+    } else if (isAgentPath && user.role === 'AGENT') {
+      // Agent trying to access agent pages - redirect to agent profile
+      return <Navigate to="/agent/profile" replace />;
+    } else if (user.role === 'CUST' || !user.role) {
+      // Customer trying to access customer pages - redirect to customer profile
+      return <Navigate to="/profile" replace />;
+    }
   }
 
   // Admin users get their own panel
