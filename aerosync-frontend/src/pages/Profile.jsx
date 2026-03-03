@@ -4,6 +4,7 @@ import API from "../api/api";
 import { useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 import DateOfBirthPicker from "../components/DateOfBirthPicker";
+import ProtectedImage from "../components/ProtectedImage";
 
 export default function Profile() {
   const { user, updateUserProfile } = useContext(AuthContext);
@@ -191,12 +192,18 @@ export default function Profile() {
         <div style={{ display: "flex", alignItems: "center", gap: "20px", marginBottom: "16px" }}>
           {/* Profile Photo */}
           <div style={{ width: "64px", height: "64px", borderRadius: "50%", overflow: "hidden", border: "2px solid rgba(212,175,55,0.3)", backgroundColor: "rgba(255,255,255,0.05)" }}>
-            {(formData.profile_photo || formData.profile_photo_url) ? (
-              <img 
-                src={formData.profile_photo && typeof formData.profile_photo === 'object' ? URL.createObjectURL(formData.profile_photo) : (formData.profile_photo_url || formData.profile_photo)}
+            {(formData.profile_photo_url) ? (
+              <ProtectedImage 
+                src={formData.profile_photo_url}
                 alt="Profile" 
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                onError={(e) => console.error('Profile photo failed to load:', e.target.src)}
+                onError={(e) => console.error('Profile photo failed to load:', e)}
+              />
+            ) : formData.profile_photo ? (
+              <img 
+                src={URL.createObjectURL(formData.profile_photo)}
+                alt="Profile" 
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
             ) : (
               <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.3)" }}>

@@ -12,6 +12,7 @@ Group=nixii
 WorkingDirectory=/home/nixii/projectsem2/aerosync-backend
 Environment=PATH=/home/nixii/projectsem2/aerosync-backend/venv/bin
 Environment=DJANGO_DEBUG=0
+Environment=SERVE_MEDIA_FROM_DJANGO=1
 ExecStart=/home/nixii/projectsem2/aerosync-backend/venv/bin/gunicorn --config /home/nixii/projectsem2/aerosync-backend/gunicorn_config.py aerosync.wsgi:application
 ExecReload=/bin/kill -s HUP $MAINPID
 Restart=always
