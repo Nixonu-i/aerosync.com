@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import API from "../../api/api";
 import { useAdminUI } from "../../hooks/useAdminUI";
+import ProtectedImage from "../../components/ProtectedImage";
 
 const inputStyle = {
   width: "100%", padding: "10px 12px", border: "1px solid #ced4da",
@@ -159,9 +160,9 @@ export default function AdminUsers() {
                         <td style={{ padding: "12px 16px", color: "#6c757d", fontSize: "13px" }}>{i + 1}</td>
                         <td style={{ padding: "12px 16px", fontWeight: "700", color: "#0b1220", fontSize: "14px", display: "flex", alignItems: "center", gap: "10px" }}>
                           <div style={{ width: "32px", height: "32px", borderRadius: "50%", overflow: "hidden", backgroundColor: "rgba(0,0,0,0.05)" }}>
-                            {(u.profile_photo || u.profile_photo_url) ? (
-                              <img 
-                                src={u.profile_photo_url || u.profile_photo}
+                            {u.profile_photo_url ? (
+                              <ProtectedImage 
+                                src={u.profile_photo_url}
                                 alt="Profile"
                                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
                                 onError={(e) => e.target.style.visibility = 'hidden'}

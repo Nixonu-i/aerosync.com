@@ -73,6 +73,8 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     # ensure users complete their profile on first login (customers/agents)
     "accounts.middleware.ProfileCompletionMiddleware",
+    # block direct access to profile photos for security
+    "accounts.middleware_block_media.BlockDirectMediaAccessMiddleware",
 ]
 if not DEBUG:
     MIDDLEWARE.append("whitenoise.middleware.WhiteNoiseMiddleware")

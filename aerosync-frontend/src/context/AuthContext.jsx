@@ -16,15 +16,22 @@ export const AuthProvider = ({ children }) => {
       try {
         const profileRes = await API.get("auth/profile/");
         setUser({...res.data, profile: profileRes.data});
+        // Check backend's initial_setup_done flag
+        setProfileComplete(!!profileRes.data.initial_setup_done);
+        // Sync to localStorage for persistence
+        if (profileRes.data.initial_setup_done) {
+          localStorage.setItem(`profile_completed_${res.data.id}`, "true");
+        } else {
+          localStorage.removeItem(`profile_completed_${res.data.id}`);
+        }
       } catch {
         // If profile doesn't exist yet, just set user data
         setUser(res.data);
+        setProfileComplete(false);
+        localStorage.removeItem(`profile_completed_${res.data.id}`);
       }
       
-      // Check if profile is complete
-      const profileCompleted = localStorage.getItem(`profile_completed_${res.data.id}`);
-      setProfileComplete(!!profileCompleted);
-    } catch {
+    } catch (error) {
       setUser(null);
       setProfileComplete(false);
       localStorage.removeItem("token");
