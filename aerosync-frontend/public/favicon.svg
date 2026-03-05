@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Background Circle -->
+  <circle cx="50" cy="50" r="48" fill="#0b1220"/>
+  
+  <!-- Golden Ring -->
+  <circle cx="50" cy="50" r="42" fill="none" stroke="#d4af37" stroke-width="3"/>
+  
+  <!-- Airplane Icon (stylized) -->
+  <g transform="translate(50, 50)">
+    <!-- Plane body -->
+    <path d="M -15,-5 L 25,0 L -15,5 L -15,-5" fill="#d4af37"/>
+    <!-- Wings -->
+    <path d="M -5,-2 L 10,-12 L 15,-10 L 5,0 L 15,10 L 10,12 L -5,2 Z" fill="#d4af37"/>
+    <!-- Tail -->
+    <path d="M -12,-3 L -20,-8 L -18,-5 L -12,-3" fill="#d4af37"/>
+  </g>
+  
+  <!-- Orbital ring (representing global connectivity) -->
+  <ellipse cx="50" cy="50" rx="35" ry="12" fill="none" stroke="#20c997" stroke-width="1.5" opacity="0.6" transform="rotate(-45 50 50)"/>
+</svg>
