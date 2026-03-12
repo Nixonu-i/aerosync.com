@@ -42,3 +42,4 @@ build/
 .env.local.env.production.local
 *.service
 *.deb
+*.rpm
