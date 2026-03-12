@@ -41,3 +41,4 @@ build/
 .env.local.env.development.local
 .env.local.env.production.local
 *.service
+*.deb
