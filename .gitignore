@@ -23,3 +23,21 @@ build/
 
 # Swap files
 *.swp
+*.sh
+*.env
+*.env.local
+*.env.development.local
+*.env.production.local
+.env.local.env
+.env.development.env
+.env.production.env
+.env.local.env.local
+.env.development.env.development
+.env.production.env.production
+.env.local.env.development
+.env.local.env.production
+.env.local.env.development
+.env.local.env.production
+.env.local.env.development.local
+.env.local.env.production.local
+*.service
