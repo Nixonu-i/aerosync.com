@@ -1,0 +1,3 @@
+# Proxy Pesapal callback to backend API
+/api/payments/pesapal/callback https://api.aerosync.live/api/payments/pesapal/callback 200
+/api/payments/pesapal/ipn https://api.aerosync.live/api/payments/pesapal/ipn 200
