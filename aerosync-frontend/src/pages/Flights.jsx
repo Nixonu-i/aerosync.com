@@ -148,6 +148,9 @@ export default function Flights() {
     all_cities: []
   });
 
+  // Check if user is authenticated
+  const isAuthenticated = !!localStorage.getItem('token');
+
   // Filter states
   const [filters, setFilters] = useState({
     date: "",
@@ -239,15 +242,180 @@ export default function Flights() {
 
   return (
     <>
+      {/* Hero Header with Logo - Only show when NOT authenticated */}
+      {!isAuthenticated && (
+        <div style={{
+          background: "linear-gradient(135deg, #0b1220 0%, #1a2744 100%)",
+          padding: "30px 20px",
+          borderBottom: "2px solid rgba(212,175,55,0.3)",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.4)"
+        }}>
+          <div style={{
+            maxWidth: "1200px",
+            margin: "0 auto",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "20px"
+          }}>
+          {/* Logo Section */}
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "15px"
+          }}>
+            {/* AeroSync Logo Icon */}
+            <div style={{
+              width: "60px",
+              height: "60px",
+              background: "linear-gradient(135deg, #d4af37 0%, #f4d03f 100%)",
+              borderRadius: "12px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 4px 15px rgba(212,175,55,0.4)",
+              position: "relative",
+              overflow: "hidden"
+            }}>
+              {/* Stylized airplane/wing design */}
+              <svg viewBox="0 0 24 24" fill="white" width="36" height="36">
+                <path d="M21 16v-2l-8-5V3.5A1.5 1.5 0 0 0 11.5 2 1.5 1.5 0 0 0 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/>
+              </svg>
+              {/* Shine effect */}
+              <div style={{
+                position: "absolute",
+                top: "-50%",
+                left: "-50%",
+                width: "200%",
+                height: "200%",
+                background: "linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.3) 50%, transparent 70%)",
+                animation: "shine 3s ease-in-out infinite"
+              }} />
+            </div>
+            
+            {/* Brand Name */}
+            <div>
+              <h1 style={{
+                fontSize: "32px",
+                fontWeight: "800",
+                background: "linear-gradient(135deg, #d4af37 0%, #f4d03f 50%, #d4af37 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                margin: "0",
+                letterSpacing: "0.05em",
+                textShadow: "0 2px 10px rgba(212,175,55,0.3)",
+                lineHeight: "1.2"
+              }}>
+                AeroSync
+              </h1>
+              <p style={{
+                fontSize: "13px",
+                color: "rgba(255,255,255,0.6)",
+                margin: "4px 0 0 0",
+                letterSpacing: "0.1em",
+                textTransform: "uppercase"
+              }}>
+                Premium Air Travel
+              </p>
+            </div>
+          </div>
+          
+          {/* Navigation/CTA */}
+          <div style={{
+            display: "flex",
+            gap: "15px",
+            alignItems: "center"
+          }}>
+            {!isAuthenticated ? (
+              <>
+                <button
+                  onClick={() => navigate('/login')}
+                  style={{
+                    background: "rgba(212,175,55,0.15)",
+                    border: "2px solid rgba(212,175,55,0.4)",
+                    color: "#d4af37",
+                    padding: "10px 24px",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                    transition: "all 0.3s",
+                    letterSpacing: "0.05em"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(212,175,55,0.25)";
+                    e.currentTarget.style.borderColor = "rgba(212,175,55,0.6)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "rgba(212,175,55,0.15)";
+                    e.currentTarget.style.borderColor = "rgba(212,175,55,0.4)";
+                  }}
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => navigate('/register')}
+                  style={{
+                    background: "linear-gradient(135deg, #d4af37 0%, #f4d03f 100%)",
+                    border: "none",
+                    color: "#0b1220",
+                    padding: "10px 24px",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                    transition: "all 0.3s",
+                    boxShadow: "0 4px 14px rgba(212,175,55,0.4)",
+                    letterSpacing: "0.05em"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "linear-gradient(135deg, #c9a227 0%, #e5c545 100%)";
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                    e.currentTarget.style.boxShadow = "0 6px 20px rgba(212,175,55,0.5)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "linear-gradient(135deg, #d4af37 0%, #f4d03f 100%)";
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow = "0 4px 14px rgba(212,175,55,0.4)";
+                  }}
+                >
+                  Register
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => navigate('/')}
+                style={{
+                  background: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  color: "rgba(255,255,255,0.8)",
+                  padding: "10px 24px",
+                  borderRadius: "8px",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  transition: "all 0.3s"
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.14)"}
+                onMouseLeave={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.08)"}
+              >
+                Dashboard
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+      )}
+      
+      <style>{`
+        @keyframes shine {
+          0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+          100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+      `}</style>
+      
       <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
-        <h2 style={{
-        color: "white",
-          marginBottom: "20px",
-          fontSize: "32px",
-          fontWeight: "700",
-          textShadow: "0 2px 10px rgba(0,0,0,0.7)"
-        }}>Available Flights</h2>
-        
         {/* Filter Section */}
         <div style={{
           background: "rgba(11,18,32,0.82)",
@@ -518,7 +686,7 @@ export default function Flights() {
         ) : null}
 
         <div style={{ display: "grid", gap: "16px", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))" }}>
-          {items.map((f) => {
+          {items.map((f, index) => {
             const getStatusColor = (status) => {
               switch(status) {
                 case 'SCHEDULED': return '#28a745';
@@ -531,8 +699,21 @@ export default function Flights() {
 
             return (
               <div
-                key={f.id}
-                onClick={() => navigate(`/bookings?flight=${f.id}&seat=choice`)}
+                key={`${f.id}-${index}`}  // Combine ID with index for uniqueness
+                onClick={() => {
+                  if (isAuthenticated) {
+                    navigate(`/bookings?flight=${f.id}&seat=choice`);
+                  } else {
+                    // Redirect to login with return URL and flight ID
+                    navigate('/login', { 
+                      state: { 
+                        from: '/flights',
+                        message: 'Please login to book a flight',
+                        flightId: f.id  // Store the flight they want to book
+                      } 
+                    });
+                  }
+                }}
                 style={{
                   background: "rgba(11,18,32,0.82)",
                   border: "1px solid rgba(212,175,55,0.18)",

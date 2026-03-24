@@ -15,7 +15,8 @@ export const AuthProvider = ({ children }) => {
       // Also fetch profile data
       try {
         const profileRes = await API.get("auth/profile/");
-        setUser({...res.data, profile: profileRes.data});
+        const userData = {...res.data, profile: profileRes.data};
+        setUser(userData);
         // Check backend's initial_setup_done flag
         setProfileComplete(!!profileRes.data.initial_setup_done);
         // Sync to localStorage for persistence
@@ -24,31 +25,36 @@ export const AuthProvider = ({ children }) => {
         } else {
           localStorage.removeItem(`profile_completed_${res.data.id}`);
         }
+        return userData;
       } catch {
         // If profile doesn't exist yet, just set user data
         setUser(res.data);
         setProfileComplete(false);
         localStorage.removeItem(`profile_completed_${res.data.id}`);
+        return res.data;
       }
       
     } catch (error) {
       setUser(null);
       setProfileComplete(false);
       localStorage.removeItem("token");
+      throw error;
     }
   }, []);
 
   const login = useCallback(async (username, password) => {
     const res = await API.post("auth/login/", { username, password });
     localStorage.setItem("token", res.data.access);
-    await fetchMe();
+    const userData = await fetchMe();
+    return userData; // Return user data for role-based redirect
   }, [fetchMe]);
   
-  const updateUserProfile = useCallback((updatedUser) => {
+  const updateUserProfile = useCallback(async (updatedUser) => {
     setUser(updatedUser);
-    setProfileComplete(true);
+    // Re-fetch to get updated initial_setup_done flag from backend
+    await fetchMe();
     localStorage.setItem(`profile_completed_${updatedUser.id}`, "true");
-  }, []);
+  }, [fetchMe]);
 
   const register = useCallback(async (payload) => {
     await API.post("auth/register/", payload);

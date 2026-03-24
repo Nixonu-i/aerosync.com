@@ -1,25 +1,61 @@
 import { useContext, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import { formatErrorMessage } from "../utils/errorFormatter";
 
 export default function Login() {
   const { login } = useContext(AuthContext);
   const nav = useNavigate();
+  const location = useLocation();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  
+  // Get flight ID from previous page if user came from flights
+  const flightId = location.state?.flightId;
 
   const submit = async (e) => {
     e.preventDefault();
     setErr("");
     setBusy(true);
     try {
-      await login(username, password);
-      nav("/"); // PrivateContent will redirect admin → /admin automatically
+      const user = await login(username, password);
+      
+      // Redirect based on user role
+      if (user?.is_admin || user?.role === 'ADMIN') {
+        // Admin → Admin Dashboard
+        nav('/admin');
+      } else if (user?.is_agent || user?.role === 'AGENT') {
+        // Agent → Check if profile is complete
+        // If profile complete → Dashboard, otherwise → Profile to complete
+        if (user.profile?.initial_setup_done) {
+          nav('/agent');
+        } else {
+          nav('/agent/profile', { state: { flightId } });
+        }
+      } else {
+        // Customer/User → Customer Dashboard (profile completion will be enforced by App.jsx if needed)
+        // Pass flightId if they came from a flight booking
+        nav('/dashboard', { state: { flightId } });
+      }
     } catch (e2) {
-      setErr(e2.normalizedMessage || "Login failed");
+      // Check if it's an email verification error
+      if (e2.response?.status === 403 && e2.response?.data?.requires_verification) {
+        // Redirect to verification page with email pre-filled
+        nav("/verify-email", {
+          state: {
+            email: e2.response.data.email,
+            message: 'Please verify your email to continue.',
+            fromLogin: true,
+            autoFillEmail: true  // This tells VerifyEmail to hide the input field
+          }
+        });
+      } else {
+        // Use nice error messages
+        setErr(formatErrorMessage(e2, "Login failed. Please check your credentials and try again."));
+      }
     } finally {
       setBusy(false);
     }
@@ -34,6 +70,32 @@ export default function Login() {
       backgroundColor: "transparent",
       padding: "20px"
     }}>
+      {/* Back Button */}
+      <button
+        onClick={() => nav('/')}
+        style={{
+          position: "absolute",
+          top: "20px",
+          left: "20px",
+          background: "rgba(255,255,255,0.1)",
+          border: "1px solid rgba(255,255,255,0.2)",
+          color: "white",
+          padding: "10px 20px",
+          borderRadius: "8px",
+          fontSize: "14px",
+          fontWeight: "600",
+          cursor: "pointer",
+          transition: "all 0.3s",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px"
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.2)"}
+        onMouseLeave={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
+      >
+        ← Back to Flights
+      </button>
+      
       <div style={{
         backgroundColor: "white",
         padding: "30px",
@@ -131,6 +193,23 @@ export default function Login() {
             }}
           >
             Register here
+          </Link>
+        </div>
+        
+        <div style={{
+          textAlign: "center",
+          marginTop: "12px",
+          fontSize: "14px"
+        }}>
+          <Link 
+            to="/forgot-password"
+            style={{
+              color: "#20c997",
+              fontWeight: "600",
+              textDecoration: "underline"
+            }}
+          >
+            Forgot Password?
           </Link>
         </div>
       </div>

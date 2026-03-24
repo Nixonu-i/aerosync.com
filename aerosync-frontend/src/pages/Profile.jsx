@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import API from "../api/api";
 import { useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
@@ -9,6 +9,10 @@ import ProtectedImage from "../components/ProtectedImage";
 export default function Profile() {
   const { user, updateUserProfile } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get flight ID from login state (if user came from flights page)
+  const flightId = location.state?.flightId;
   
   const [formData, setFormData] = useState({
     date_of_birth: "",
@@ -145,6 +149,15 @@ export default function Profile() {
       // Optionally, update user context with profile data
       if (updateUserProfile) {
         updateUserProfile({ ...user, profile: formData });
+      }
+      
+      // Redirect to booking page if user came from flights
+      if (flightId) {
+        setTimeout(() => {
+          navigate(`/bookings?flight=${flightId}&seat=choice`, {
+            state: { message: 'Profile completed! Continue with your booking.' }
+          });
+        }, 1000); // Wait 1 second so user sees success message
       }
     } catch (err) {
       setError("Failed to update profile. Please try again.");

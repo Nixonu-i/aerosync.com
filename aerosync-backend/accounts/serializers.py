@@ -4,33 +4,59 @@ from .models import User, Profile
 
 class RegisterSerializer(serializers.ModelSerializer):
     password2 = serializers.CharField(write_only=True)
-    full_name = serializers.CharField(required=False, allow_blank=True)
+    first_name = serializers.CharField(required=True, max_length=30)
+    last_name = serializers.CharField(required=True, max_length=30)
 
     class Meta:
         model = User
-        fields = ["username", "email", "full_name", "password", "password2"]
+        fields = ["username", "email", "first_name", "last_name", "password", "password2"]
         extra_kwargs = {"password": {"write_only": True}}
 
     def validate(self, attrs):
         if attrs["password"] != attrs["password2"]:
             raise serializers.ValidationError({"password": "Passwords do not match."})
+        
+        # Validate password length (minimum 8 characters)
+        if len(attrs["password"]) < 8:
+            raise serializers.ValidationError({
+                "password": "Password must be at least 8 characters long."
+            })
+        
+        # Validate first name (letters and spaces only)
+        first_name = attrs.get("first_name", "").strip()
+        if not first_name or not first_name.replace(" ", "").isalpha():
+            raise serializers.ValidationError({
+                "first_name": "First name should contain only letters and spaces."
+            })
+        
+        # Validate last name (letters and spaces only)
+        last_name = attrs.get("last_name", "").strip()
+        if not last_name or not last_name.replace(" ", "").isalpha():
+            raise serializers.ValidationError({
+                "last_name": "Last name should contain only letters and spaces."
+            })
+        
+        # Check if email already exists
+        email = attrs.get("email", "").strip().lower()
+        if email:
+            User = get_user_model()
+            if User.objects.filter(email=email).exists():
+                raise serializers.ValidationError({"email": "This email is already registered. Please use a different email or login."})
+            attrs["email"] = email  # Ensure email is stored lowercase
+        
         return attrs
 
     def create(self, validated_data):
         validated_data.pop("password2")
-        full_name = validated_data.pop("full_name", "").strip().upper()
-
-        first, last = "", ""
-        if full_name:
-            parts = full_name.split()
-            first = parts[0]
-            last = " ".join(parts[1:]) if len(parts) > 1 else ""
-
+        # Convert names to uppercase for consistency
+        validated_data["first_name"] = validated_data.get("first_name", "").strip().upper()
+        validated_data["last_name"] = validated_data.get("last_name", "").strip().upper()
+        
         user = User(
             username=validated_data["username"],
             email=validated_data.get("email", ""),
-            first_name=first,
-            last_name=last,
+            first_name=validated_data["first_name"],
+            last_name=validated_data["last_name"],
             role=User.Role.CUST,
         )
         user.set_password(validated_data["password"])

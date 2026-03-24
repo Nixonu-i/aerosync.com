@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import API from "../../api/api";
 import { useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
@@ -9,6 +9,10 @@ import ProtectedImage from "../../components/ProtectedImage";
 export default function AgentProfile() {
   const { user, updateUserProfile } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get flight ID from login state (if agent came from flights page)
+  const flightId = location.state?.flightId;
   
   const [formData, setFormData] = useState({
     date_of_birth: "",
@@ -141,9 +145,21 @@ export default function AgentProfile() {
       
       setSuccess("Profile updated successfully!");
       
-      // Optionally, update user context with profile data
+      // Update user context with profile data and wait for it to refresh
       if (updateUserProfile) {
-        updateUserProfile({ ...user, profile: formData });
+        await updateUserProfile({ ...user, profile: formData });
+        
+        // Wait a moment for the context to update before any navigation
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      // Redirect to booking page if agent came from flights (for creating booking)
+      if (flightId) {
+        setTimeout(() => {
+          navigate(`/agent/create-booking?flight=${flightId}`, {
+            state: { message: 'Profile completed! Continue with booking creation.' }
+          });
+        }, 100); // Reduced delay since we already waited above
       }
     } catch (err) {
       setError("Failed to update profile. Please try again.");

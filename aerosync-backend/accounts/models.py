@@ -25,30 +25,45 @@ class User(AbstractUser):
     role = models.CharField(max_length=10, choices=Role.choices, default=Role.CUST)
     staff_id = models.CharField(max_length=20, unique=True, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
-
+    
+    # Email verification fields
+    email_verification_code = models.CharField(max_length=6, blank=True, null=True)
+    email_verification_created_at = models.DateTimeField(blank=True, null=True)
+    is_email_verified = models.BooleanField(default=False)
+    
+    # Make email unique across all users
+    email = models.EmailField(unique=True, max_length=254)
+    
+    # Mark account as pending until email is verified
+    is_pending_verification = models.BooleanField(default=True)
+    
+    # Password reset fields
+    password_reset_code = models.CharField(max_length=6, blank=True, null=True)
+    password_reset_created_at = models.DateTimeField(blank=True, null=True)
+    
     # Override the groups and user_permissions fields to avoid clashes
     groups = models.ManyToManyField(
         'auth.Group',
         verbose_name='groups',
         blank=True,
         help_text='The groups this user belongs to. A user will get all permissions granted to each of their groups.',
-        related_name="%(app_label)s_%(class)s_groups",  # Unique related_name to avoid clash
-        related_query_name="%(app_label)s_%(class)ss",  # Unique query name to avoid clash
+        related_name="%(app_label)s_%(class)s_groups",
+        related_query_name="%(app_label)s_%(class)ss",
     )
     user_permissions = models.ManyToManyField(
         'auth.Permission',
         verbose_name='user permissions',
         blank=True,
         help_text='Specific permissions for this user.',
-        related_name="%(app_label)s_%(class)s_permissions",  # Unique related_name to avoid clash
-        related_query_name="%(app_label)s_%(class)ss",  # Unique query name to avoid clash
+        related_name="%(app_label)s_%(class)s_permissions",
+        related_query_name="%(app_label)s_%(class)ss",
     )
 
     @property
     def full_name(self) -> str:
         name = f"{self.first_name} {self.last_name}".strip()
         return name or self.username
-
+    
     class Meta:
         app_label = 'accounts'
         # Custom user model

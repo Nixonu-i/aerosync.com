@@ -36,7 +36,7 @@ class FlightPagePagination(PageNumberPagination):
 class FlightViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Flight.objects.select_related("departure_airport", "arrival_airport").all()
     serializer_class = FlightSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]  # Public access - no auth required
     pagination_class = FlightPagePagination
 
     def list(self, request, *args, **kwargs):
@@ -47,6 +47,10 @@ class FlightViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        
+        # Exclude completed flights from public view
+        qs = qs.exclude(status='COMPLETED')
+        
         dep = self.request.query_params.get("departure_code")
         arr = self.request.query_params.get("arrival_code")
         date = self.request.query_params.get("date")
@@ -1041,7 +1045,7 @@ class AirlinePublicViewSet(viewsets.ReadOnlyModelViewSet):
     """Public read-only endpoint — lists active airlines for dropdowns."""
     queryset = Airline.objects.filter(is_active=True)
     serializer_class = AirlineSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]  # Public access - no auth required
 
 
 class AirlineAdminViewSet(viewsets.ModelViewSet):

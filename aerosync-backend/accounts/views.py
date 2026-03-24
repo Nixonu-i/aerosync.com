@@ -1,8 +1,9 @@
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.decorators import api_view
 from django.shortcuts import get_object_or_404
+from django.db.models import Q
 
 from .models import Profile
 from .serializers import RegisterSerializer, MeSerializer, ProfileSerializer, ProfileDetailSerializer
@@ -16,6 +17,10 @@ from django.utils._os import safe_join
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.views import TokenObtainPairView
+
+# Email verification service
+from .services.email_service import EmailVerificationService
 
 
 @api_view(["GET"])
@@ -57,6 +62,109 @@ def protected_media(request, path):
 class RegisterView(generics.CreateAPIView):
     permission_classes = [permissions.AllowAny]
     serializer_class = RegisterSerializer
+    
+    def create(self, request, *args, **kwargs):
+        # Create user account (marked as pending verification)
+        response = super().create(request, *args, **kwargs)
+        
+        # Send verification email IMMEDIATELY after registration
+        try:
+            user = self.get_queryset().get(email=response.data.get('email'))
+            print(f"📧 Sending verification email to: {user.email}")
+            code = EmailVerificationService.send_verification_email(user)
+            print(f"✅ Verification email sent! Code: {code}")  # For testing only
+        except Exception as e:
+            # Log error but don't fail registration
+            import traceback
+            print(f"❌ Failed to send verification email: {e}")
+            print(f"Traceback: {traceback.format_exc()}")
+        
+        return Response({
+            **response.data,
+            'message': 'Registration successful! Please check your email for verification code.',
+            'requires_email_verification': True
+        })
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    """
+    Custom login view that checks if email is verified before allowing login.
+    Supports login with either username OR email.
+    """
+    def post(self, request, *args, **kwargs):
+        # Support both 'email' and 'username' fields for flexibility
+        email = request.data.get('email', '').strip().lower() if request.data.get('email') else ''
+        username = request.data.get('username', '').strip() if request.data.get('username') else ''
+        
+        # Determine which identifier to use
+        identifier = email or username
+        
+        if not identifier:
+            return Response(
+                {'detail': 'Email or username is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            
+            # Try to find user by email first (since email is unique)
+            # If identifier contains @, assume it's an email
+            if '@' in identifier:
+                user = User.objects.get(email=identifier)
+            else:
+                # Otherwise try username
+                try:
+                    user = User.objects.get(username=identifier)
+                except User.DoesNotExist:
+                    # Fall back to email if username not found
+                    user = User.objects.get(email=identifier)
+            
+            # Check if account needs email verification
+            # Only block if BOTH conditions are true:
+            # 1. Still pending verification AND
+            # 2. Email NOT verified
+            if user.is_pending_verification and not user.is_email_verified:
+                print(f'🚫 User {user.username} ({user.email}) blocked - requires verification')
+                return Response(
+                    {
+                        'detail': 'Please verify your email before logging in. Check your inbox for the verification code.',
+                        'requires_verification': True,
+                        'email': user.email
+                    },
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            # User is verified or not pending - allow login
+            # We need to modify the request data to use username for JWT
+            from django.http import QueryDict
+            
+            # Create a mutable copy of request data with username set
+            mutable_data = QueryDict('', mutable=True)
+            
+            # Copy all existing fields
+            if hasattr(request.data, 'dict'):
+                # If it's a QueryDict, use .dict()
+                mutable_data.update(request.data.dict())
+            else:
+                # If it's already a dict, copy directly
+                mutable_data.update(request.data)
+            
+            # Set the correct username
+            mutable_data['username'] = user.username
+            
+            # Replace request._full_data (DRF uses this internally)
+            request._full_data = mutable_data
+            
+            return super().post(request, *args, **kwargs)
+            
+        except User.DoesNotExist:
+            # Return generic error (don't reveal if user exists or which field failed)
+            return Response(
+                {'detail': 'Invalid email/username or password'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
 
 
 class MeView(APIView):
@@ -84,15 +192,292 @@ def profile_view(request):
                 # Re-fetch the profile to get the updated data including profile_photo_url
                 profile.refresh_from_db()
                 data = ProfileDetailSerializer(profile, context={'request': request}).data
+                # Required fields for profile completion (photo is optional)
                 required = [
                     'date_of_birth',
                     'gender',
                     'nationality',
                     'phone_number',
-                    'profile_photo_url',
                 ]
                 if all(data.get(f) for f in required):
                     profile.initial_setup_done = True
                     profile.save(update_fields=['initial_setup_done'])
             return Response(serializer.data)
         return Response(serializer.errors, status=400)
+
+
+class VerifyEmailView(APIView):
+    """
+    Verify email with OTP code sent during registration
+    """
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request):
+        email = request.data.get('email')
+        code = request.data.get('code')
+        
+        if not email or not code:
+            return Response(
+                {'detail': 'Email and verification code are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            user = User.objects.get(email=email)
+            
+            # Verify the code
+            is_valid = EmailVerificationService.verify_code(user, code)
+            
+            if is_valid:
+                # Clear pending verification flag
+                user.is_pending_verification = False
+                user.save(update_fields=['is_pending_verification'])
+                
+                return Response({
+                    'detail': 'Email verified successfully!',
+                    'is_email_verified': True
+                })
+            else:
+                return Response({
+                    'detail': 'Invalid or expired verification code'
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except User.DoesNotExist:
+            return Response({
+                'detail': 'User not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+
+class RequestPasswordResetView(APIView):
+    """
+    Request password reset - sends OTP to user's email
+    """
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request):
+        identifier = request.data.get('identifier', '').strip()  # Can be email or username
+        
+        if not identifier:
+            return Response(
+                {'detail': 'Email or username is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            
+            # Try to find user by email first
+            if '@' in identifier:
+                user = User.objects.get(email=identifier)
+            else:
+                # Try username
+                try:
+                    user = User.objects.get(username=identifier)
+                except User.DoesNotExist:
+                    # Fall back to email
+                    user = User.objects.get(email=identifier)
+            
+            # Send password reset email
+            EmailVerificationService.send_password_reset_email(user)
+            
+            return Response({
+                'detail': 'Password reset code sent to your email',
+                'email': user.email
+            })
+            
+        except User.DoesNotExist:
+            return Response(
+                {'detail': 'User not found'},
+                status=status.HTTP_404_NOT_FOUND
+        )
+
+
+class VerifyPasswordResetCodeView(APIView):
+    """
+    Verify password reset OTP code
+    """
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request):
+        email = request.data.get('email')
+        code = request.data.get('code')
+        
+        if not email or not code:
+            return Response(
+                {'detail': 'Email and verification code are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            user = User.objects.get(email=email)
+            
+            # Verify the code
+            is_valid = EmailVerificationService.verify_password_reset_code(user, code)
+            
+            if is_valid:
+                return Response({
+                    'detail': 'Code verified successfully. You can now reset your password.',
+                    'email': user.email
+                })
+            else:
+                return Response({
+                    'detail': 'Invalid or expired verification code'
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except User.DoesNotExist:
+            return Response({
+                'detail': 'User not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+
+class ResetPasswordView(APIView):
+    """
+    Reset password after OTP verification
+    """
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request):
+        email = request.data.get('email')
+        new_password = request.data.get('password')
+        
+        if not email or not new_password:
+            return Response(
+                {'detail': 'Email and new password are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if len(new_password) < 6:
+            return Response(
+                {'detail': 'Password must be at least 6 characters long'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            user = User.objects.get(email=email)
+            
+            # Set new password
+            user.set_password(new_password)
+            user.save()
+            
+            return Response({
+                'detail': 'Password reset successfully! You can now login with your new password.'
+            })
+            
+        except User.DoesNotExist:
+            return Response({
+                'detail': 'User not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({
+                'detail': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+def oauth_callback(request):
+    """
+    OAuth 2.0 callback endpoint for Gmail API authorization
+    This is used by the oauth_setup.py script to capture credentials
+    """
+    from django.http import HttpResponse
+    
+    # Get the authorization code from the request
+    code = request.GET.get('code')
+    
+    if not code:
+        return HttpResponse("""
+        <html>
+            <head><title>OAuth Callback Failed</title></head>
+            <body style="font-family: Arial; text-align: center; padding: 50px;">
+                <h1 style="color: #dc3545;">❌ Authorization Failed</h1>
+                <p>No authorization code received.</p>
+                <p>Please try again.</p>
+                <script>window.close();</script>
+            </body>
+        </html>
+        """)
+    
+    # The code will be captured by the oauth_setup.py script's local server
+    # This endpoint just confirms success to the user
+    return HttpResponse("""
+    <html>
+        <head><title>Gmail OAuth Authorized</title></head>
+        <body style="font-family: Arial; text-align: center; padding: 50px; background: linear-gradient(135deg, #0b1220 0%, #1a2744 100%); color: white; min-height: 100vh;">
+            <div style="background: white; color: #333; padding: 40px; border-radius: 12px; max-width: 500px; margin: 0 auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                <h1 style="color: #28a745;">✅ Authorization Successful!</h1>
+                <p>Your Gmail account has been successfully authorized.</p>
+                <p>You can close this window and return to the terminal.</p>
+                <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                    <p style="color: #666; font-size: 14px;">AeroSync Email Service</p>
+                </div>
+            </div>
+            <script>
+                // Close window after 3 seconds
+                setTimeout(() => window.close(), 3000);
+            </script>
+        </body>
+    </html>
+    """)
+
+
+class ResendVerificationView(APIView):
+    """
+    Resend verification email with new code
+    Rate limited to prevent spam
+    """
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request):
+        email = request.data.get('email')
+        
+        if not email:
+            return Response(
+                {'detail': 'Email is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            user = User.objects.get(email=email)
+            
+            # Check if already verified
+            if user.is_email_verified:
+                return Response({
+                    'detail': 'Email is already verified'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Rate limiting: check if last code was sent less than 1 minute ago
+            if user.email_verification_created_at:
+                from django.utils import timezone
+                from datetime import timedelta
+                time_since_last = timezone.now() - user.email_verification_created_at
+                if time_since_last < timedelta(minutes=1):
+                    return Response({
+                        'detail': 'Please wait 1 minute before requesting another code'
+                    }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+            
+            # Send new verification code
+            EmailVerificationService.resend_verification(user)
+            
+            return Response({
+                'detail': 'Verification email sent successfully',
+                'message': 'Please check your email for the new verification code'
+            })
+            
+        except User.DoesNotExist:
+            # Don't reveal if user exists or not (security best practice)
+            return Response({
+                'detail': 'If this email exists, a verification code has been sent'
+            })
+        except Exception as e:
+            return Response({
+                'detail': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
