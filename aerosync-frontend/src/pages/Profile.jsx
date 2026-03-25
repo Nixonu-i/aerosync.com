@@ -165,6 +165,13 @@ export default function Profile() {
     try {
       // Prepare form data for upload
       const profileData = new FormData();
+      
+      // CRITICAL: On first-time setup, MUST send ALL required fields
+      if (isFirstTime) {
+        profileData.append('date_of_birth', formData.date_of_birth);
+        profileData.append('gender', formData.gender);
+        profileData.append('nationality', formData.nationality);
+      }
           
       // Always send phone number fields
       profileData.append('phone_area_code', formData.phone_area_code);
