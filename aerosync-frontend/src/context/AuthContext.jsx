@@ -27,12 +27,14 @@ export const AuthProvider = ({ children }) => {
         } else {
           localStorage.removeItem(`profile_completed_${res.data.id}`);
         }
+        setLoading(false); // Ensure loading is false after successful fetch
         return userData;
       } catch {
         // If profile doesn't exist yet, just set user data
         setUser(res.data);
         setProfileComplete(false);
         localStorage.removeItem(`profile_completed_${res.data.id}`);
+        setLoading(false); // Ensure loading is false
         return res.data;
       }
       
@@ -42,15 +44,17 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem("token");
         setUser(null);
         setProfileComplete(false);
+        setLoading(false); // Stop loading before navigation
         navigate('/login', { replace: true });
       } else {
         setUser(null);
         setProfileComplete(false);
         localStorage.removeItem("token");
+        setLoading(false); // Stop loading on error
       }
       throw error;
     }
-  }, []);
+  }, [navigate]); // Changed dependency to prevent circular reference
 
   const login = useCallback(async (username, password) => {
     const res = await API.post("auth/login/", { username, password });
