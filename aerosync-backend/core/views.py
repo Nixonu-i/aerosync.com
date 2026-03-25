@@ -613,6 +613,9 @@ class PesapalInitiatePaymentView(APIView):
         try:
             from .pesapal_service import PesapalService
             
+            print(f"💰 Request data received: {request.data}")
+            print(f"💰 Billing details from request: {request.data.get('billing_details', 'NOT FOUND')}")
+            
             # Get booking
             booking = Booking.objects.get(id=booking_id)
             
@@ -652,20 +655,23 @@ class PesapalInitiatePaymentView(APIView):
             
             # Submit order to Pesapal
             import time
+            # Use billing details from request if provided, otherwise fallback to profile
+            billing_details = request.data.get('billing_details', {})
+            
             order_details = {
                 'merchant_reference': f'AEROSYNC-{booking.id}-{int(time.time())}',  # Unique per attempt
                 'amount': str(test_amount),  # Change to: str(booking.total_amount)
                 'currency': 'KES',
                 'description': f'Flight Booking - {booking.confirmation_code} (TEST: 2 KES)',
-                'billing_email': booking.user.email,
-                'billing_phone': getattr(booking.user.profile, 'phone_number', ''),
-                'first_name': getattr(booking.user.profile, 'first_name', booking.user.username),
-                'last_name': getattr(booking.user.profile, 'last_name', ''),
-                'address_line1': getattr(booking.user.profile, 'address_line1', 'N/A'),
-                'address_line2': getattr(booking.user.profile, 'address_line2', ''),
-                'city': getattr(booking.user.profile, 'city', 'Nairobi'),
-                'state': getattr(booking.user.profile, 'state', ''),
-                'postal_code': getattr(booking.user.profile, 'postal_code', '00100'),
+                'billing_email': billing_details.get('email', booking.user.email),
+                'billing_phone': billing_details.get('phone_number', getattr(booking.user.profile, 'phone_number', '')),
+                'first_name': billing_details.get('first_name', getattr(booking.user.profile, 'first_name', booking.user.username)),
+                'last_name': billing_details.get('last_name', getattr(booking.user.profile, 'last_name', '')),
+                'address_line1': billing_details.get('address_line1', getattr(booking.user.profile, 'address_line1', 'N/A')),
+                'address_line2': billing_details.get('address_line2', getattr(booking.user.profile, 'address_line2', '')),
+                'city': billing_details.get('city', getattr(booking.user.profile, 'city', 'Nairobi')),
+                'state': billing_details.get('state', getattr(booking.user.profile, 'state', '')),
+                'postal_code': billing_details.get('postal_code', getattr(booking.user.profile, 'postal_code', '00100')),
                 'callback_url': settings.PESAPAL_CALLBACK_URL,
                 'notification_url': settings.PESAPAL_IPN_URL
             }
@@ -675,7 +681,15 @@ class PesapalInitiatePaymentView(APIView):
             print(f"🔵 Callback URL: {settings.PESAPAL_CALLBACK_URL}")
             print(f"🔵 IPN URL: {settings.PESAPAL_IPN_URL}")
             
+            # Force token refresh before submission
+            from django.core.cache import cache
+            cache.delete('pesapal_access_token')
+            print(f'🔄 Refreshing Pesapal token before order submission')
+            
             result = pesapal.submit_order(order_details)
+            
+            print(f"✅ Pesapal result: {result}")
+            print(f"🔵 Redirect URL: {result.get('redirect_url')}")
             
             # Update payment with Pesapal tracking ID
             payment.provider_reference = result['order_tracking_id']
@@ -935,6 +949,12 @@ class PesapalStatusCheckView(APIView):
             
             # Check status with Pesapal
             pesapal = PesapalService()
+            
+            # Clear old token cache to force refresh
+            from django.core.cache import cache
+            cache.delete('pesapal_access_token')
+            print(f'🔄 Refreshing Pesapal token for status check')
+            
             status_result = pesapal.check_transaction_status(payment.provider_reference)
             
             # Update local payment record

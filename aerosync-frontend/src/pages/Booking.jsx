@@ -128,17 +128,27 @@ function CreateBookingMultiPassenger({ flightId }) {
     window.location.href = "/bookings";
   };
   
-  const downloadPass = async (bookingId, ref) => {
+  const downloadPass = async (bookingId, ref, passengerId = null) => {
     try {
-      const res = await API.get(`bookings/${bookingId}/boarding_pass_png/`, { responseType: "blob" });
-      const url = window.URL.createObjectURL(res.data);
+      // Build URL with optional passenger_id query parameter
+      let url = `bookings/${bookingId}/boarding_pass_png/`;
+      if (passengerId) {
+        url += `?passenger_id=${passengerId}`;
+      }
+      
+      const fileName = passengerId 
+        ? `boarding-pass-${ref}-passenger-${passengerId}.png`
+        : `boarding-pass-${ref}.png`;
+      
+      const res = await API.get(url, { responseType: "blob" });
+      const blobUrl = window.URL.createObjectURL(res.data);
       const a = document.createElement("a");
-      a.href = url;
-      a.download = `boarding-pass-${ref || bookingId}.png`;
+      a.href = blobUrl;
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      window.URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(blobUrl);
     } catch (error) {
       alert(error.response?.data?.detail || "Failed to download boarding pass. Complete payment first.");
     }
@@ -1207,17 +1217,27 @@ function MyBookings() {
     load();
   }, []);
 
-  const downloadPass = async (bookingId, ref) => {
+  const downloadPass = async (bookingId, ref, passengerId = null) => {
     try {
-      const res = await API.get(`bookings/${bookingId}/boarding_pass_png/`, { responseType: "blob" });
-      const url = window.URL.createObjectURL(res.data);
+      // Build URL with optional passenger_id query parameter
+      let url = `bookings/${bookingId}/boarding_pass_png/`;
+      if (passengerId) {
+        url += `?passenger_id=${passengerId}`;
+      }
+      
+      const fileName = passengerId 
+        ? `boarding-pass-${ref}-passenger-${passengerId}.png`
+        : `boarding-pass-${ref}.png`;
+      
+      const res = await API.get(url, { responseType: "blob" });
+      const blobUrl = window.URL.createObjectURL(res.data);
       const a = document.createElement("a");
-      a.href = url;
-      a.download = `boarding-pass-${ref || bookingId}.png`;
+      a.href = blobUrl;
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      window.URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(blobUrl);
     } catch (error) {
       alert(error.response?.data?.detail || "Failed to download boarding pass. Complete payment first.");
     }
@@ -1360,17 +1380,43 @@ function BookingItem({ booking, onDownloadPass }) {
           )}
           
           {paymentStatus.boarding_pass_available && (
-            <button 
-              onClick={() => onDownloadPass(booking.id, booking.confirmation_code)}
-              style={styles.downloadButton}
-            >
-              <img 
-                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white' width='18' height='18'%3E%3Cpath d='M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z'/%3E%3C/svg%3E" 
-                alt="Download" 
-                style={{ width: '18px', height: '18px' }}
-              />
-              Download Boarding Pass
-            </button>
+            <div>
+              {/* Check if there are multiple passengers */}
+              {booking.passengers && booking.passengers.length > 1 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {booking.passengers.map((passenger, index) => (
+                    <button 
+                      key={passenger.id || index}
+                      onClick={() => onDownloadPass(booking.id, booking.confirmation_code, passenger.id)}
+                      style={{
+                        ...styles.downloadButton,
+                        marginTop: index > 0 ? '0' : '12px'
+                      }}
+                    >
+                      <img 
+                        src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white' width='18' height='18'%3E%3Cpath d='M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z'/%3E%3C/svg%3E" 
+                        alt="Download" 
+                        style={{ width: '18px', height: '18px' }}
+                      />
+                      Download - {passenger.full_name} ({booking.seat_numbers?.[index] || `Seat ${index + 1}`})
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                // Single passenger - show one button
+                <button 
+                  onClick={() => onDownloadPass(booking.id, booking.confirmation_code)}
+                  style={styles.downloadButton}
+                >
+                  <img 
+                    src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white' width='18' height='18'%3E%3Cpath d='M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z'/%3E%3C/svg%3E" 
+                    alt="Download" 
+                    style={{ width: '18px', height: '18px' }}
+                  />
+                  Download Boarding Pass
+                </button>
+              )}
+            </div>
           )}
         </div>
       ) : (

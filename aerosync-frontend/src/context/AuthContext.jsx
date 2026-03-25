@@ -1,9 +1,11 @@
 import { createContext, useCallback, useEffect, useMemo, useState } from "react";
 import API from "../api/api";
+import { useNavigate } from "react-router-dom";
 
 export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [profileComplete, setProfileComplete] = useState(false);
@@ -35,9 +37,18 @@ export const AuthProvider = ({ children }) => {
       }
       
     } catch (error) {
-      setUser(null);
-      setProfileComplete(false);
-      localStorage.removeItem("token");
+      if (error.response?.status === 401) {
+        // Token expired or invalid - clear and redirect to login
+        console.log('🔒 Session expired - redirecting to login');
+        localStorage.removeItem("token");
+        setUser(null);
+        setProfileComplete(false);
+        navigate('/login', { replace: true });
+      } else {
+        setUser(null);
+        setProfileComplete(false);
+        localStorage.removeItem("token");
+      }
       throw error;
     }
   }, []);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import API from '../api/api';
 
 const PesapalPaymentModal = ({ booking, onClose, onPaymentComplete }) => {
@@ -6,7 +6,6 @@ const PesapalPaymentModal = ({ booking, onClose, onPaymentComplete }) => {
   const [error, setError] = useState('');
   const [redirectUrl, setRedirectUrl] = useState('');
   const [paymentId, setPaymentId] = useState(null);
-  const [iframeLoaded, setIframeLoaded] = useState(false);
   const [userDetails, setUserDetails] = useState(null);
   const [formData, setFormData] = useState({
     phone_number: '',
@@ -17,6 +16,8 @@ const PesapalPaymentModal = ({ booking, onClose, onPaymentComplete }) => {
     country: ''
   });
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const pollingRef = useRef(null);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
     loadUserDetails();
@@ -72,9 +73,12 @@ const PesapalPaymentModal = ({ booking, onClose, onPaymentComplete }) => {
 
     try {
       // First, save the updated profile to backend using POST
-      await API.post('auth/profile/', formData);
+      console.log('💾 Updating profile with:', formData);
+      const profileResponse = await API.post('auth/profile/', formData);
+      console.log('✅ Profile updated:', profileResponse.data);
       
       // Then initiate payment with updated billing details
+      console.log('💳 Initiating Pesapal payment for booking:', booking.id);
       const response = await API.post(`payments/pesapal/initiate/${booking.id}/`, {
         amount: booking.total_amount,
         currency: 'KES',
@@ -90,7 +94,14 @@ const PesapalPaymentModal = ({ booking, onClose, onPaymentComplete }) => {
         }
       });
       
+      console.log('🎉 Payment initiation response:', response.data);
+      console.log('🔗 Redirect URL:', response.data.redirect_url);
+      
       const { redirect_url, order_tracking_id, payment_id } = response.data;
+      
+      if (!redirect_url) {
+        throw new Error('No redirect URL received from backend');
+      }
       
       setRedirectUrl(redirect_url);
       setPaymentId(payment_id);
@@ -110,7 +121,15 @@ const PesapalPaymentModal = ({ booking, onClose, onPaymentComplete }) => {
 
   // Poll for payment status every 3 seconds
   const startPolling = (id) => {
-    const interval = setInterval(async () => {
+    console.log('🔄 Starting polling for payment:', id);
+    
+    // Clear any existing polling
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      console.log('⚠️ Cleared existing polling interval');
+    }
+    
+    pollingRef.current = setInterval(async () => {
       try {
         const response = await API.get(`payments/pesapal/status/${id}/`);
         const { payment, booking_is_confirmed } = response.data;
@@ -119,44 +138,52 @@ const PesapalPaymentModal = ({ booking, onClose, onPaymentComplete }) => {
         console.log('🏠 Booking confirmed:', booking_is_confirmed);
         
         if (payment.status === 'SUCCESS' || booking_is_confirmed) {
-          clearInterval(interval);
+          console.log('✅ Payment successful, stopping polling');
+          stopPolling();
           onPaymentComplete(payment);
         } else if (payment.status === 'FAILED' || payment.status === 'CANCELLED') {
-          clearInterval(interval);
+          console.log('❌ Payment failed, stopping polling');
+          stopPolling();
           setError(`Payment ${payment.status.toLowerCase()}. Please try again or choose another payment method.`);
           setLoading(false);
         }
       } catch (err) {
-        console.error('❌ Status check failed:', err);
+        console.error('❌ Status check failed:', err.message);
         // Don't stop polling on network errors - user might still be paying
       }
     }, 3000);
     
-    // Store interval ID for cleanup
-    return () => clearInterval(interval);
+    console.log('✅ Polling started with interval ID:', pollingRef.current);
+  };
+  
+  const stopPolling = () => {
+    if (pollingRef.current) {
+      console.log('🛑 Stopping polling interval:', pollingRef.current);
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
   };
 
-  // Cleanup polling on unmount
+  // Start polling when payment is initiated
   useEffect(() => {
-    let cleanupFn = null;
-    
-    if (formSubmitted && redirectUrl) {
-      cleanupFn = startPolling(paymentId);
+    if (formSubmitted && redirectUrl && paymentId) {
+      startPolling(paymentId);
     }
     
+    // Cleanup on unmount/modal close
     return () => {
-      if (cleanupFn) {
-        cleanupFn();
-      }
+      console.log('🧹 Modal cleanup triggered');
+      isMountedRef.current = false;
+      stopPolling();
     };
   }, [formSubmitted, redirectUrl, paymentId]);
 
-  // Auto-iframe effect
+  // Auto-iframe effect - show iframe immediately when redirectUrl is received
   useEffect(() => {
-    if (redirectUrl && formSubmitted && !loading) {
-      setIframeLoaded(true);
+    if (redirectUrl && formSubmitted) {
+      console.log('✅ Showing iframe with URL:', redirectUrl);
     }
-  }, [redirectUrl, formSubmitted, loading]);
+  }, [redirectUrl, formSubmitted]);
 
   // Mask phone number for privacy
   const maskPhoneNumber = (phone) => {
@@ -335,7 +362,7 @@ const PesapalPaymentModal = ({ booking, onClose, onPaymentComplete }) => {
           )}
 
           {/* Iframe Payment */}
-          {formSubmitted && !error && redirectUrl && iframeLoaded && (
+          {formSubmitted && !error && redirectUrl && (
             <div>
               <div style={styles.successMessage}>
                 🔒 Secure payment powered by Pesapal
