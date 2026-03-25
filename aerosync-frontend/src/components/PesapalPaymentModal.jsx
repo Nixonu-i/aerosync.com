@@ -242,42 +242,6 @@ const PesapalPaymentModal = ({ booking, onClose, onPaymentComplete }) => {
 
         {/* Content */}
         <div style={modalStyles.content}>
-          {/* Booking Summary */}
-          <div style={styles.bookingSummary}>
-            <h3 style={styles.summaryTitle}>Booking Summary</h3>
-            <div style={styles.summaryRow}>
-              <span style={styles.summaryLabel}>Confirmation Code:</span>
-              <span style={styles.summaryValue}>{booking.confirmation_code}</span>
-            </div>
-            <div style={styles.summaryRow}>
-              <span style={styles.summaryLabel}>Flight:</span>
-              <span style={styles.summaryValue}>
-                {booking.flight_name || booking.airline_name || booking.airline || 'Flight information not available'}
-              </span>
-            </div>
-            <div style={styles.summaryRow}>
-              <span style={styles.summaryLabel}>Route:</span>
-              <span style={styles.summaryValue}>
-                {booking.route || 
-                 (booking.departure && booking.arrival ? `${booking.departure} → ${booking.arrival}` : 'Not specified')}
-              </span>
-            </div>
-            <div style={styles.summaryRow}>
-              <span style={styles.summaryLabel}>Seats:</span>
-              <span style={styles.summaryValue}>
-                {booking.seat_numbers && booking.seat_numbers.length > 0 
-                  ? booking.seat_numbers.join(', ') 
-                  : booking.passengers && booking.passengers.length > 0
-                    ? booking.passengers.map(p => p.seat_number).filter(Boolean).join(', ') || 'Not assigned'
-                    : 'Not assigned'}
-              </span>
-            </div>
-            <div style={styles.summaryRow}>
-              <span style={styles.summaryLabel}>Amount:</span>
-              <span style={styles.summaryValue}>KES {booking.total_amount?.toLocaleString()}</span>
-            </div>
-          </div>
-
           {/* Contact Information Form */}
           {!formSubmitted && (
             <div style={styles.contactForm}>
