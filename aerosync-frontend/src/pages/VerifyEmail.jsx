@@ -138,15 +138,7 @@ export default function VerifyEmail() {
       });
 
       setSuccess(true);
-      
-      // Redirect to login after 2 seconds
-      setTimeout(() => {
-        navigate('/login', { 
-          state: { 
-            message: 'Email verified successfully! Please login.' 
-          } 
-        });
-      }, 2000);
+      // No redirect - stay on page with success modal
       
     } catch (err) {
       setError(err.response?.data?.detail || 'Verification failed. Please check your code and try again.');
@@ -182,17 +174,131 @@ export default function VerifyEmail() {
     }
   };
 
-  if (success) {
-    return (
-      <div className="verify-email-page">
-        <div className="verify-card success">
-          <div className="success-icon">✓</div>
-          <h2>Email Verified!</h2>
-          <p>Your email has been successfully verified.</p>
-          <p className="redirect-text">Redirecting to login...</p>
+  // Success Modal Component
+  const SuccessModal = () => (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(11, 18, 32, 0.85)',
+      backdropFilter: 'blur(8px)',
+      WebkitBackdropFilter: 'blur(8px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 9999,
+      animation: 'fadeIn 0.3s ease-in'
+    }}>
+      <div style={{
+        background: 'linear-gradient(135deg, #0b1220 0%, #1a2744 100%)',
+        borderRadius: '20px',
+        padding: '50px 40px',
+        maxWidth: '420px',
+        width: '90%',
+        textAlign: 'center',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+        border: '1px solid rgba(212,175,55,0.3)',
+        animation: 'slideUp 0.4s ease-out'
+      }}>
+        {/* Animated Checkmark */}
+        <div style={{
+          width: '100px',
+          height: '100px',
+          margin: '0 auto 25px',
+          background: 'linear-gradient(135deg, #d4af37 0%, #f4d03f 100%)',
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '60px',
+          color: '#0b1220',
+          fontWeight: 'bold',
+          boxShadow: '0 8px 20px rgba(212,175,55,0.4)',
+          animation: 'scaleIn 0.5s ease-out 0.2s both'
+        }}>
+          ✓
         </div>
+        
+        <h2 style={{
+          color: '#d4af37',
+          margin: '0 0 15px 0',
+          fontSize: '32px',
+          fontWeight: '700',
+          letterSpacing: '1px'
+        }}>
+          Email Verified!
+        </h2>
+        
+        <p style={{
+          color: 'rgba(255,255,255,0.8)',
+          fontSize: '16px',
+          margin: '0 0 30px 0',
+          lineHeight: '1.6'
+        }}>
+          Your email has been successfully verified.<br />
+          You can now access your account.
+        </p>
+        
+        <button
+          onClick={() => navigate('/login')}
+          style={{
+            background: 'linear-gradient(135deg, #d4af37 0%, #f4d03f 100%)',
+            color: '#0b1220',
+            border: 'none',
+            padding: '14px 40px',
+            borderRadius: '10px',
+            fontSize: '16px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            boxShadow: '0 4px 15px rgba(212,175,55,0.3)'
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.transform = 'translateY(-2px)';
+            e.target.style.boxShadow = '0 6px 20px rgba(212,175,55,0.5)';
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.transform = 'translateY(0)';
+            e.target.style.boxShadow = '0 4px 15px rgba(212,175,55,0.3)';
+          }}
+        >
+          Continue to Login
+        </button>
       </div>
-    );
+      
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideUp {
+          from { 
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to { 
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes scaleIn {
+          from {
+            opacity: 0;
+            transform: scale(0.5);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+      `}</style>
+    </div>
+  );
+
+  if (success) {
+    return <SuccessModal />;
   }
 
   return (
