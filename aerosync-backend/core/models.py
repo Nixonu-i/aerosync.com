@@ -173,6 +173,7 @@ class Payment(models.Model):
         ('STRIPE', 'Stripe'),
         ('CARD', 'Credit Card'),
         ('BANK_TRANSFER', 'Bank Transfer'),
+        ('PESAPAL', 'Pesapal'),
     ]
     
     booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='payments')

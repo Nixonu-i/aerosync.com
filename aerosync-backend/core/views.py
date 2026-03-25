@@ -7,6 +7,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponse
 from django.utils import timezone
+from django.conf import settings
 
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
@@ -594,8 +595,374 @@ class PaymentProviderView(APIView):
                     "routing_number": "011000016",
                 },
             },
+            {"id": "pesapal", "name": "Pesapal", "icon": "💳"},
         ]
         return Response(providers)
+
+
+# ------------------ PESAPAL PAYMENT GATEWAY ------------------
+
+class PesapalInitiatePaymentView(APIView):
+    """
+    Initiate Pesapal payment for a booking
+    Redirects user to Pesapal iframe URL
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request, booking_id):
+        try:
+            from .pesapal_service import PesapalService
+            
+            # Get booking
+            booking = Booking.objects.get(id=booking_id)
+            
+            # Verify ownership
+            if booking.user != request.user and not (request.user.is_admin or request.user.is_agent):
+                return Response(
+                    {"detail": "You do not have permission to pay for this booking"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            # Check if booking already has successful payment
+            existing_payment = Payment.objects.filter(
+                booking=booking,
+                status='SUCCESS'
+            ).first()
+            
+            if existing_payment:
+                return Response(
+                    {"detail": "Booking already paid", "payment": PaymentSerializer(existing_payment).data},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Create pending payment record
+            # TEST MODE: Use 2 KES for testing
+            test_amount = Decimal('2.00')  # Remove this line after testing
+            
+            payment = Payment.objects.create(
+                booking=booking,
+                provider='PESAPAL',
+                amount=test_amount,  # Change to: booking.total_amount
+                currency='KES',
+                status='PENDING'
+            )
+            
+            # Initialize Pesapal service
+            pesapal = PesapalService()
+            
+            # Submit order to Pesapal
+            import time
+            order_details = {
+                'merchant_reference': f'AEROSYNC-{booking.id}-{int(time.time())}',  # Unique per attempt
+                'amount': str(test_amount),  # Change to: str(booking.total_amount)
+                'currency': 'KES',
+                'description': f'Flight Booking - {booking.confirmation_code} (TEST: 2 KES)',
+                'billing_email': booking.user.email,
+                'billing_phone': getattr(booking.user.profile, 'phone_number', ''),
+                'first_name': getattr(booking.user.profile, 'first_name', booking.user.username),
+                'last_name': getattr(booking.user.profile, 'last_name', ''),
+                'address_line1': getattr(booking.user.profile, 'address_line1', 'N/A'),
+                'address_line2': getattr(booking.user.profile, 'address_line2', ''),
+                'city': getattr(booking.user.profile, 'city', 'Nairobi'),
+                'state': getattr(booking.user.profile, 'state', ''),
+                'postal_code': getattr(booking.user.profile, 'postal_code', '00100'),
+                'callback_url': settings.PESAPAL_CALLBACK_URL,
+                'notification_url': settings.PESAPAL_IPN_URL
+            }
+            
+            # Debug log
+            print(f"🔵 Pesapal order details: {order_details}")
+            print(f"🔵 Callback URL: {settings.PESAPAL_CALLBACK_URL}")
+            print(f"🔵 IPN URL: {settings.PESAPAL_IPN_URL}")
+            
+            result = pesapal.submit_order(order_details)
+            
+            # Update payment with Pesapal tracking ID
+            payment.provider_reference = result['order_tracking_id']
+            payment.save()
+            
+            return Response({
+                'redirect_url': result['redirect_url'],
+                'order_tracking_id': result['order_tracking_id'],
+                'payment_id': payment.id,
+                'amount': str(test_amount),  # Change to: str(booking.total_amount)
+                'currency': 'KES'
+            })
+            
+        except Booking.DoesNotExist:
+            return Response(
+                {"detail": "Booking not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            print(f"❌ Pesapal initiation error: {str(e)}")
+            return Response(
+                {"detail": f"Payment initiation failed: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class PesapalCallbackView(APIView):
+    """
+    Pesapal callback after payment completion
+    User is redirected here after completing payment on Pesapal
+    """
+    permission_classes = [permissions.AllowAny]
+    
+    def get(self, request):
+        # Get parameters from Pesapal callback
+        order_tracking_id = request.GET.get('orderTrackingId')
+        merchant_reference = request.GET.get('OrderMerchantReference')
+        
+        if not order_tracking_id:
+            return HttpResponse("Invalid callback parameters")
+        
+        print(f"🔔 Pesapal callback received: {order_tracking_id}")
+        
+        # CRITICAL: Must call GetTransactionStatus API to get actual payment status
+        try:
+            from .pesapal_service import PesapalService
+            pesapal = PesapalService()
+            status_result = pesapal.get_transaction_status(order_tracking_id)
+            
+            print(f"📊 Transaction status response: {status_result}")
+            
+            payment_status = status_result.get('payment_status_description', '').upper()
+            status_code = status_result.get('status_code', '')  # 0=INVALID, 1=COMPLETED, 2=FAILED, 3=REVERSED
+            confirmation_code = status_result.get('confirmation_code', '')
+            
+            # Find and update payment record
+            payment = Payment.objects.filter(provider_reference=order_tracking_id).first()
+            
+            if payment:
+                # Use BOTH status_code and text description for reliability
+                if payment_status in ['COMPLETED', 'COMPLETE'] or status_code == '1':
+                    payment.status = 'SUCCESS'
+                    payment.payment_detail = (
+                        f"Confirmation: {confirmation_code} | "
+                        f"Method: {status_result.get('payment_method', 'N/A')} | "
+                        f"Amount: {status_result.get('amount', 0)} {status_result.get('currency', 'KES')}"
+                    )
+                    payment.booking.booking_status = 'CONFIRMED'
+                    payment.booking.save()
+                    print(f"✅ Payment SUCCESS for booking {payment.booking.id}")
+                    
+                elif payment_status == 'FAILED' or status_code == '2':
+                    payment.status = 'FAILED'
+                    payment.payment_detail = f"Failed: {status_result.get('description', 'Payment failed')}"
+                    payment.save()
+                    print(f"❌ Payment FAILED")
+                    
+                elif payment_status in ['INVALID', 'CANCELLED'] or status_code == '0':
+                    payment.status = 'CANCELLED'
+                    payment.payment_detail = f"Invalid transaction - {status_result.get('description', '')}"
+                    payment.save()
+                    print(f"⛔ Payment INVALID")
+                    
+                elif payment_status == 'REVERSED' or status_code == '3':
+                    payment.status = 'REVERSED'
+                    payment.payment_detail = f"Reversed - {status_result.get('description', '')}"
+                    payment.save()
+                    print(f"↩️ Payment REVERSED")
+                    
+                payment.save()
+        except Exception as e:
+            print(f"⚠️ Error fetching transaction status: {e}")
+            # Continue with redirect anyway
+        
+        # Redirect to frontend bookings page
+        frontend_url = "/bookings"
+        
+        return HttpResponse(f'''<!DOCTYPE html>
+<html>
+<head>
+    <title>Processing Payment...</title>
+    <script>
+        window.location.href = "{frontend_url}";
+    </script>
+</head>
+<body>
+    <p>Processing your payment...</p>
+</body>
+</html>''')
+
+
+class PesapalIPNView(APIView):
+    """
+    Instant Payment Notification (IPN) from Pesapal
+    Pesapal sends POST request when payment status changes
+    """
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request):
+        try:
+            from .pesapal_service import PesapalService
+            
+            # Parse IPN notification
+            notification = PesapalService.parse_ipn_notification(request.data)
+            
+            order_tracking_id = notification.get('order_tracking_id')
+            merchant_reference = notification.get('order_merchant_reference')
+            
+            print(f"🔔 Pesapal IPN received: {order_tracking_id}")
+            print(f"📋 Full IPN payload: {request.data}")
+            
+            if not order_tracking_id:
+                print("⚠️ No tracking ID in IPN")
+                return Response({"status": "received"})
+            
+            # CRITICAL: Must call GetTransactionStatus API to get actual payment status
+            pesapal = PesapalService()
+            status_result = pesapal.get_transaction_status(order_tracking_id)
+            
+            print(f"📊 Transaction status response: {status_result}")
+            
+            payment_status = status_result.get('payment_status_description', '').upper()
+            status_code = status_result.get('status_code', '')  # 0=INVALID, 1=COMPLETED, 2=FAILED, 3=REVERSED
+            confirmation_code = status_result.get('confirmation_code', '')
+            payment_method = status_result.get('payment_method', '')
+            
+            print(f"✅ Payment status from API: {payment_status} (Code: {status_code})")
+            
+            # Extract booking ID from merchant reference (format: AEROSYNC-{booking_id})
+            booking_id = None
+            if merchant_reference and merchant_reference.startswith('AEROSYNC-'):
+                try:
+                    booking_id = int(merchant_reference.replace('AEROSYNC-', ''))
+                except ValueError:
+                    pass
+            
+            # Find payment by tracking ID or booking
+            payment = None
+            if order_tracking_id:
+                payment = Payment.objects.filter(provider_reference=order_tracking_id).first()
+            
+            if not payment and booking_id:
+                payment = Payment.objects.filter(booking_id=booking_id, provider='PESAPAL').order_by('-created_at').first()
+            
+            if not payment:
+                print(f"⚠️ Payment not found for tracking ID: {order_tracking_id}")
+                return Response({"status": "received"})  # Still acknowledge receipt
+            
+            # Update payment status based on notification
+            # Use BOTH status_code (0=INVALID, 1=COMPLETED, 2=FAILED, 3=REVERSED) and text description
+            if payment_status in ['COMPLETED', 'COMPLETE'] or status_code == '1':
+                payment.status = 'SUCCESS'
+                payment.payment_detail = (
+                    f"Confirmation: {confirmation_code} | "
+                    f"Method: {payment_method} | "
+                    f"Account: {status_result.get('payment_account', 'N/A')} | "
+                    f"Amount: {status_result.get('amount', 0)} {status_result.get('currency', 'KES')}"
+                )
+                
+                # Mark booking as paid
+                payment.booking.booking_status = 'CONFIRMED'
+                payment.booking.save()
+                
+                print(f"✅ Payment SUCCESS for booking {payment.booking.id}")
+                
+            elif payment_status == 'FAILED' or status_code == '2':
+                payment.status = 'FAILED'
+                payment.payment_detail = (
+                    f"Failed: {status_result.get('description', 'Payment failed')} | "
+                    f"Method: {payment_method}"
+                )
+                payment.save()
+                print(f"❌ Payment FAILED for booking {payment.booking.id}")
+                
+            elif payment_status in ['INVALID', 'CANCELLED'] or status_code == '0':
+                payment.status = 'CANCELLED'
+                payment.payment_detail = f"Invalid transaction - {status_result.get('description', '')}"
+                payment.save()
+                print(f"⛔ Payment INVALID/CANCELLED for booking {payment.booking.id}")
+                
+            elif payment_status == 'REVERSED' or status_code == '3':
+                payment.status = 'REVERSED'
+                payment.payment_detail = f"Reversed - {status_result.get('description', '')}"
+                payment.save()
+                print(f"↩️ Payment REVERSED for booking {payment.booking.id}")
+            
+            payment.save()
+            
+            # Return JSON response as required by Pesapal
+            print(f"✅ IPN processed successfully for {order_tracking_id}")
+            return Response({
+                "orderNotificationType": "IPNCHANGE",
+                "orderTrackingId": order_tracking_id,
+                "orderMerchantReference": merchant_reference,
+                "status": 200
+            })
+            
+        except Exception as e:
+            print(f"❌ Error processing Pesapal IPN: {str(e)}")
+            # Return 200 anyway to prevent retries on our end
+            return Response({"status": "error", "message": str(e)})
+
+
+class PesapalStatusCheckView(APIView):
+    """
+    Manually check Pesapal payment status
+    Used by frontend to poll for payment completion
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, payment_id):
+        try:
+            from .pesapal_service import PesapalService
+            
+            payment = Payment.objects.get(id=payment_id)
+            
+            # Verify ownership
+            if payment.booking.user != request.user and not (request.user.is_admin or request.user.is_agent):
+                return Response(
+                    {"detail": "You do not have permission to check this payment"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            if payment.provider != 'PESAPAL':
+                return Response(
+                    {"detail": "Not a Pesapal payment"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if not payment.provider_reference:
+                return Response(
+                    {"detail": "No Pesapal tracking ID found"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Check status with Pesapal
+            pesapal = PesapalService()
+            status_result = pesapal.check_transaction_status(payment.provider_reference)
+            
+            # Update local payment record
+            if status_result['status'] in ['COMPLETED', 'COMPLETE']:
+                payment.status = 'SUCCESS'
+                payment.payment_detail = f"Confirmation: {status_result.get('confirmation_code', '')} | Method: {status_result.get('payment_method', '')}"
+                payment.booking.booking_status = 'CONFIRMED'
+                payment.booking.save()
+            elif status_result['status'] == 'FAILED':
+                payment.status = 'FAILED'
+            
+            payment.save()
+            
+            return Response({
+                'payment': PaymentSerializer(payment).data,
+                'pesapal_status': status_result,
+                'booking_is_confirmed': payment.booking.booking_status == 'CONFIRMED'
+            })
+            
+        except Payment.DoesNotExist:
+            return Response(
+                {"detail": "Payment not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            print(f"❌ Pesapal status check error: {str(e)}")
+            return Response(
+                {"detail": f"Status check failed: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 # ------------------ ADMIN CRUD ------------------

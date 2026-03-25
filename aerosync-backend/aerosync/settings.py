@@ -135,6 +135,15 @@ ROOT_URLCONF = "aerosync.urls"
 WSGI_APPLICATION = "aerosync.wsgi.application"
 ASGI_APPLICATION = "aerosync.asgi.application"
 
+# Cache configuration for Pesapal token caching
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'pesapal-cache',
+        'TIMEOUT': 3600,
+    }
+}
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -188,11 +197,13 @@ CORS_ALLOWED_ORIGINS = [
     "https://api.aerosync.live",  # <-- add backend tunnel domain
     "http://127.0.0.1:5173",       # local dev
     "http://localhost:5173",       # local dev
+    "https://*.pages.dev",         # Cloudflare Pages preview deployments
 ]
 
 # Allow Vercel deployments
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https://.*\.vercel\.app$",
+    r"^https://.*\.pages\.dev$",   # Cloudflare Pages
 ]
 
 # Allow your Cloudflare tunnel domain
@@ -311,3 +322,21 @@ DEFAULT_FROM_EMAIL = f'AeroSync <{GMAIL_SENDER_EMAIL}>' if GMAIL_SENDER_EMAIL el
 
 # Email verification settings
 EMAIL_VERIFICATION_EXPIRY_MINUTES = 15  # Code expires after 15 minutes
+
+# -------------------------------------------------------------------
+# Pesapal Payment Gateway Configuration
+# -------------------------------------------------------------------
+
+PESAPAL_CONSUMER_KEY = os.getenv('PESAPAL_CONSUMER_KEY', '')
+PESAPAL_CONSUMER_SECRET = os.getenv('PESAPAL_CONSUMER_SECRET', '')
+PESAPAL_ENVIRONMENT = os.getenv('PESAPAL_ENVIRONMENT', 'sandbox')  # 'sandbox' or 'production'
+
+# Pesapal API URLs
+PESAPAL_API_URLS = {
+    'sandbox': 'https://cybqa.pesapal.com/pesapalv3',
+    'production': 'https://pay.pesapal.com/v3',
+}
+
+# Callback URLs (must be publicly accessible)
+PESAPAL_CALLBACK_URL = os.getenv('PESAPAL_CALLBACK_URL', 'https://api.aerosync.live/api/payments/pesapal/callback/')
+PESAPAL_IPN_URL = os.getenv('PESAPAL_IPN_URL', 'https://api.aerosync.live/api/payments/pesapal/ipn/')

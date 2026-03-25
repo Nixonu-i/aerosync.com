@@ -5,6 +5,7 @@ import { AuthContext } from "../context/AuthContext";
 import MultiPassengerBooking from "../components/MultiPassengerBooking";
 import DateOfBirthPicker from "../components/DateOfBirthPicker";
 import ImprovedMultiPassengerBooking from "../components/ImprovedMultiPassengerBooking";
+import PesapalPayment from "../components/PesapalPayment";
 
 export default function Booking() {
   const { user } = useContext(AuthContext);
@@ -1246,6 +1247,7 @@ function BookingItem({ booking, onDownloadPass }) {
   const [paymentProviders, setPaymentProviders] = useState([]);
   const [selectedProvider, setSelectedProvider] = useState('');
   const [paymentDetails, setPaymentDetails] = useState({});
+  const [showPesapalModal, setShowPesapalModal] = useState(false);
   
   const showFlashMessage = (message, type = 'error') => {
     setFlashMessage({show: true, type, message});
@@ -1291,6 +1293,13 @@ function BookingItem({ booking, onDownloadPass }) {
   const handlePaymentSubmit = async () => {
     if (!selectedProvider) {
       showFlashMessage("Please select a payment provider", 'error');
+      return;
+    }
+
+    // Handle Pesapal separately - redirect to iframe
+    if (selectedProvider === 'pesapal') {
+      setShowPaymentModal(false);
+      setShowPesapalModal(true);
       return;
     }
 
@@ -1605,7 +1614,7 @@ function BookingItem({ booking, onDownloadPass }) {
               >
                 <option value="">Select Provider</option>
                 {paymentProviders.map(provider => (
-                  <option key={provider.id} value={provider.id}>{provider.name}</option>
+                  <option key={provider.id} value={provider.id}>{provider.name} {provider.icon ? provider.icon : ''}</option>
                 ))}
               </select>
             </div>
@@ -1800,6 +1809,22 @@ function BookingItem({ booking, onDownloadPass }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Pesapal Payment Modal */}
+      {showPesapalModal && (
+        <PesapalPayment
+          booking={booking}
+          onPaymentComplete={(payment) => {
+            setShowPesapalModal(false);
+            showFlashMessage('Payment completed successfully!', 'success');
+            loadPaymentStatus();
+          }}
+          onCancel={() => {
+            setShowPesapalModal(false);
+            setShowPaymentModal(true); // Return to payment selection
+          }}
+        />
       )}
     </div>
   );
