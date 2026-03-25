@@ -638,14 +638,18 @@ class PesapalInitiatePaymentView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Create pending payment record
-            # TEST MODE: Use 2 KES for testing
-            test_amount = Decimal('2.00')  # Remove this line after testing
+            # ENFORCEMENT: Validate that booking has a valid total_amount
+            if not booking.total_amount or booking.total_amount <= 0:
+                return Response(
+                    {"detail": "Invalid booking amount. Please contact support."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             
+            # Create pending payment record with ACTUAL booking amount
             payment = Payment.objects.create(
                 booking=booking,
                 provider='PESAPAL',
-                amount=test_amount,  # Change to: booking.total_amount
+                amount=booking.total_amount,  # Use REAL booking amount
                 currency='KES',
                 status='PENDING'
             )
@@ -660,9 +664,9 @@ class PesapalInitiatePaymentView(APIView):
             
             order_details = {
                 'merchant_reference': f'AEROSYNC-{booking.id}-{int(time.time())}',  # Unique per attempt
-                'amount': str(test_amount),  # Change to: str(booking.total_amount)
+                'amount': str(booking.total_amount),  # Use REAL booking amount
                 'currency': 'KES',
-                'description': f'Flight Booking - {booking.confirmation_code} (TEST: 2 KES)',
+                'description': f'Flight Booking - {booking.confirmation_code}',
                 'billing_email': billing_details.get('email', booking.user.email),
                 'billing_phone': billing_details.get('phone_number', getattr(booking.user.profile, 'phone_number', '')),
                 'first_name': billing_details.get('first_name', getattr(booking.user.profile, 'first_name', booking.user.username)),
@@ -699,7 +703,7 @@ class PesapalInitiatePaymentView(APIView):
                 'redirect_url': result['redirect_url'],
                 'order_tracking_id': result['order_tracking_id'],
                 'payment_id': payment.id,
-                'amount': str(test_amount),  # Change to: str(booking.total_amount)
+                'amount': str(booking.total_amount),  # Use REAL booking amount
                 'currency': 'KES'
             })
             

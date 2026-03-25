@@ -151,12 +151,15 @@ const PesapalPaymentModal = ({ booking, onClose, onPaymentComplete }) => {
         
         
         if (payment.status === 'SUCCESS' || booking_is_confirmed) {
+          // ONLY close modal on SUCCESS
           stopPolling();
-          onPaymentComplete(payment);
+          onPaymentComplete(payment);  // This will close the modal
         } else if (payment.status === 'FAILED' || payment.status === 'CANCELLED') {
+          // Don't close modal on FAILED - let user try again
           stopPolling();
           setError(`Payment ${payment.status.toLowerCase()}. Please try again or choose another payment method.`);
           setLoading(false);
+          // Modal stays open - user can retry or close manually
         }
       } catch (err) {
         // Don't stop polling on network errors - user might still be paying
@@ -408,9 +411,9 @@ const PesapalPaymentModal = ({ booking, onClose, onPaymentComplete }) => {
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: "rgba(11, 18, 32, 0.6)",
-              backdropFilter: "blur(4px)",
-              WebkitBackdropFilter: "blur(4px)",
+              backgroundColor: "rgba(11, 18, 32, 0.85)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
