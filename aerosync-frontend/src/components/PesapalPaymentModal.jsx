@@ -406,19 +406,18 @@ const PesapalPaymentModal = ({ booking, onClose, onPaymentComplete }) => {
           {/* Loading Overlay */}
           {loading && (
             <div style={{
-              position: "absolute",
+              position: "fixed",
               top: 0,
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: "rgba(11, 18, 32, 0.85)",
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)",
+              backgroundColor: "rgba(11, 18, 32, 0.6)",
+              backdropFilter: "blur(4px)",
+              WebkitBackdropFilter: "blur(4px)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              zIndex: 9999,
-              borderRadius: "16px"
+              zIndex: 9999
             }}>
               <div style={{
                 backgroundColor: "rgba(255, 255, 255, 0.95)",
