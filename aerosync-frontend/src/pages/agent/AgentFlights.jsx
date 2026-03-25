@@ -164,7 +164,7 @@ export default function AgentFlights() {
                     <td style={{ padding: "10px 14px", color: "rgba(255,255,255,0.8)" }}>{f.airline || "—"}</td>
                     <td style={{ padding: "10px 14px", color: "rgba(255,255,255,0.8)" }}>{f.duration_minutes ? `${f.duration_minutes}m` : "—"}</td>
                     <td style={{ padding: "10px 14px", color: teal, fontWeight: 700 }}>
-                      {f.price != null ? `$${Number(f.price).toFixed(2)}` : "—"}
+                      {f.price != null ? `KES ${Number(f.price).toLocaleString()}` : "—"}
                     </td>
                     <td style={{ padding: "10px 14px" }}>
                       <span style={{

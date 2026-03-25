@@ -104,11 +104,8 @@ export default function Register() {
     
     setBusy(true);
     try {
-      console.log('📤 Registering user...', form.email);
       const response = await register(form);
-      console.log('✅ Registration response:', response);
       // Redirect to email verification page with email pre-filled
-      console.log('🔄 Navigating to verify-email...');
       nav("/verify-email", { 
         state: { 
           email: form.email,
@@ -117,7 +114,6 @@ export default function Register() {
         } 
       });
     } catch (e2) {
-      console.error('❌ Registration error:', e2);
       // Use nice error messages
       setErr(formatErrorMessage(e2, "Registration failed. Please check your information and try again."));
     } finally {

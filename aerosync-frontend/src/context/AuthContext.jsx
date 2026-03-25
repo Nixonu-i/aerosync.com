@@ -39,7 +39,6 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       if (error.response?.status === 401) {
         // Token expired or invalid - clear and redirect to login
-        console.log('🔒 Session expired - redirecting to login');
         localStorage.removeItem("token");
         setUser(null);
         setProfileComplete(false);

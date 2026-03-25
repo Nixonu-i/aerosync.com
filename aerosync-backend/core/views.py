@@ -709,9 +709,14 @@ class PesapalInitiatePaymentView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
-            print(f"❌ Pesapal initiation error: {str(e)}")
+            # Log full error internally for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Pesapal initiation error: {str(e)}", exc_info=True)
+            
+            # Return generic user-friendly error (hide Pesapal details)
             return Response(
-                {"detail": f"Payment initiation failed: {str(e)}"},
+                {"detail": "Cannot initiate payment. Please try again or contact support."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -980,9 +985,14 @@ class PesapalStatusCheckView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
-            print(f"❌ Pesapal status check error: {str(e)}")
+            # Log full error internally for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Pesapal status check error: {str(e)}", exc_info=True)
+            
+            # Return generic user-friendly error (hide Pesapal details)
             return Response(
-                {"detail": f"Status check failed: {str(e)}"},
+                {"detail": "Cannot check payment status. Please try again."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 

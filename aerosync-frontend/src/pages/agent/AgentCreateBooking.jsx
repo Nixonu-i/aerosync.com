@@ -151,7 +151,7 @@ function PassengerForm({ index, data, onChange, onRemove, showRemove }) {
                   placeholder="Phone number"
                   inputMode="numeric"
                   maxLength={15}
-                  onChange={e => set("phone_number", e.target.value.replace(/[^0-9]/g, ""))} />
+                  onChange={e => set("phone_number", e.target.value.replace(/[^0-9]/g, "")) } />
               </div>
             </div>
             <div>
@@ -650,18 +650,13 @@ export default function AgentCreateBooking() {
         seat_ids,
       });
       
-      console.log('✅ Booking created:', res.data);
-      
       // Fetch full booking details with flight info, seats, etc.
       const fullBooking = await API.get(`agent/bookings/${res.data.booking_id}/`);
-      console.log('📋 Full booking data:', fullBooking.data);
-      console.log('🛫 Flight name:', fullBooking.data.flight_name);
-      console.log('✈️ Flight object:', fullBooking.data.flight);
-      console.log('💺 Seat numbers:', fullBooking.data.seat_numbers);
-      console.log('🎫 Flight number (direct):', fullBooking.data.flight_number);
       
       setBooking(fullBooking.data);
       setStep("done");
+
+      
     } catch (e) {
       setErr(e?.response?.data?.detail || JSON.stringify(e?.response?.data) || "Booking failed.");
     } finally {
@@ -681,7 +676,7 @@ export default function AgentCreateBooking() {
       <div style={{ maxWidth: "640px" }}>
         <div style={{ background: "rgba(40,167,69,0.10)", border: "1px solid #28a745", borderRadius: "14px", padding: "28px", marginBottom: "20px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "18px" }}>
-            <span style={{ fontSize: "40px" }}>✅</span>
+            <span style={{ fontSize: "40px" }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
             <div>
               <div style={{ color: "#28a745", fontWeight: 800, fontSize: "20px" }}>Booking Created!</div>
               <div style={{ color: "rgba(255,255,255,0.6)", fontSize: "14px", marginTop: "3px" }}>Awaiting payment to confirm.</div>
@@ -715,7 +710,7 @@ export default function AgentCreateBooking() {
             </button>
             <button type="button" onClick={() => setShowPesapalModal(true)}
               style={{ background: teal, color: "#fff", border: "none", borderRadius: "8px", padding: "11px 24px", cursor: "pointer", fontWeight: 800 }}>
-              💳 Pay Now
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> Pay Now
             </button>
           </div>
         </div>
@@ -992,7 +987,7 @@ export default function AgentCreateBooking() {
           </div>
 
           <div style={{ background: "rgba(253,126,20,0.08)", border: "1px solid rgba(253,126,20,0.25)", borderRadius: "8px", padding: "12px 16px", marginBottom: "20px", fontSize: "13px", color: "rgba(255,255,255,0.7)" }}>
-            ℹ️ Booking will be created as <strong style={{ color: "#fd7e14" }}>PENDING</strong>. Payment is required to confirm and generate the boarding pass.
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> Booking will be created as <strong style={{ color: "#fd7e14" }}>PENDING</strong>. Payment is required to confirm and generate the boarding pass.
           </div>
 
           <div style={{ display: "flex", gap: "12px" }}>

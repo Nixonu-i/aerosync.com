@@ -55,20 +55,11 @@ class PesapalService:
         }
         
         try:
-            print(f"🔵 Requesting token from: {url}")
-            print(f"🔵 Consumer Key: {self.consumer_key[:20]}...")  # Show first 20 chars only
-            print(f"🔵 Environment: {self.environment}")
-            print(f"🔵 Base URL: {self.base_url}")
-            print(f"🔵 Sending JSON payload")
             
             response = requests.post(url, json=payload, headers=headers, timeout=10)
             
-            print(f"🔵 Response status: {response.status_code}")
-            print(f"🔵 Response body: {response.text[:200]}")  # First 200 chars
             
             if response.status_code == 401:
-                print(f"❌ Authentication failed - check consumer key and secret!")
-                print(f"❌ Key length: {len(self.consumer_key)}, Secret length: {len(self.consumer_secret)}")
                 raise Exception("Pesapal authentication failed: Invalid credentials (401)")
             
             response.raise_for_status()
@@ -82,14 +73,11 @@ class PesapalService:
             # Cache the token
             cache.set(self.TOKEN_CACHE_KEY, token, self.TOKEN_EXPIRY_SECONDS)
             
-            print(f"✅ Pesapal: New access token obtained")
             return token
             
         except requests.exceptions.RequestException as e:
-            print(f"❌ Pesapal authentication failed: {str(e)}")
             if hasattr(e, 'response') and e.response is not None:
-                print(f"❌ Response content: {e.response.text}")
-            raise Exception(f"Pesapal authentication failed: {str(e)}")
+                raise Exception(f"Pesapal authentication failed: {str(e)}")
     
     def register_ipn_url(self):
         """
@@ -99,7 +87,6 @@ class PesapalService:
         # Try to get from cache first
         ipn_id = cache.get(self.IPN_CACHE_KEY)
         if ipn_id:
-            print(f"✅ Using cached IPN ID: {ipn_id}")
             return ipn_id
         
         # Register the IPN URL
@@ -117,12 +104,10 @@ class PesapalService:
         }
         
         try:
-            print(f"🔵 Registering IPN URL: {self.ipn_url}")
             response = requests.post(url, json=payload, headers=headers, timeout=10)
             response.raise_for_status()
             
             data = response.json()
-            print(f"🔵 IPN Registration response: {data}")
             
             if data.get('error'):
                 raise Exception(f"Pesapal IPN registration error: {data.get('error')}")
@@ -136,14 +121,11 @@ class PesapalService:
             # Cache the IPN ID (long-term cache)
             cache.set(self.IPN_CACHE_KEY, ipn_id, 86400 * 30)  # Cache for 30 days
             
-            print(f"✅ IPN URL registered successfully! ID: {ipn_id}, Status: {ipn_status}")
             return ipn_id
             
         except requests.exceptions.RequestException as e:
-            print(f"❌ IPN registration failed: {str(e)}")
             if hasattr(e, 'response') and e.response is not None:
-                print(f"❌ Response content: {e.response.text}")
-            raise Exception(f"IPN registration failed: {str(e)}")
+                raise Exception(f"IPN registration failed: {str(e)}")
     
     def submit_order(self, order_details):
         """
@@ -201,24 +183,18 @@ class PesapalService:
         
         # Debug log - show exact JSON being sent
         import json
-        print(f"🔵 Pesapal payload JSON: {json.dumps(payload, indent=2)}")
         
         # Debug log
-        print(f"🔵 Pesapal payload: {payload}")
         
         try:
-            print(f"🔵 Submitting order to: {url}")
             response = requests.post(url, json=payload, headers=headers, timeout=10)
             
-            print(f"🔵 Response status: {response.status_code}")
-            print(f"🔵 Response body: {response.text[:300]}")  # First 300 chars
             
             response.raise_for_status()
             
             data = response.json()
             
             if data.get('error'):
-                print(f"❌ Pesapal error response: {data.get('error')}")
                 raise Exception(f"Pesapal error: {data.get('error')}")
             
             redirect_url = data.get('redirect_url')
@@ -227,7 +203,6 @@ class PesapalService:
             if not redirect_url or not order_tracking_id:
                 raise Exception("Pesapal did not return redirect URL or tracking ID")
             
-            print(f"✅ Pesapal order submitted: {order_tracking_id}")
             
             return {
                 'redirect_url': redirect_url,
@@ -236,7 +211,6 @@ class PesapalService:
             }
             
         except requests.exceptions.RequestException as e:
-            print(f"❌ Pesapal order submission failed: {str(e)}")
             raise Exception(f"Pesapal order submission failed: {str(e)}")
     
     def check_transaction_status(self, order_tracking_id):
@@ -280,7 +254,6 @@ class PesapalService:
             }
             
         except requests.exceptions.RequestException as e:
-            print(f"❌ Pesapal status check failed: {str(e)}")
             raise Exception(f"Pesapal status check failed: {str(e)}")
     
     @staticmethod

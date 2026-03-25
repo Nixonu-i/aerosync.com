@@ -17,20 +17,16 @@ export default function VerifyEmail() {
   // Get email from location state OR from authenticated user
   useEffect(() => {
     const state = location.state; // Use location.state instead of navigate.location
-    console.log('🔍 VerifyEmail state:', state);
     
     // First check if email came from registration or login redirect
     if (state?.email) {
-      console.log('✅ Email from state:', state.email);
       setEmail(state.email);
       setShowEmailField(false); // Always hide when email comes from state
       
       // Auto-send verification code when arriving at the page
       if (!state.codeSent) { // Only send if not already sent
-        console.log('📧 Auto-sending verification code...');
         API.post('/auth/resend-verification/', { email: state.email })
           .then(() => {
-            console.log('✅ Verification code sent!');
             setMessage('Verification code sent! Please check your inbox.');
             
             // Auto-hide success message after 3 seconds
@@ -39,28 +35,23 @@ export default function VerifyEmail() {
             }, 3000);
           })
           .catch(err => {
-            console.error('❌ Failed to send code:', err);
           });
       }
     } else {
       // No email in state - fetch from authenticated user
       const token = localStorage.getItem('token');
-      console.log('📝 No state email, checking token:', !!token);
       
       if (token) {
         // User is logged in, fetch their email from /auth/me/
         API.get('auth/me/')
           .then(res => {
-            console.log('✅ Fetched email from API:', res.data.email);
             if (res.data && res.data.email) {
               setEmail(res.data.email);
               setShowEmailField(false); // Always show as read-only
               
               // Auto-send verification code for authenticated users too
-              console.log('📧 Auto-sending verification code...');
               API.post('/auth/resend-verification/', { email: res.data.email })
                 .then(() => {
-                  console.log('✅ Verification code sent!');
                   setMessage('Verification code sent! Please check your inbox.');
                   
                   // Auto-hide success message after 3 seconds
@@ -69,17 +60,14 @@ export default function VerifyEmail() {
                   }, 3000);
                 })
                 .catch(err => {
-                  console.error('❌ Failed to send code:', err);
                 });
             }
           })
           .catch(err => {
-            console.error('❌ Failed to fetch user email:', err);
             // If fetch fails, still try to show field for manual entry
             setShowEmailField(true);
           });
       } else {
-        console.log('⚠️ No token, showing manual email field');
         // No token, no state - user must enter email manually
         setShowEmailField(true);
       }
@@ -115,10 +103,8 @@ export default function VerifyEmail() {
       setTimeout(() => {
         // Check if we have a complete 6-digit numeric code
         const completeCode = newCode.join('');
-        console.log('🔍 Checking code:', completeCode, 'Length:', completeCode.length);
         
         if (completeCode.length === 6 && /^\d{6}$/.test(completeCode)) {
-          console.log('✅ All 6 digits entered, auto-submitting...');
           // Call the actual verification function directly instead of form submit
           verifyCode(completeCode);
         }

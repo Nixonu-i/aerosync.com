@@ -181,7 +181,33 @@ def profile_view(request):
         return Response(serializer.data)
     
     elif request.method == 'POST':
-        serializer = ProfileSerializer(profile, data=request.data, partial=True, context={'request': request})
+        # SECURITY: Prevent updates to locked fields after initial setup
+        # Only phone_number, phone_area_code, and profile_photo can be updated after setup
+        mutable_data = request.data.copy()
+        
+        if profile.initial_setup_done:
+            # User has completed initial setup - lock sensitive fields
+            locked_fields = ['date_of_birth', 'gender', 'nationality']
+            
+            # Check if any locked fields are being modified
+            for field in locked_fields:
+                if field in mutable_data:
+                    # Reject the entire request if trying to modify locked fields
+                    return Response(
+                        {'detail': f'{field.replace("_", " ").title()} cannot be updated after initial profile setup'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+            
+            # Only allow these fields to be updated
+            allowed_fields = ['phone_area_code', 'phone_number', 'profile_photo']
+            filtered_data = {k: v for k, v in mutable_data.items() if k in allowed_fields}
+            
+            # Use filtered data for validation
+            serializer = ProfileSerializer(profile, data=filtered_data, partial=True, context={'request': request})
+        else:
+            # First-time setup - allow all fields
+            serializer = ProfileSerializer(profile, data=mutable_data, partial=True, context={'request': request})
+        
         if serializer.is_valid():
             serializer.save()
             # mark initial_setup_done for first-time customer/agent users

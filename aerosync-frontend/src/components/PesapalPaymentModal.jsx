@@ -17,6 +17,7 @@ const PesapalPaymentModal = ({ booking, onClose, onPaymentComplete }) => {
   });
   const [formSubmitted, setFormSubmitted] = useState(false);
   const pollingRef = useRef(null);
+  const timeoutRef = useRef(null);
   const isMountedRef = useRef(true);
 
   useEffect(() => {
@@ -42,7 +43,6 @@ const PesapalPaymentModal = ({ booking, onClose, onPaymentComplete }) => {
       }
       setLoading(false);
     } catch (err) {
-      console.error('Failed to load user details:', err);
       setError('Failed to load user details. Please try again.');
       setLoading(false);
     }
@@ -70,15 +70,22 @@ const PesapalPaymentModal = ({ booking, onClose, onPaymentComplete }) => {
     setLoading(true);
     setError(null);
     setFormSubmitted(true);
+    
+    // Set timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      setLoading(false);
+      setError('Payment initiation is taking longer than expected. Please check your connection and try again.');
+      setFormSubmitted(false);
+    }, 15000); // 15 seconds timeout
+    
+    // Store timeout ID for cleanup
+    timeoutRef.current = timeoutId;
 
     try {
       // First, save the updated profile to backend using POST
-      console.log('💾 Updating profile with:', formData);
       const profileResponse = await API.post('auth/profile/', formData);
-      console.log('✅ Profile updated:', profileResponse.data);
       
       // Then initiate payment with updated billing details
-      console.log('💳 Initiating Pesapal payment for booking:', booking.id);
       const response = await API.post(`payments/pesapal/initiate/${booking.id}/`, {
         amount: booking.total_amount,
         currency: 'KES',
@@ -94,8 +101,6 @@ const PesapalPaymentModal = ({ booking, onClose, onPaymentComplete }) => {
         }
       });
       
-      console.log('🎉 Payment initiation response:', response.data);
-      console.log('🔗 Redirect URL:', response.data.redirect_url);
       
       const { redirect_url, order_tracking_id, payment_id } = response.data;
       
@@ -106,13 +111,25 @@ const PesapalPaymentModal = ({ booking, onClose, onPaymentComplete }) => {
       setRedirectUrl(redirect_url);
       setPaymentId(payment_id);
       
-      console.log('✅ Pesapal payment initiated:', order_tracking_id);
+      // Keep loading state for at least 500ms so user sees the feedback
+      // Clear timeout since we got a response
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
       
-      // Start polling for payment status
-      startPolling(payment_id);
+      setTimeout(() => {
+        setLoading(false);  // Stop loading so iframe can show
+        // Start polling for payment status
+        startPolling(payment_id);
+      }, 500);
       
     } catch (err) {
-      console.error('❌ Payment initiation failed:', err);
+      // Clear timeout on error
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
       setError(err.response?.data?.detail || 'Failed to initiate payment. Please try again.');
       setLoading(false);
       setFormSubmitted(false);
@@ -121,12 +138,10 @@ const PesapalPaymentModal = ({ booking, onClose, onPaymentComplete }) => {
 
   // Poll for payment status every 3 seconds
   const startPolling = (id) => {
-    console.log('🔄 Starting polling for payment:', id);
     
     // Clear any existing polling
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
-      console.log('⚠️ Cleared existing polling interval');
     }
     
     pollingRef.current = setInterval(async () => {
@@ -134,31 +149,24 @@ const PesapalPaymentModal = ({ booking, onClose, onPaymentComplete }) => {
         const response = await API.get(`payments/pesapal/status/${id}/`);
         const { payment, booking_is_confirmed } = response.data;
         
-        console.log('💳 Payment status:', payment.status);
-        console.log('🏠 Booking confirmed:', booking_is_confirmed);
         
         if (payment.status === 'SUCCESS' || booking_is_confirmed) {
-          console.log('✅ Payment successful, stopping polling');
           stopPolling();
           onPaymentComplete(payment);
         } else if (payment.status === 'FAILED' || payment.status === 'CANCELLED') {
-          console.log('❌ Payment failed, stopping polling');
           stopPolling();
           setError(`Payment ${payment.status.toLowerCase()}. Please try again or choose another payment method.`);
           setLoading(false);
         }
       } catch (err) {
-        console.error('❌ Status check failed:', err.message);
         // Don't stop polling on network errors - user might still be paying
       }
     }, 3000);
     
-    console.log('✅ Polling started with interval ID:', pollingRef.current);
   };
   
   const stopPolling = () => {
     if (pollingRef.current) {
-      console.log('🛑 Stopping polling interval:', pollingRef.current);
       clearInterval(pollingRef.current);
       pollingRef.current = null;
     }
@@ -172,16 +180,19 @@ const PesapalPaymentModal = ({ booking, onClose, onPaymentComplete }) => {
     
     // Cleanup on unmount/modal close
     return () => {
-      console.log('🧹 Modal cleanup triggered');
       isMountedRef.current = false;
       stopPolling();
+      // Clear any pending timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
     };
   }, [formSubmitted, redirectUrl, paymentId]);
 
   // Auto-iframe effect - show iframe immediately when redirectUrl is received
   useEffect(() => {
     if (redirectUrl && formSubmitted) {
-      console.log('✅ Showing iframe with URL:', redirectUrl);
     }
   }, [redirectUrl, formSubmitted]);
 
@@ -347,22 +358,111 @@ const PesapalPaymentModal = ({ booking, onClose, onPaymentComplete }) => {
 
               {error && (
                 <div style={styles.errorContainer}>
-                  <p style={styles.errorText}>⚠️ {error}</p>
+                  <p style={styles.errorText}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> {error}</p>
                 </div>
               )}
 
               <button 
                 onClick={handleInitiatePayment}
                 disabled={loading}
-                style={styles.initiateButton}
+                style={{
+                  ...styles.initiateButton,
+                  opacity: loading ? 0.7 : 1,
+                  cursor: loading ? 'wait' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  position: loading ? "relative" : "relative",
+                  zIndex: loading ? 9999 : 1
+                }}
               >
-                {loading ? 'Processing...' : 'Initiate Payment'}
+                {loading ? (
+                  <>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10" strokeOpacity="0.3"/>
+                      <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round">
+                        <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
+                      </path>
+                    </svg>
+                    Connecting to Pesapal...
+                  </>
+                ) : (
+                  <>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+                      <line x1="1" y1="10" x2="23" y2="10"/>
+                    </svg>
+                    Initiate Payment
+                  </>
+                )}
               </button>
             </div>
           )}
 
+          {/* Loading Overlay */}
+          {loading && (
+            <div style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(11, 18, 32, 0.6)",
+              backdropFilter: "blur(4px)",
+              WebkitBackdropFilter: "blur(4px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 9999,
+              borderRadius: "16px"
+            }}>
+              <div style={{
+                backgroundColor: "rgba(255, 255, 255, 0.95)",
+                padding: "32px 48px",
+                borderRadius: "16px",
+                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+                textAlign: "center",
+                minWidth: "280px"
+              }}>
+                <svg 
+                  width="48" 
+                  height="48" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="#d4af37" 
+                  strokeWidth="2"
+                  style={{ margin: "0 auto 16px", display: "block" }}
+                >
+                  <circle cx="12" cy="12" r="10" strokeOpacity="0.3"/>
+                  <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round">
+                    <animateTransform 
+                      attributeName="transform" 
+                      type="rotate" 
+                      from="0 12 12" 
+                      to="360 12 12" 
+                      dur="1s" 
+                      repeatCount="indefinite"
+                    />
+                  </path>
+                </svg>
+                <h3 style={{
+                  margin: "0 0 8px 0",
+                  color: "#0b1220",
+                  fontSize: "18px",
+                  fontWeight: 700
+                }}>Connecting to Pesapal</h3>
+                <p style={{
+                  margin: 0,
+                  color: "#6b7280",
+                  fontSize: "14px"
+                }}>Please wait while we secure your payment...</p>
+              </div>
+            </div>
+          )}
+
           {/* Iframe Payment */}
-          {formSubmitted && !error && redirectUrl && (
+          {formSubmitted && !error && redirectUrl && !loading && (
             <div>
               <div style={styles.successMessage}>
                 🔒 Secure payment powered by Pesapal
@@ -460,7 +560,8 @@ const modalStyles = {
     justifyContent: 'center'
   },
   content: {
-    padding: '24px'
+    padding: '24px',
+    position: 'relative'
   },
   footer: {
     padding: '20px 24px',
