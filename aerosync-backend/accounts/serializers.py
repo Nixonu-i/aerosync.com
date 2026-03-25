@@ -66,16 +66,34 @@ class RegisterSerializer(serializers.ModelSerializer):
 class MeSerializer(serializers.ModelSerializer):
     is_admin = serializers.SerializerMethodField()
     is_agent = serializers.SerializerMethodField()
-
+    profile = serializers.SerializerMethodField()
+    
     def get_is_admin(self, obj):
         return obj.role == 'ADMIN' or obj.is_staff or obj.is_superuser
-
+    
     def get_is_agent(self, obj):
         return obj.role == 'AGENT'
+    
+    def get_profile(self, obj):
+        try:
+            profile = obj.profile
+            return {
+                'phone_number': profile.phone_number,
+                'phone_area_code': profile.phone_area_code,
+                'address_line1': profile.address_line1,
+                'city': profile.city,
+                'postal_code': profile.postal_code,
+                'country': profile.country
+            }
+        except (AttributeError, ValueError, TypeError):
+            return None
 
     class Meta:
         model = User
-        fields = ["id", "username", "email", "full_name", "role", "is_admin", "is_agent", "staff_id", "created_at"]
+        fields = [
+            "id", "username", "email", "full_name", "role", "is_admin", 
+            "is_agent", "staff_id", "created_at", "profile"
+        ]
 
 
 class ProfileSerializer(serializers.ModelSerializer):

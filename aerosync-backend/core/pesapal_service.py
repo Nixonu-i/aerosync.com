@@ -41,12 +41,14 @@ class PesapalService:
         if token:
             return token
         
-        # Request new token
+        # Request new token - Pesapal expects JSON payload
         url = f"{self.base_url}/api/auth/RequestToken"
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/json"
         }
+        
+        # Pesapal expects these exact parameter names in JSON
         payload = {
             "consumer_key": self.consumer_key,
             "consumer_secret": self.consumer_secret
@@ -55,11 +57,19 @@ class PesapalService:
         try:
             print(f"🔵 Requesting token from: {url}")
             print(f"🔵 Consumer Key: {self.consumer_key[:20]}...")  # Show first 20 chars only
+            print(f"🔵 Environment: {self.environment}")
+            print(f"🔵 Base URL: {self.base_url}")
+            print(f"🔵 Sending JSON payload")
             
             response = requests.post(url, json=payload, headers=headers, timeout=10)
             
             print(f"🔵 Response status: {response.status_code}")
             print(f"🔵 Response body: {response.text[:200]}")  # First 200 chars
+            
+            if response.status_code == 401:
+                print(f"❌ Authentication failed - check consumer key and secret!")
+                print(f"❌ Key length: {len(self.consumer_key)}, Secret length: {len(self.consumer_secret)}")
+                raise Exception("Pesapal authentication failed: Invalid credentials (401)")
             
             response.raise_for_status()
             

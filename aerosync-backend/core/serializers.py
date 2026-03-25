@@ -73,9 +73,38 @@ class BookingSerializer(serializers.ModelSerializer):
     boarding_passes = BoardingPassSerializer(many=True, read_only=True)
     flight = FlightSerializer(read_only=True)
     
+    # Additional computed fields
+    flight_name = serializers.CharField(source="flight.flight_number", read_only=True)
+    airline_name = serializers.CharField(source="flight.airline.name", read_only=True)
+    route = serializers.SerializerMethodField()
+    departure = serializers.CharField(source="flight.departure_airport.code", read_only=True)
+    arrival = serializers.CharField(source="flight.arrival_airport.code", read_only=True)
+    flight_date = serializers.DateTimeField(source="flight.departure_time", read_only=True)
+    seat_numbers = serializers.SerializerMethodField()
+    
+    def get_route(self, obj):
+        if obj.flight:
+            dep_code = obj.flight.departure_airport.code if obj.flight.departure_airport else ""
+            arr_code = obj.flight.arrival_airport.code if obj.flight.arrival_airport else ""
+            return f"{dep_code} → {arr_code}"
+        return None
+    
+    def get_seat_numbers(self, obj):
+        # Collect all seat numbers from boarding passes
+        seats = []
+        for bp in obj.boarding_passes.all():
+            if bp.seat and bp.seat.seat_number:
+                seats.append(bp.seat.seat_number)
+        return seats if seats else []
+    
     class Meta:
         model = Booking
-        fields = ["id", "user", "flight", "booking_date", "total_amount", "booking_status", "confirmation_code", "passengers", "boarding_passes"]
+        fields = [
+            "id", "user", "flight", "booking_date", "total_amount", 
+            "booking_status", "confirmation_code", "passengers", "boarding_passes",
+            "flight_name", "airline_name", "route", "departure", "arrival", 
+            "flight_date", "seat_numbers"
+        ]
 
 
 class CreateBookingSerializer(serializers.Serializer):

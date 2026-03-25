@@ -723,7 +723,7 @@ class PesapalCallbackView(APIView):
         try:
             from .pesapal_service import PesapalService
             pesapal = PesapalService()
-            status_result = pesapal.get_transaction_status(order_tracking_id)
+            status_result = pesapal.check_transaction_status(order_tracking_id)
             
             print(f"📊 Transaction status response: {status_result}")
             
@@ -736,7 +736,8 @@ class PesapalCallbackView(APIView):
             
             if payment:
                 # Use BOTH status_code and text description for reliability
-                if payment_status in ['COMPLETED', 'COMPLETE'] or status_code == '1':
+                # Note: status_code can be int or string, so check both
+                if payment_status in ['COMPLETED', 'COMPLETE'] or str(status_code) == '1':
                     payment.status = 'SUCCESS'
                     payment.payment_detail = (
                         f"Confirmation: {confirmation_code} | "
@@ -747,19 +748,19 @@ class PesapalCallbackView(APIView):
                     payment.booking.save()
                     print(f"✅ Payment SUCCESS for booking {payment.booking.id}")
                     
-                elif payment_status == 'FAILED' or status_code == '2':
+                elif payment_status == 'FAILED' or str(status_code) == '2':
                     payment.status = 'FAILED'
                     payment.payment_detail = f"Failed: {status_result.get('description', 'Payment failed')}"
                     payment.save()
                     print(f"❌ Payment FAILED")
                     
-                elif payment_status in ['INVALID', 'CANCELLED'] or status_code == '0':
+                elif payment_status in ['INVALID', 'CANCELLED'] or str(status_code) == '0':
                     payment.status = 'CANCELLED'
                     payment.payment_detail = f"Invalid transaction - {status_result.get('description', '')}"
                     payment.save()
                     print(f"⛔ Payment INVALID")
                     
-                elif payment_status == 'REVERSED' or status_code == '3':
+                elif payment_status == 'REVERSED' or str(status_code) == '3':
                     payment.status = 'REVERSED'
                     payment.payment_detail = f"Reversed - {status_result.get('description', '')}"
                     payment.save()
@@ -813,7 +814,7 @@ class PesapalIPNView(APIView):
             
             # CRITICAL: Must call GetTransactionStatus API to get actual payment status
             pesapal = PesapalService()
-            status_result = pesapal.get_transaction_status(order_tracking_id)
+            status_result = pesapal.check_transaction_status(order_tracking_id)
             
             print(f"📊 Transaction status response: {status_result}")
             
@@ -846,7 +847,8 @@ class PesapalIPNView(APIView):
             
             # Update payment status based on notification
             # Use BOTH status_code (0=INVALID, 1=COMPLETED, 2=FAILED, 3=REVERSED) and text description
-            if payment_status in ['COMPLETED', 'COMPLETE'] or status_code == '1':
+            # Note: status_code can be int or string, so check both
+            if payment_status in ['COMPLETED', 'COMPLETE'] or str(status_code) == '1':
                 payment.status = 'SUCCESS'
                 payment.payment_detail = (
                     f"Confirmation: {confirmation_code} | "
@@ -861,7 +863,7 @@ class PesapalIPNView(APIView):
                 
                 print(f"✅ Payment SUCCESS for booking {payment.booking.id}")
                 
-            elif payment_status == 'FAILED' or status_code == '2':
+            elif payment_status == 'FAILED' or str(status_code) == '2':
                 payment.status = 'FAILED'
                 payment.payment_detail = (
                     f"Failed: {status_result.get('description', 'Payment failed')} | "
@@ -870,13 +872,13 @@ class PesapalIPNView(APIView):
                 payment.save()
                 print(f"❌ Payment FAILED for booking {payment.booking.id}")
                 
-            elif payment_status in ['INVALID', 'CANCELLED'] or status_code == '0':
+            elif payment_status in ['INVALID', 'CANCELLED'] or str(status_code) == '0':
                 payment.status = 'CANCELLED'
                 payment.payment_detail = f"Invalid transaction - {status_result.get('description', '')}"
                 payment.save()
                 print(f"⛔ Payment INVALID/CANCELLED for booking {payment.booking.id}")
                 
-            elif payment_status == 'REVERSED' or status_code == '3':
+            elif payment_status == 'REVERSED' or str(status_code) == '3':
                 payment.status = 'REVERSED'
                 payment.payment_detail = f"Reversed - {status_result.get('description', '')}"
                 payment.save()

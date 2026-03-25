@@ -77,6 +77,11 @@ class Profile(models.Model):
     phone_area_code = models.CharField(max_length=10, default='+254')
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     profile_photo = models.ImageField(upload_to=profile_photo_upload_to, blank=True, null=True)
+    # Address fields
+    address_line1 = models.CharField(max_length=255, blank=True, null=True)
+    city = models.CharField(max_length=100, blank=True, null=True)
+    postal_code = models.CharField(max_length=20, blank=True, null=True)
+    country = models.CharField(max_length=100, blank=True, null=True)
     # track whether the user has completed all required fields during the
     # initial sign‑up flow.  once True we will stop forcing them to fill the
     # profile again.
