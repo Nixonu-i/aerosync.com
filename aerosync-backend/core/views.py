@@ -1564,6 +1564,9 @@ class AgentBookingViewSet(viewsets.ViewSet):
                 {"id": p.id, "full_name": p.full_name, "passenger_type": p.passenger_type}
                 for p in b.passengers.all()
             ]
+            # Get seat numbers from boarding passes
+            seat_numbers = [bp.seat.seat_number for bp in b.boarding_passes.all() if bp.seat]
+            
             data.append({
                 "id":               b.id,
                 "confirmation_code": b.confirmation_code,
@@ -1575,6 +1578,7 @@ class AgentBookingViewSet(viewsets.ViewSet):
                 "departure_time":   b.flight.departure_time,
                 "username":         b.user.username if b.user else "",
                 "total_amount":     b.total_amount,
+                "seat_numbers":     seat_numbers,
                 "has_boarding_pass": b.boarding_passes.exists(),
             })
         return Response(data)
@@ -1595,6 +1599,9 @@ class AgentBookingViewSet(viewsets.ViewSet):
             {"id": p.id, "full_name": p.full_name, "passenger_type": p.passenger_type}
             for p in b.passengers.all()
         ]
+        # Get seat numbers from boarding passes
+        seat_numbers = [bp.seat.seat_number for bp in b.boarding_passes.all() if bp.seat]
+        
         return Response({
             "id":                b.id,
             "confirmation_code": b.confirmation_code,
@@ -1606,6 +1613,7 @@ class AgentBookingViewSet(viewsets.ViewSet):
             "departure_time":    b.flight.departure_time,
             "username":          b.user.username if b.user else "",
             "total_amount":      b.total_amount,
+            "seat_numbers":      seat_numbers,
             "has_boarding_pass": b.boarding_passes.exists(),
         })
 

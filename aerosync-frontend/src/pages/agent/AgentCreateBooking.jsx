@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../../api/api";
 import DateOfBirthPicker from "../../components/DateOfBirthPicker";
+import PesapalPaymentModal from "../../components/PesapalPaymentModal";
 
 /* ─── Theme ──────────────────────────────────────────────── */
 const teal  = "#20c997";
@@ -510,6 +511,7 @@ export default function AgentCreateBooking() {
 
   // Payment
   const [showPayment, setShowPayment]   = useState(false);
+  const [showPesapalModal, setShowPesapalModal] = useState(false);
   const [paymentProviders, setPaymentProviders] = useState([]);
   const [paymentMsg, setPaymentMsg]     = useState("");
 
@@ -647,7 +649,18 @@ export default function AgentCreateBooking() {
         passengers: passengers.map(p => ({ ...p })),
         seat_ids,
       });
-      setBooking(res.data);
+      
+      console.log('✅ Booking created:', res.data);
+      
+      // Fetch full booking details with flight info, seats, etc.
+      const fullBooking = await API.get(`agent/bookings/${res.data.booking_id}/`);
+      console.log('📋 Full booking data:', fullBooking.data);
+      console.log('🛫 Flight name:', fullBooking.data.flight_name);
+      console.log('✈️ Flight object:', fullBooking.data.flight);
+      console.log('💺 Seat numbers:', fullBooking.data.seat_numbers);
+      console.log('🎫 Flight number (direct):', fullBooking.data.flight_number);
+      
+      setBooking(fullBooking.data);
       setStep("done");
     } catch (e) {
       setErr(e?.response?.data?.detail || JSON.stringify(e?.response?.data) || "Booking failed.");
@@ -674,12 +687,15 @@ export default function AgentCreateBooking() {
               <div style={{ color: "rgba(255,255,255,0.6)", fontSize: "14px", marginTop: "3px" }}>Awaiting payment to confirm.</div>
             </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "10px", marginBottom: "20px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "10px", marginBottom: "20px" }}>
             {[
-              ["Ref",        booking.confirmation_code],
-              ["Passengers", booking.passenger_count],
-              ["Total",      `KES ${booking.total_amount}`],
-              ["Status",     "PENDING"],
+              ["Confirmation Code", booking.confirmation_code],
+              ["Flight", booking.flight_number || "Not specified"],
+              ["Route", booking.route || "Not specified"],
+              ["Seats", booking.seat_numbers?.join(", ") || "Not assigned"],
+              ["Passengers", booking.passenger_count || booking.passengers?.length || 0],
+              ["Amount", `KES ${Number(booking.total_amount || 0).toLocaleString()}`],
+              ["Status", "PENDING"],
             ].map(([lbl, val]) => (
               <div key={lbl} style={{ background: "rgba(5,19,30,0.7)", borderRadius: "8px", padding: "10px 14px" }}>
                 <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: "3px" }}>{lbl}</div>
@@ -697,18 +713,23 @@ export default function AgentCreateBooking() {
               style={{ background: "rgba(255,255,255,0.08)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px", padding: "11px 22px", cursor: "pointer", fontWeight: 600 }}>
               + New Booking
             </button>
-            <button type="button" onClick={() => setShowPayment(true)}
+            <button type="button" onClick={() => setShowPesapalModal(true)}
               style={{ background: teal, color: "#fff", border: "none", borderRadius: "8px", padding: "11px 24px", cursor: "pointer", fontWeight: 800 }}>
-              Initiate Payment
+              💳 Pay Now
             </button>
           </div>
         </div>
-        {showPayment && (
-          <PaymentModal
+        
+        {/* Pesapal Payment Modal */}
+        {showPesapalModal && (
+          <PesapalPaymentModal
             booking={booking}
-            providers={paymentProviders}
-            onClose={() => setShowPayment(false)}
-            onPaid={msg => { setShowPayment(false); setPaymentMsg(msg); navigate("/agent/bookings"); }}
+            onClose={() => setShowPesapalModal(false)}
+            onPaymentComplete={(payment) => {
+              setShowPesapalModal(false);
+              setPaymentMsg(`Payment completed successfully! Ref: ${booking.confirmation_code}`);
+              navigate("/agent/bookings");
+            }}
           />
         )}
       </div>
