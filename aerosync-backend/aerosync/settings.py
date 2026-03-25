@@ -301,24 +301,37 @@ INGRESS = [
 ]
 
 # -------------------------------------------------------------------
-# Email Configuration (Gmail OAuth 2.0)
+# Email Configuration
 # -------------------------------------------------------------------
 
-# Gmail OAuth 2.0 credentials
-GMAIL_OAUTH_CLIENT_ID = os.getenv('GMAIL_OAUTH_CLIENT_ID', '')
-GMAIL_OAUTH_CLIENT_SECRET = os.getenv('GMAIL_OAUTH_CLIENT_SECRET', '')
-GMAIL_OAUTH_REFRESH_TOKEN = os.getenv('GMAIL_OAUTH_REFRESH_TOKEN', '')
-GMAIL_OAUTH_TOKEN_URI = os.getenv('GMAIL_OAUTH_TOKEN_URI', 'https://oauth2.googleapis.com/token')
-GMAIL_SENDER_EMAIL = os.getenv('GMAIL_SENDER_EMAIL', '')
+# Check if Brevo API key is provided
+BREVO_API_KEY = os.getenv('BREVO_API_KEY', '')
 
-# Fallback SMTP settings (used if OAuth fails)
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = f'AeroSync <{GMAIL_SENDER_EMAIL}>' if GMAIL_SENDER_EMAIL else 'AeroSync <noreply@aerosync.live>'
+if BREVO_API_KEY and BREVO_API_KEY != 'xkeysib-your-api-key-here':
+    # Use Brevo (SendGrid) for professional emails
+    # Free tier: 300 emails/day
+    EMAIL_BACKEND = 'sgbackend.SendGridBackend'
+    SENDGRID_API_KEY = BREVO_API_KEY
+    DEFAULT_FROM_EMAIL = 'AeroSync <noreply@aerosync.live>'
+    SERVER_EMAIL = 'noreply@aerosync.live'
+    print("✅ Using Brevo email backend")
+else:
+    # Fallback to Gmail OAuth 2.0
+    GMAIL_OAUTH_CLIENT_ID = os.getenv('GMAIL_OAUTH_CLIENT_ID', '')
+    GMAIL_OAUTH_CLIENT_SECRET = os.getenv('GMAIL_OAUTH_CLIENT_SECRET', '')
+    GMAIL_OAUTH_REFRESH_TOKEN = os.getenv('GMAIL_OAUTH_REFRESH_TOKEN', '')
+    GMAIL_OAUTH_TOKEN_URI = os.getenv('GMAIL_OAUTH_TOKEN_URI', 'https://oauth2.googleapis.com/token')
+    GMAIL_SENDER_EMAIL = os.getenv('GMAIL_SENDER_EMAIL', '')
+    
+    # Gmail SMTP settings (used if OAuth fails)
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = 'smtp.gmail.com'
+    EMAIL_PORT = 587
+    EMAIL_USE_TLS = True
+    EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+    EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+    DEFAULT_FROM_EMAIL = f'AeroSync <{GMAIL_SENDER_EMAIL}>' if GMAIL_SENDER_EMAIL else 'AeroSync <noreply@aerosync.live>'
+    print("ℹ️  Using Gmail OAuth email backend")
 
 # Email verification settings
 EMAIL_VERIFICATION_EXPIRY_MINUTES = 15  # Code expires after 15 minutes
