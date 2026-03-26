@@ -613,8 +613,10 @@ class PesapalInitiatePaymentView(APIView):
         try:
             from .pesapal_service import PesapalService
             
-            print(f"💰 Request data received: {request.data}")
-            print(f"💰 Billing details from request: {request.data.get('billing_details', 'NOT FOUND')}")
+            # Log: IP, timestamp, method, endpoint
+            ip_address = request.META.get('REMOTE_ADDR', 'unknown')
+            timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+            print(f"[{timestamp}] {ip_address} POST /api/payments/pesapal/initiate/{booking_id}/")
             
             # Get booking
             booking = Booking.objects.get(id=booking_id)
@@ -638,15 +640,46 @@ class PesapalInitiatePaymentView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # ENFORCEMENT: Validate that booking has a valid total_amount
-            if not booking.total_amount or booking.total_amount <= 0:
-                return Response(
-                    {"detail": "Invalid booking amount. Please contact support."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+            # REUSE: Check for existing Pesapal payment using BOOKING as unique key
+            # Use booking confirmation_code as stable reference (not provider_reference which changes)
+            existing_payment = Payment.objects.filter(
+                booking=booking,
+                provider='PESAPAL'
+            ).exclude(status='CANCELLED').order_by('-created_at').first()
             
-            # Create pending payment record with ACTUAL booking amount
-            payment = Payment.objects.create(
+            if existing_payment:
+                # If SUCCESS, don't allow new payment
+                if existing_payment.status == 'SUCCESS':
+                    print(f"✅ Booking already paid - reusing payment {existing_payment.id}")
+                    return Response(
+                        {"detail": "Booking already paid", "payment": PaymentSerializer(existing_payment).data},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Use existing payment for retry
+                payment = existing_payment
+                print(f"♻️ Reusing existing payment {payment.id} (status: {payment.status})")
+                
+                # Reset to PENDING for new attempt
+                payment.status = 'PENDING'
+                payment.payment_detail = ''
+                # Clear old provider_reference to force new Pesapal submission
+                old_tracking_id = payment.provider_reference
+                payment.provider_reference = ''
+                payment.save()
+                
+                print(f"🔄 Cleared old tracking ID {old_tracking_id}, ready for new submission")
+            else:
+                # No existing payment - CREATE NEW ONE
+                # ENFORCEMENT: Validate that booking has a valid total_amount
+                if not booking.total_amount or booking.total_amount <= 0:
+                    return Response(
+                        {"detail": "Invalid booking amount. Please contact support."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Create pending payment record with ACTUAL booking amount
+                payment = Payment.objects.create(
                 booking=booking,
                 provider='PESAPAL',
                 amount=booking.total_amount,  # Use REAL booking amount
@@ -680,20 +713,16 @@ class PesapalInitiatePaymentView(APIView):
                 'notification_url': settings.PESAPAL_IPN_URL
             }
             
-            # Debug log
-            print(f"🔵 Pesapal order details: {order_details}")
-            print(f"🔵 Callback URL: {settings.PESAPAL_CALLBACK_URL}")
-            print(f"🔵 IPN URL: {settings.PESAPAL_IPN_URL}")
-            
-            # Force token refresh before submission
+            # Force token refresh before submission (token not logged for security)
             from django.core.cache import cache
             cache.delete('pesapal_access_token')
-            print(f'🔄 Refreshing Pesapal token before order submission')
             
             result = pesapal.submit_order(order_details)
             
-            print(f"✅ Pesapal result: {result}")
-            print(f"🔵 Redirect URL: {result.get('redirect_url')}")
+            # Log success
+            ip_address = request.META.get('REMOTE_ADDR', 'unknown')
+            timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+            print(f"[{timestamp}] {ip_address} Payment initiated - Tracking: {result.get('order_tracking_id', 'N/A')}")
             
             # Update payment with Pesapal tracking ID
             payment.provider_reference = result['order_tracking_id']
@@ -828,72 +857,95 @@ class PesapalIPNView(APIView):
             order_tracking_id = notification.get('order_tracking_id')
             merchant_reference = notification.get('order_merchant_reference')
             
-            print(f"🔔 Pesapal IPN received: {order_tracking_id}")
-            print(f"📋 Full IPN payload: {request.data}")
+            # Log IPN request (minimal info)
+            ip_address = request.META.get('REMOTE_ADDR', 'unknown')
+            timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+            print(f"[{timestamp}] {ip_address} IPN - Tracking: {order_tracking_id}")
             
             if not order_tracking_id:
-                print("⚠️ No tracking ID in IPN")
+                print(f"[{timestamp}] {ip_address} IPN rejected - No tracking ID")
                 return Response({"status": "received"})
             
-            # CRITICAL: Must call GetTransactionStatus API to get actual payment status
+            # Get transaction status (response not logged to avoid exposing sensitive data)
             pesapal = PesapalService()
             status_result = pesapal.check_transaction_status(order_tracking_id)
             
-            print(f"📊 Transaction status response: {status_result}")
-            
             payment_status = status_result.get('payment_status_description', '').upper()
             status_code = status_result.get('status_code', '')  # 0=INVALID, 1=COMPLETED, 2=FAILED, 3=REVERSED
-            confirmation_code = status_result.get('confirmation_code', '')
-            payment_method = status_result.get('payment_method', '')
             
-            print(f"✅ Payment status from API: {payment_status} (Code: {status_code})")
+            print(f"[{timestamp}] {ip_address} Status: {payment_status} (Code: {status_code})")
             
-            # Extract booking ID from merchant reference (format: AEROSYNC-{booking_id})
+            # Extract booking ID from merchant reference (format: AEROSYNC-{booking_id}-{timestamp})
             booking_id = None
             if merchant_reference and merchant_reference.startswith('AEROSYNC-'):
                 try:
-                    booking_id = int(merchant_reference.replace('AEROSYNC-', ''))
-                except ValueError:
+                    # Split by '-' and take the second part (booking ID)
+                    # Format: AEROSYNC-30-1774470571 → ['AEROSYNC', '30', '1774470571']
+                    parts = merchant_reference.split('-')
+                    if len(parts) >= 2:
+                        booking_id = int(parts[1])
+                except (ValueError, IndexError):
                     pass
             
-            # Find payment by tracking ID or booking
-            payment = None
-            if order_tracking_id:
-                payment = Payment.objects.filter(provider_reference=order_tracking_id).first()
+            if not booking_id:
+                print(f"⚠️ Cannot extract booking ID from merchant reference: {merchant_reference}")
+                return Response({"status": "received"})
             
-            if not payment and booking_id:
-                payment = Payment.objects.filter(booking_id=booking_id, provider='PESAPAL').order_by('-created_at').first()
+            try:
+                booking = Booking.objects.get(id=booking_id)
+            except Booking.DoesNotExist:
+                print(f"⚠️ Booking {booking_id} not found for IPN")
+                return Response({"status": "received"})
+            
+            # CRITICAL: Use BOOKING as unique key, not provider_reference
+            # Find most recent Pesapal payment for this booking
+            payment = Payment.objects.filter(
+                booking=booking,
+                provider='PESAPAL'
+            ).exclude(status='CANCELLED').order_by('-created_at').first()
             
             if not payment:
-                print(f"⚠️ Payment not found for tracking ID: {order_tracking_id}")
-                return Response({"status": "received"})  # Still acknowledge receipt
+                # No payment exists - CREATE NEW ONE
+                print(f"🆕 Creating new payment for booking {booking_id} with tracking ID: {order_tracking_id}")
+                
+                # Double-check no SUCCESS payment exists
+                if Payment.objects.filter(booking=booking, status='SUCCESS').exists():
+                    print(f"⚠️ Booking {booking_id} already has SUCCESS payment, ignoring IPN")
+                    return Response({"status": "received"})
+                
+                # Create new payment record
+                payment = Payment.objects.create(
+                    booking=booking,
+                    provider='PESAPAL',
+                    status='PENDING',
+                    amount=booking.total_amount,
+                    currency='KES',
+                    provider_reference=order_tracking_id
+                )
+                print(f"[{timestamp}] {ip_address} Created payment {payment.id}")
+            else:
+                # Update existing payment
+                if payment.provider_reference != order_tracking_id:
+                    payment.provider_reference = order_tracking_id
+                    payment.save()
+                print(f"[{timestamp}] {ip_address} Using payment {payment.id}")
             
-            # Update payment status based on notification
-            # Use BOTH status_code (0=INVALID, 1=COMPLETED, 2=FAILED, 3=REVERSED) and text description
-            # Note: status_code can be int or string, so check both
+            # Update payment status
             if payment_status in ['COMPLETED', 'COMPLETE'] or str(status_code) == '1':
                 payment.status = 'SUCCESS'
-                payment.payment_detail = (
-                    f"Confirmation: {confirmation_code} | "
-                    f"Method: {payment_method} | "
-                    f"Account: {status_result.get('payment_account', 'N/A')} | "
-                    f"Amount: {status_result.get('amount', 0)} {status_result.get('currency', 'KES')}"
-                )
+                payment.payment_detail = f"Status: {payment_status} | Code: {status_code}"
                 
                 # Mark booking as paid
                 payment.booking.booking_status = 'CONFIRMED'
                 payment.booking.save()
                 
-                print(f"✅ Payment SUCCESS for booking {payment.booking.id}")
+                print(f"[{timestamp}] {ip_address} SUCCESS - Booking {payment.booking.id} confirmed")
                 
             elif payment_status == 'FAILED' or str(status_code) == '2':
                 payment.status = 'FAILED'
-                payment.payment_detail = (
-                    f"Failed: {status_result.get('description', 'Payment failed')} | "
-                    f"Method: {payment_method}"
-                )
+                payment.payment_detail = f"Status: {payment_status}"
                 payment.save()
-                print(f"❌ Payment FAILED for booking {payment.booking.id}")
+                print(f"[{timestamp}] {ip_address} FAILED - Booking {payment.booking.id}")
                 
             elif payment_status in ['INVALID', 'CANCELLED'] or str(status_code) == '0':
                 payment.status = 'CANCELLED'
@@ -935,10 +987,16 @@ class PesapalStatusCheckView(APIView):
         try:
             from .pesapal_service import PesapalService
             
+            # Log: IP, timestamp, method, endpoint
+            ip_address = request.META.get('REMOTE_ADDR', 'unknown')
+            timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+            print(f"[{timestamp}] {ip_address} GET /api/payments/pesapal/status/{payment_id}/")
+            
             payment = Payment.objects.get(id=payment_id)
             
             # Verify ownership
             if payment.booking.user != request.user and not (request.user.is_admin or request.user.is_agent):
+                print(f"[{timestamp}] {ip_address} Permission denied - Payment {payment_id}")
                 return Response(
                     {"detail": "You do not have permission to check this payment"},
                     status=status.HTTP_403_FORBIDDEN
@@ -956,20 +1014,19 @@ class PesapalStatusCheckView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Check status with Pesapal
+            # Check status with Pesapal (token not logged)
             pesapal = PesapalService()
             
             # Clear old token cache to force refresh
             from django.core.cache import cache
             cache.delete('pesapal_access_token')
-            print(f'🔄 Refreshing Pesapal token for status check')
             
             status_result = pesapal.check_transaction_status(payment.provider_reference)
             
-            # Update local payment record
+            # Update local payment record based on status
             if status_result['status'] in ['COMPLETED', 'COMPLETE']:
                 payment.status = 'SUCCESS'
-                payment.payment_detail = f"Confirmation: {status_result.get('confirmation_code', '')} | Method: {status_result.get('payment_method', '')}"
+                payment.payment_detail = f"Status: {status_result['status']}"
                 payment.booking.booking_status = 'CONFIRMED'
                 payment.booking.save()
             elif status_result['status'] == 'FAILED':

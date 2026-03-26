@@ -12,7 +12,8 @@ keepalive = 5
 
 preload_app = True
 
-accesslog = "-"
+# Disable access logs (we use custom logging in views)
+accesslog = None
 errorlog = "-"
-loglevel = "warning"
+loglevel = "info"  # Show info level to capture our custom logs
 capture_output = True

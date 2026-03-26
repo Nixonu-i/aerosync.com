@@ -178,7 +178,7 @@ class Payment(models.Model):
     
     booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='payments')
     provider = models.CharField(max_length=20, choices=PAYMENT_PROVIDER_CHOICES)
-    provider_reference = models.CharField(max_length=100, blank=True)
+    provider_reference = models.CharField(max_length=100, blank=True, db_index=True)
     payment_detail = models.CharField(
         max_length=255, blank=True, null=True,
         help_text="Phone (M-Pesa), email (PayPal), masked card (Card), bank ref (Bank Transfer)"
@@ -188,6 +188,17 @@ class Payment(models.Model):
     status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='PENDING')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        # Each booking can only have ONE active Pesapal payment at a time
+        # (excludes CANCELLED payments to allow retries after cancellation)
+        constraints = [
+            models.UniqueConstraint(
+                fields=['booking', 'provider'],
+                name='unique_booking_payment',
+                condition=~models.Q(status='CANCELLED')
+            )
+        ]
     
     def __str__(self):
         return f"Payment {self.provider} - {self.amount} ({self.status})"

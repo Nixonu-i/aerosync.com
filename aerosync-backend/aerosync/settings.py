@@ -269,6 +269,10 @@ LOGGING = {
             "format": "{levelname} {asctime} {module} {message}",
             "style": "{",
         },
+        "simple": {
+            "format": "{message}",
+            "style": "{",
+        },
     },
     "handlers": {
         "file": {
@@ -276,9 +280,26 @@ LOGGING = {
             "filename": LOG_DIR / "django.log",
             "formatter": "verbose",
         },
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+            "level": "INFO",
+        },
+    },
+    "loggers": {
+        "core.middleware": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "core.views": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": False,
+        },
     },
     "root": {
-        "handlers": ["file"],
+        "handlers": ["file", "console"],
         "level": "INFO",
     },
 }
