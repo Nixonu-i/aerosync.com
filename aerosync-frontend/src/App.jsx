@@ -34,8 +34,7 @@ export default function App() {
   const { user, loading } = useContext(AuthContext);
   
   return (
-    <BookingRealtimeProvider>
-      <div style={{
+    <div style={{
       width: "100%",
       minHeight: "100vh",
       backgroundColor: "transparent",
@@ -74,7 +73,6 @@ export default function App() {
         } />
       </Routes>
     </div>
-    </BookingRealtimeProvider>
   );
 }
 
@@ -139,16 +137,18 @@ function PrivateContent() {
 
   // Customer/users get customer pages
   return (
-    <div className="as-content">
-      <Routes>
-        {/* Customer Dashboard - separate from public flights */}
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/flights/:id/seats" element={<Seats />} />
-        <Route path="/bookings" element={<Booking />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </div>
+    <BookingRealtimeProvider>
+      <div className="as-content">
+        <Routes>
+          {/* Customer Dashboard - separate from public flights */}
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/flights/:id/seats" element={<Seats />} />
+          <Route path="/bookings" element={<Booking />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </div>
+    </BookingRealtimeProvider>
   );
 }
 
