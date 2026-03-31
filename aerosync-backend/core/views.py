@@ -1823,14 +1823,28 @@ def booking_sse_stream(request):
     print(f"[{timestamp}] {ip_address} GET /api/bookings/stream/")
     logger.info(f"SSE stream request received from {ip_address}")
 
+    # Handle CORS preflight OPTIONS request
+    if request.method == 'OPTIONS':
+        response = HttpResponse()
+        origin = request.META.get('HTTP_ORIGIN', '')
+        allowed_origins = getattr(settings, 'CORS_ALLOWED_ORIGINS', [])
+        if origin in allowed_origins or any(origin.endswith('.pages.dev') for origin in allowed_origins):
+            response['Access-Control-Allow-Origin'] = origin
+            response['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+            response['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            response['Access-Control-Allow-Credentials'] = 'true'
+        return response
+
     # Get token from query parameter (EventSource doesn't support custom headers)
     token = request.GET.get('token')
 
     if not token:
-        return HttpResponse(
+        response = HttpResponse(
             'data: {"error": "Authentication required"}\n\n',
             content_type='text/event-stream'
         )
+        response['Access-Control-Allow-Origin'] = '*'
+        return response
 
     # Validate JWT token and get user_id
     try:
@@ -1843,10 +1857,12 @@ def booking_sse_stream(request):
 
     except Exception as e:
         logger.error(f"SSE token validation failed: {str(e)}")
-        return HttpResponse(
+        response = HttpResponse(
             'data: {"error": "Invalid authentication token"}\n\n',
             content_type='text/event-stream'
         )
+        response['Access-Control-Allow-Origin'] = '*'
+        return response
 
     def event_stream():
         """
@@ -1891,10 +1907,10 @@ def booking_sse_stream(request):
             last_heartbeat = time.time()
 
             while True:
-                # Check for messages from Redis (cross-worker updates) with short timeout
+                # Check for messages from Redis (cross-worker updates) with short non-blocking timeout
                 if redis_pubsub:
                     try:
-                        message = redis_pubsub.get_message(timeout=1.0)  # Check every 1 second
+                        message = redis_pubsub.get_message(timeout=0.1)  # Non-blocking check
                         if message and message['type'] == 'message':
                             data = json.loads(message['data'])
                             logger.info(f"Received message from Redis: {data.get('type', 'unknown')}")
@@ -1903,9 +1919,9 @@ def booking_sse_stream(request):
                     except Exception as e:
                         logger.error(f"Error reading from Redis: {str(e)}")
                 
-                # Also check local queue with shorter timeout to allow more frequent Redis polling
+                # Check local queue with very short timeout to avoid blocking
                 try:
-                    data = message_queue.get(timeout=1.0)
+                    data = message_queue.get(timeout=0.1)
                     try:
                         logger.info(f"Sending message to user {user_id}: {data.get('type', 'unknown')}")
                         yield f"data: {json.dumps(data)}\n\n"
@@ -1919,12 +1935,12 @@ def booking_sse_stream(request):
                         }
                         yield f"data: {json.dumps(fallback_data)}\n\n"
                 except queue.Empty:
-                    # No message in 1 s — continue loop to check Redis again
-                    # Send heartbeat every 30 seconds to keep connection alive
-                    import time
+                    # No message - send heartbeat every 30 seconds to keep connection alive
                     if time.time() - last_heartbeat >= 30:
                         yield f"data: {json.dumps({'type': 'heartbeat', 'timestamp': timezone.now().isoformat()})}\n\n"
                         last_heartbeat = time.time()
+                    # Small sleep to prevent CPU spinning
+                    time.sleep(0.1)
 
         except GeneratorExit:
             # FIX: pass the same send_fn reference so remove_connection can find
@@ -1959,7 +1975,15 @@ def booking_sse_stream(request):
     # when the frontend dev server (Vite, :5173) hits the Django backend (:8000).
     origin = request.META.get('HTTP_ORIGIN', '')
     allowed_origins = getattr(settings, 'CORS_ALLOWED_ORIGINS', [])
-    if origin in allowed_origins:
+    
+    # Check if origin matches or is a Cloudflare Pages domain
+    origin_allowed = (
+        origin in allowed_origins or 
+        any(origin.endswith('.pages.dev') for origin in allowed_origins) or
+        any(origin.endswith(allowed.replace('*.', '')) for allowed in allowed_origins if allowed.startswith('*.'))
+    )
+    
+    if origin_allowed:
         response['Access-Control-Allow-Origin'] = origin
         response['Access-Control-Allow-Credentials'] = 'true'
 

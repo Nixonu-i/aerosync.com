@@ -64,8 +64,11 @@ export const useBookingUpdates = () => {
         // Direct connection to backend in development
         streamUrl = `http://localhost:8000/api/bookings/stream/?token=${encodeURIComponent(token)}`;
       } else {
-        // Use relative URL in production (proxied through nginx)
-        streamUrl = `/api/bookings/stream/?token=${encodeURIComponent(token)}`;
+        // Use API URL from environment in production (Cloudflare Tunnel)
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://api.aerosync.live/api/';
+        // Ensure URL ends with /api and construct stream endpoint
+        const baseUrl = apiUrl.replace(/\/api\/?$/, '/api');
+        streamUrl = `${baseUrl}/bookings/stream/?token=${encodeURIComponent(token)}`;
       }
 
       const eventSource = new EventSource(streamUrl);
