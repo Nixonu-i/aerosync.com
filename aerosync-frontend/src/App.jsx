@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useContext } from "react";
 import { AuthContext } from "./context/AuthContext";
+import { BookingRealtimeProvider } from "./context/BookingRealtimeContext";
 import Navbar from "./components/Navbar";
 import AdminNavbar from "./components/AdminNavbar";
 import AgentNavbar from "./components/AgentNavbar";
@@ -33,7 +34,8 @@ export default function App() {
   const { user, loading } = useContext(AuthContext);
   
   return (
-    <div style={{
+    <BookingRealtimeProvider>
+      <div style={{
       width: "100%",
       minHeight: "100vh",
       backgroundColor: "transparent",
@@ -72,6 +74,7 @@ export default function App() {
         } />
       </Routes>
     </div>
+    </BookingRealtimeProvider>
   );
 }
 

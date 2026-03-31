@@ -1,7 +1,8 @@
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState, useRef } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import API from "../api/api";
 import { AuthContext } from "../context/AuthContext";
+import { useBookingRealtime } from "../context/BookingRealtimeContext";
 import MultiPassengerBooking from "../components/MultiPassengerBooking";
 import DateOfBirthPicker from "../components/DateOfBirthPicker";
 import ImprovedMultiPassengerBooking from "../components/ImprovedMultiPassengerBooking";
@@ -696,6 +697,8 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
     if (passenger.passenger_type === "ADULT" && passenger.passport_number) {
       if (!/^[0-9]+$/.test(passenger.passport_number)) {
         errors.push("ID number can only contain numeric digits");
+      } else if (passenger.passport_number.length < 6 || passenger.passport_number.length > 9) {
+        errors.push("ID number must be between 6 and 9 digits");
       }
     }
     
@@ -960,7 +963,7 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
               </div>
               
               <div>
-                <label style={{ display: "block", marginBottom: "5px", fontWeight: "500", color: "#495057" }}>Passport/ID Number</label>
+                <label style={{ display: "block", marginBottom: "5px", fontWeight: "500", color: "#495057" }}>Passport/ID Number *</label>
                 <input
                   type="text"
                   value={passenger.passport_number}
@@ -968,7 +971,10 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
                     // Only allow numeric characters for ID number
                     const inputValue = e.target.value;
                     const cleanedValue = inputValue.replace(/[^0-9]/g, '');
-                    handlePassengerChange("passport_number", cleanedValue);
+                    // Limit to maximum 9 digits
+                    if (cleanedValue.length <= 9) {
+                      handlePassengerChange("passport_number", cleanedValue);
+                    }
                   }}
                   onInput={(e) => {
                     // Real-time cleaning of input
@@ -976,10 +982,15 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
                     const cleanedValue = inputValue.replace(/[^0-9]/g, '');
                     if (inputValue !== cleanedValue) {
                       e.target.value = cleanedValue;
-                      handlePassengerChange("passport_number", cleanedValue);
+                      if (cleanedValue.length <= 9) {
+                        handlePassengerChange("passport_number", cleanedValue);
+                      }
                     }
                   }}
-                  placeholder="ID Number"
+                  placeholder="Enter 6-9 digit ID number"
+                  minLength={6}
+                  maxLength={9}
+                  required
                   style={{
                     width: "100%",
                     padding: "10px",
@@ -988,6 +999,9 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
                     fontSize: "14px"
                   }}
                 />
+                <small style={{ color: "#6c757d", fontSize: "12px", marginTop: "4px", display: "block" }}>
+                  ID number must be between 6 and 9 digits
+                </small>
               </div>
             </>
           )}
@@ -1199,6 +1213,9 @@ function MyBookings() {
   const [items, setItems] = useState([]);
   const [busy, setBusy] = useState(true);
   const [err, setErr] = useState("");
+  
+  // SSE integration
+  const { subscribeToAll, subscribeToPaymentUpdates, isConnected } = useBookingRealtime();
 
   const load = async () => {
     setBusy(true);
@@ -1215,7 +1232,23 @@ function MyBookings() {
 
   useEffect(() => {
     load();
-  }, []);
+    
+    // Subscribe to real-time booking updates (silent)
+    const unsubscribe = subscribeToAll((updatedBooking, changedFields) => {
+      // Update the booking in our list silently
+      setItems(prevItems => {
+        const index = prevItems.findIndex(b => b.id === updatedBooking.id);
+        if (index === -1) return prevItems; // Not our booking
+        
+        const newItems = [...prevItems];
+        newItems[index] = updatedBooking;
+        return newItems;
+      });
+      // No visual feedback - silent update, boarding pass button will auto-update based on status
+    });
+    
+    return () => unsubscribe();
+  }, []); // Empty dependency array - only run once on mount
 
   const downloadPass = async (bookingId, ref, passengerId = null) => {
     try {
@@ -1264,6 +1297,18 @@ function BookingItem({ booking, onDownloadPass }) {
   const [error, setError] = useState("");
   const [flashMessage, setFlashMessage] = useState({show: false, type: '', message: ''});
   const [showPesapalModal, setShowPesapalModal] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const cardRef = useRef(null);
+  
+  // Access real-time payment updates from context
+  const { subscribeToPaymentUpdates } = useBookingRealtime();
+  
+  // Trigger animation when booking status changes
+  useEffect(() => {
+    setIsUpdating(true);
+    const timer = setTimeout(() => setIsUpdating(false), 2000);
+    return () => clearTimeout(timer);
+  }, [booking.booking_status, booking.total_amount]);
   
   const showFlashMessage = (message, type = 'error') => {
     setFlashMessage({show: true, type, message});
@@ -1289,10 +1334,24 @@ function BookingItem({ booking, onDownloadPass }) {
   
   useEffect(() => {
     loadPaymentStatus();
-  }, []);
+    
+    // Subscribe to payment updates for this booking
+    const unsubscribePayment = subscribeToPaymentUpdates((payment, bookingId) => {
+      if (bookingId === booking.id) {
+        // Reload payment status when payment changes
+        loadPaymentStatus();
+      }
+    });
+    
+    return () => unsubscribePayment();
+  }, []); // Empty dependency array - only run once on mount
 
   return (
-    <div style={styles.bookingCard}>
+    <div ref={cardRef} style={{
+      ...styles.bookingCard,
+      animation: isUpdating ? 'cardHighlight 2s ease-out' : 'none',
+      transition: 'all 0.3s ease'
+    }}>
       {/* Status Badge */}
       <div style={{
         ...styles.statusBadge,
@@ -1368,8 +1427,11 @@ function BookingItem({ booking, onDownloadPass }) {
               }}>{paymentStatus.latest_payment.status}</strong> - KES {paymentStatus.latest_payment.amount}
             </div>
           )}
-          
-          {paymentStatus.booking_status === 'PENDING' && (
+                    
+          {/* Show Pay Now button only when payment is PENDING or FAILED */}
+          {paymentStatus.latest_payment && 
+           (paymentStatus.latest_payment.status === 'PENDING' || 
+            paymentStatus.latest_payment.status === 'FAILED') && (
             <button 
               onClick={() => setShowPesapalModal(true)} 
               disabled={loading}
@@ -1378,8 +1440,10 @@ function BookingItem({ booking, onDownloadPass }) {
               {loading ? 'Processing...' : 'Pay Now'}
             </button>
           )}
-          
-          {paymentStatus.boarding_pass_available && (
+                    
+          {/* Calculate boarding pass availability dynamically based on current status and payment */}
+          {(booking.booking_status === 'CONFIRMED' || booking.booking_status === 'ONBOARD') && 
+           paymentStatus.latest_payment?.status === 'SUCCESS' && (
             <div>
               {/* Check if there are multiple passengers */}
               {booking.passengers && booking.passengers.length > 1 ? (

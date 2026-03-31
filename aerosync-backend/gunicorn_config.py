@@ -6,7 +6,8 @@ worker_class = "sync"
 max_requests = 1000
 max_requests_jitter = 100
 
-timeout = 120
+# Increased timeout for SSE long-polling connections
+timeout = 300
 graceful_timeout = 30
 keepalive = 5
 

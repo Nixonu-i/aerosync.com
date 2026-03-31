@@ -182,3 +182,37 @@ button:focus-visible {
   45%       { opacity: 0.65; }
   55%       { opacity: 0.8; }
 }
+
+/* SSE Connection Status Pulse */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.2);
+  }
+}
+
+/* Flash Message Slide In */
+@keyframes slideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Booking Card Update Animation */
+@keyframes cardHighlight {
+  0% {
+    box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 20px 10px rgba(212, 175, 55, 0);
+  }
+}

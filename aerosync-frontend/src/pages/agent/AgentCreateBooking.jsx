@@ -156,8 +156,24 @@ function PassengerForm({ index, data, onChange, onRemove, showRemove }) {
             </div>
             <div>
               <label style={labelStyle}>Passport / ID (numbers only) *</label>
-              <input value={data.passport_number} style={inputStyle} placeholder="Numbers only" inputMode="numeric"
-                onChange={e => set("passport_number", e.target.value.replace(/[^0-9]/g, ""))} />
+              <input 
+                value={data.passport_number} 
+                style={inputStyle} 
+                placeholder="7-9 digits" 
+                inputMode="numeric"
+                maxLength={9}
+                onChange={e => {
+                  const val = e.target.value.replace(/[^0-9]/g, "");
+                  // Only update if length is 0 or between 7-9 digits
+                  if (val.length === 0 || (val.length >= 7 && val.length <= 9)) {
+                    set("passport_number", val);
+                  }
+                }} />
+              {data.passport_number && (data.passport_number.length < 7 || data.passport_number.length > 9) && (
+                <div style={{ color: "#dc3545", fontSize: "10px", marginTop: "4px", fontWeight: 600 }}>
+                  ID must be 7-9 digits (current: {data.passport_number.length})
+                </div>
+              )}
             </div>
           </>
         )}
@@ -636,6 +652,18 @@ export default function AgentCreateBooking() {
 
   /* Submit */
   const handleConfirm = async () => {
+    // Validate all adult passengers have valid ID numbers (7-9 digits)
+    const invalidPassenger = passengers.find(p => 
+      p.passenger_type === 'ADULT' && 
+      (!p.passport_number || p.passport_number.length < 7 || p.passport_number.length > 9)
+    );
+    
+    if (invalidPassenger) {
+      const index = passengers.indexOf(invalidPassenger);
+      setErr(`Passenger ${index + 1}: Passport/ID must be 7-9 digits (current: ${invalidPassenger.passport_number?.length || 0})`);
+      return;
+    }
+    
     setSubmitting(true);
     setErr("");
     try {
