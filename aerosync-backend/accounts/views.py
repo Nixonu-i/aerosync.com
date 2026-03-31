@@ -183,7 +183,8 @@ def profile_view(request):
     elif request.method == 'POST':
         # SECURITY: Prevent updates to locked fields after initial setup
         # Only phone_number, phone_area_code, and profile_photo can be updated after setup
-        mutable_data = request.data.copy()
+        # Use QueryDict copy instead of deep copy to handle file uploads properly
+        mutable_data = request.data.dict() if hasattr(request.data, 'dict') else dict(request.data)
         
         if profile.initial_setup_done:
             # User has completed initial setup - lock sensitive fields
