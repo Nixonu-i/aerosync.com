@@ -12,7 +12,7 @@ const BookingRealtimeContext = createContext(null);
  * needing real-time booking update functionality.
  */
 export const BookingRealtimeProvider = ({ children }) => {
-  const { isConnected, latestUpdate, error, resetError } = useBookingUpdates();
+  const { isConnected, latestUpdate, error, resetError, disconnect, reconnect } = useBookingUpdates();
   
   // Store all active bookings and their real-time state
   const [bookingUpdates, setBookingUpdates] = useState({});
@@ -119,13 +119,15 @@ export const BookingRealtimeProvider = ({ children }) => {
     isConnected,
     error,
     resetError,
+    disconnect,
+    reconnect,
     subscribeToBooking,
     subscribeToAll,
     subscribeToPaymentUpdates,
     getBookingUpdate,
     clearUpdates,
     hasActiveConnection: isConnected && !error
-  }), [isConnected, error, resetError, subscribeToBooking, subscribeToAll, subscribeToPaymentUpdates, getBookingUpdate, clearUpdates]);
+  }), [isConnected, error, resetError, disconnect, reconnect, subscribeToBooking, subscribeToAll, subscribeToPaymentUpdates, getBookingUpdate, clearUpdates]);
 
   return (
     <BookingRealtimeContext.Provider value={value}>

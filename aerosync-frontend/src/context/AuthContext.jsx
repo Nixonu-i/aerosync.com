@@ -77,7 +77,7 @@ export const AuthProvider = ({ children }) => {
   const login = useCallback(async (username, password) => {
     const res = await API.post("auth/login/", { username, password });
     localStorage.setItem("token", res.data.access);
-    setToken(res.data.access); // FIX: update reactive token so SSE hook re-connects
+    setToken(res.data.access); // update reactive token for WebSocket reconnection
     const userData = await fetchMe();
     return userData;
   }, [fetchMe]);
@@ -95,7 +95,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = useCallback(() => {
     localStorage.removeItem("token");
-    setToken(null); // FIX: clear reactive token so SSE hook disconnects cleanly
+    setToken(null); // clear reactive token for WebSocket disconnection
     setUser(null);
   }, []);
 

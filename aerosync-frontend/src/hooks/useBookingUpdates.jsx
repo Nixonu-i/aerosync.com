@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 /**
- * Custom hook for managing SSE connection to booking updates stream.
+ * Custom hook for managing WebSocket connection to booking updates stream.
  * Handles connection lifecycle, reconnection, and message parsing.
  * 
  * @returns {Object} Connection state and latest update
@@ -13,8 +13,8 @@ export const useBookingUpdates = () => {
   const [latestUpdate, setLatestUpdate] = useState(null);
   const [error, setError] = useState(null);
   
-  // Use refs to track event source and prevent stale closures
-  const eventSourceRef = useRef(null);
+  // Use refs to track WebSocket and prevent stale closures
+  const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const retryCountRef = useRef(0);
   const MAX_RETRIES = 5;
@@ -22,9 +22,9 @@ export const useBookingUpdates = () => {
 
   // Clean up connection
   const disconnect = useCallback(() => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
     }
     
     if (reconnectTimeoutRef.current) {
@@ -35,58 +35,47 @@ export const useBookingUpdates = () => {
     setIsConnected(false);
   }, []);
 
-  // Connect to SSE stream
+  // Connect to WebSocket stream
   const connect = useCallback(() => {
     if (!token) {
       setError('No authentication token available');
       return;
     }
 
-    // FIX: check readyState instead of just existence — a dead EventSource
-    // (readyState === 2) still holds a reference but is no longer usable.
-    // Previously this guard prevented reconnection after a failed connection.
-    if (eventSourceRef.current) {
-      const state = eventSourceRef.current.readyState;
-      if (state === EventSource.OPEN || state === EventSource.CONNECTING) {
-        return;
-      }
-      // Dead connection — close and clear before creating a new one
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
+    // Check if already connected or connecting
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+      return;
     }
 
     try {
-      // In development, connect directly to backend to avoid Vite proxy issues with SSE
+      // In development, connect directly to backend
       const isDev = import.meta.env.DEV;
-      let streamUrl;
+      let wsUrl;
       
       if (isDev) {
-        // Direct connection to backend in development
-        streamUrl = `http://localhost:8000/api/bookings/stream/?token=${encodeURIComponent(token)}`;
+        wsUrl = `ws://localhost:8000/api/ws/bookings/?token=${encodeURIComponent(token)}`;
       } else {
-        // Use API URL from environment in production (Cloudflare Tunnel)
+        // Use wss:// in production via Cloudflare Tunnel
         const apiUrl = import.meta.env.VITE_API_URL || 'https://api.aerosync.live/api/';
-        // Ensure URL ends with /api and construct stream endpoint
-        const baseUrl = apiUrl.replace(/\/api\/?$/, '/api');
-        streamUrl = `${baseUrl}/bookings/stream/?token=${encodeURIComponent(token)}`;
+        const baseUrl = apiUrl.replace(/\/api\/?$/, '').replace(/^https?:\/\//, '');
+        wsUrl = `wss://${baseUrl}/api/ws/bookings/?token=${encodeURIComponent(token)}`;
       }
 
-      const eventSource = new EventSource(streamUrl);
-      eventSourceRef.current = eventSource;
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
 
       // Connection opened successfully
-      eventSource.addEventListener('open', () => {
+      ws.onopen = () => {
         setIsConnected(true);
         setError(null);
         retryCountRef.current = 0;
-      });
+        console.log('🔌 WebSocket connected');
+      };
 
       // Handle incoming messages
-      eventSource.addEventListener('message', (event) => {
+      ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          
-          // Store the update
           setLatestUpdate(data);
           
           // Heartbeat messages don't need error handling
@@ -94,18 +83,15 @@ export const useBookingUpdates = () => {
             return;
           }
           
-          // Reset retry counter on successful message
           retryCountRef.current = 0;
         } catch (err) {
           setError('Failed to parse update message');
         }
-      });
+      };
 
       // Handle connection errors
-      eventSource.addEventListener('error', (err) => {
-        console.error('❌ SSE connection error:', err);
-        console.error('[SSE Error] ReadyState:', eventSource.readyState);
-        console.error('[SSE Error] Error type:', err.type);
+      ws.onerror = (err) => {
+        console.error('❌ WebSocket error:', err);
         setIsConnected(false);
         
         // Attempt reconnection with exponential backoff
@@ -120,7 +106,24 @@ export const useBookingUpdates = () => {
         } else {
           setError('Connection failed after multiple attempts. Please refresh the page.');
         }
-      });
+      };
+
+      // Handle connection close
+      ws.onclose = (event) => {
+        console.log('🔌 WebSocket closed:', event.code, event.reason);
+        setIsConnected(false);
+        
+        // Reconnect if not a normal closure
+        if (event.code !== 1000 && retryCountRef.current < MAX_RETRIES) {
+          retryCountRef.current += 1;
+          const delay = RECONNECT_DELAY * Math.pow(2, retryCountRef.current - 1);
+          
+          reconnectTimeoutRef.current = setTimeout(() => {
+            disconnect();
+            connect();
+          }, delay);
+        }
+      };
 
     } catch (err) {
       setError(err.message);
@@ -130,7 +133,8 @@ export const useBookingUpdates = () => {
   // Auto-connect on mount / when token changes
   useEffect(() => {
     if (token) {
-      connect();
+      // Don't auto-connect - let components control connection manually
+      // connect();
     } else {
       // Token was cleared (logout) — disconnect immediately
       disconnect();
@@ -140,7 +144,7 @@ export const useBookingUpdates = () => {
     return () => {
       disconnect();
     };
-  }, [token, connect, disconnect]);
+  }, [token, disconnect]);
 
   // Reset error state manually
   const resetError = useCallback(() => {
@@ -150,12 +154,20 @@ export const useBookingUpdates = () => {
     connect();
   }, [disconnect, connect]);
 
+  // Manual reconnect function for components to call
+  const manualReconnect = useCallback(() => {
+    if (token) {
+      disconnect();
+      setTimeout(() => connect(), 100); // Small delay to ensure cleanup
+    }
+  }, [token, disconnect, connect]);
+
   return {
     isConnected,
     latestUpdate,
     error,
     resetError,
     disconnect,
-    reconnect: connect
+    reconnect: manualReconnect
   };
 };

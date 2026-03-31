@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "accounts",
     "core",
+    "channels",  # Django Channels for WebSocket support
 ]
 
 # -------------------------------------------------------------------
@@ -373,4 +374,22 @@ PESAPAL_API_URLS = {
 
 # Callback URLs (must be publicly accessible)
 PESAPAL_CALLBACK_URL = os.getenv('PESAPAL_CALLBACK_URL', 'https://api.aerosync.live/api/payments/pesapal/callback/')
+
+# -------------------------------------------------------------------
+# Django Channels Configuration (WebSocket support)
+# -------------------------------------------------------------------
+
+ASGI_APPLICATION = 'aerosync.asgi.application'
+
+# Channel Layers configuration - use Redis for cross-worker communication
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [(os.getenv('REDIS_HOST', '127.0.0.1'), os.getenv('REDIS_PORT', 6379))],
+            "capacity": 1500,  # Maximum number of messages to store
+            "expiry": 10,  # Message expiry time in seconds
+        },
+    },
+}
 PESAPAL_IPN_URL = os.getenv('PESAPAL_IPN_URL', 'https://api.aerosync.live/api/payments/pesapal/ipn/')

@@ -1214,8 +1214,8 @@ function MyBookings() {
   const [busy, setBusy] = useState(true);
   const [err, setErr] = useState("");
   
-  // SSE integration
-  const { subscribeToAll, subscribeToPaymentUpdates, isConnected } = useBookingRealtime();
+  // WebSocket integration - only connects when this component is mounted
+  const { subscribeToAll, subscribeToPaymentUpdates, isConnected, reconnect, disconnect } = useBookingRealtime();
 
   const load = async () => {
     setBusy(true);
@@ -1233,6 +1233,10 @@ function MyBookings() {
   useEffect(() => {
     load();
     
+    // Connect to WebSocket stream when component mounts
+    console.log('📡 Connecting to WebSocket stream for MyBookings');
+    reconnect();
+    
     // Subscribe to real-time booking updates (silent)
     const unsubscribe = subscribeToAll((updatedBooking, changedFields) => {
       // Update the booking in our list silently
@@ -1247,7 +1251,13 @@ function MyBookings() {
       // No visual feedback - silent update, boarding pass button will auto-update based on status
     });
     
-    return () => unsubscribe();
+    // Cleanup: disconnect WebSocket when component unmounts to free backend resources
+    return () => {
+      console.log('🔌 Disconnecting from WebSocket stream - component unmount');
+      unsubscribe();
+      disconnect(); // Tell backend to close the connection
+      console.log('✅ WebSocket cleanup complete');
+    };
   }, []); // Empty dependency array - only run once on mount
 
   const downloadPass = async (bookingId, ref, passengerId = null) => {

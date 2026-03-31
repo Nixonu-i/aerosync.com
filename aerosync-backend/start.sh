@@ -13,16 +13,16 @@ source "$SCRIPT_DIR/venv/bin/activate"
 # Optional Django media serving
 export SERVE_MEDIA_FROM_DJANGO="${SERVE_MEDIA_FROM_DJANGO:-1}"
 
-echo "Starting Gunicorn..."
+echo "Starting Daphne (ASGI server for WebSocket support)..."
 
-"$SCRIPT_DIR/venv/bin/gunicorn" \
-    --bind 127.0.0.1:8000 \
-    --config "$SCRIPT_DIR/gunicorn_config.py" \
-    aerosync.wsgi:application &
+"$SCRIPT_DIR/venv/bin/daphne" \
+    --bind 127.0.0.1 \
+    --port 8000 \
+    aerosync.asgi:application &
 
-GUNICORN_PID=$!
+DAPHNE_PID=$!
 
-echo "Gunicorn running with PID $GUNICORN_PID"
+echo "Daphne running with PID $DAPHNE_PID"
 
 echo "Starting Cloudflare tunnel..."
 

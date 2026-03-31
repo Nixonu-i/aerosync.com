@@ -1,7 +1,8 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 from .models import Payment, Booking
-from .sse_manager import sse_manager
 
 
 @receiver(post_save, sender=Payment)
@@ -19,7 +20,7 @@ def auto_confirm_booking_on_payment_success(sender, instance, **kwargs):
 @receiver(post_save, sender=Payment)
 def broadcast_payment_update(sender, instance, created, update_fields, **kwargs):
     """
-    Broadcast real-time payment status updates via SSE.
+    Broadcast real-time payment status updates via WebSocket.
     Notifies:
     - Customer: About their payment status changes
     - Agents: About all payment changes (for dashboard visibility)
@@ -55,20 +56,29 @@ def broadcast_payment_update(sender, instance, created, update_fields, **kwargs)
     booking = instance.booking
     logger.info(f"Broadcasting payment update for payment {instance.id} (booking {booking.id}, status {instance.status})")
     
+    # Get channel layer
+    channel_layer = get_channel_layer()
+    
     # Notify the customer who owns this booking/payment
     if booking.user_id:
         logger.info(f"Sending payment update to user {booking.user_id}")
-        sse_manager.broadcast_to_user(booking.user_id, update_data)
+        async_to_sync(channel_layer.group_send)(
+            f"user_{booking.user_id}",
+            {'type': 'payment_update', **update_data}
+        )
     
     # Notify all agents about the change
     logger.info("Sending payment update to all agents")
-    sse_manager.broadcast_to_agents(update_data)
+    async_to_sync(channel_layer.group_send)(
+        "agents",
+        {'type': 'payment_update', **update_data}
+    )
 
 
 @receiver(post_save, sender=Booking)
 def broadcast_booking_update(sender, instance, created, update_fields, **kwargs):
     """
-    Broadcast real-time updates when booking changes via SSE.
+    Broadcast real-time updates when booking changes via WebSocket.
     Notifies:
     - Customer: Always notified about their booking changes
     - Agents: Notified about all booking changes (for dashboard visibility)
@@ -102,11 +112,20 @@ def broadcast_booking_update(sender, instance, created, update_fields, **kwargs)
     
     logger.info(f"Broadcasting update for booking {instance.id} (user {instance.user_id}, status {instance.booking_status})")
     
+    # Get channel layer
+    channel_layer = get_channel_layer()
+    
     # Notify the customer who owns this booking
     if instance.user_id:
         logger.info(f"Sending update to user {instance.user_id}")
-        sse_manager.broadcast_to_user(instance.user_id, update_data)
+        async_to_sync(channel_layer.group_send)(
+            f"user_{instance.user_id}",
+            {'type': 'booking_update', **update_data}
+        )
     
     # Notify all agents about the change (for their dashboards)
     logger.info("Sending update to all agents")
-    sse_manager.broadcast_to_agents(update_data)
+    async_to_sync(channel_layer.group_send)(
+        "agents",
+        {'type': 'booking_update', **update_data}
+    )

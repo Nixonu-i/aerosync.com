@@ -8,16 +8,11 @@ from django.http import JsonResponse
 def api_root(request):
     return JsonResponse({"message": "AeroSync API", "version": "1.0"})
 
-# Import SSE view directly to avoid DRF processing
-from core.views import booking_sse_stream
-
 urlpatterns = [
     path("", api_root),
     path("admin/", admin.site.urls),
 
-    # SSE endpoint MUST be before DRF URLs to avoid content negotiation
-    path("api/bookings/stream/", booking_sse_stream),
-    
+    # WebSocket endpoint is handled by ASGI routing
     path("api/auth/", include("accounts.urls")),
     path("api/", include("core.urls")),
 ]
