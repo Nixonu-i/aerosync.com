@@ -899,14 +899,15 @@ class PesapalIPNView(APIView):
                 payment.status = 'SUCCESS'
                 payment.payment_detail = f"Status: {payment_status} | Code: {status_code}"
                 payment.booking.booking_status = 'CONFIRMED'
-                payment.booking.save()
-                print(f"[{timestamp}] {ip_address} SUCCESS - Booking {payment.booking.id} confirmed")
+                payment.booking.save(update_fields=['booking_status'])
+                payment.save()
+                print(f"[{timestamp}] {ip_address} ✅ SUCCESS - Booking {payment.booking.id} confirmed")
                 
             elif payment_status == 'FAILED' or str(status_code) == '2':
                 payment.status = 'FAILED'
                 payment.payment_detail = f"Status: {payment_status}"
                 payment.save()
-                print(f"[{timestamp}] {ip_address} FAILED - Booking {payment.booking.id}")
+                print(f"[{timestamp}] {ip_address} ❌ FAILED - Booking {payment.booking.id}")
                 
             elif payment_status in ['INVALID', 'CANCELLED'] or str(status_code) == '0':
                 payment.status = 'CANCELLED'

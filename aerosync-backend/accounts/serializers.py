@@ -103,6 +103,22 @@ class ProfileSerializer(serializers.ModelSerializer):
         model = Profile
         fields = ["date_of_birth", "gender", "nationality", "phone_area_code", "phone_number", "profile_photo", "profile_photo_url", "initial_setup_done"]
     
+    def validate_date_of_birth(self, value):
+        """
+        Validate that the user is at least 18 years old.
+        """
+        if value:
+            from datetime import date
+            today = date.today()
+            # Calculate age
+            age = today.year - value.year - ((today.month, today.day) < (value.month, value.day))
+            
+            if age < 18:
+                raise serializers.ValidationError(
+                    f'You must be at least 18 years old to register. Your current age: {age} years.'
+                )
+        return value
+    
     def get_profile_photo_url(self, obj):
         try:
             if obj.profile_photo:
@@ -127,6 +143,22 @@ class ProfileDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
         fields = ["date_of_birth", "gender", "nationality", "phone_area_code", "phone_number", "profile_photo", "profile_photo_url", "initial_setup_done"]
+    
+    def validate_date_of_birth(self, value):
+        """
+        Validate that the user is at least 18 years old.
+        """
+        if value:
+            from datetime import date
+            today = date.today()
+            # Calculate age
+            age = today.year - value.year - ((today.month, today.day) < (value.month, value.day))
+            
+            if age < 18:
+                raise serializers.ValidationError(
+                    f'You must be at least 18 years old. Your current age: {age} years.'
+                )
+        return value
     
     def get_profile_photo_url(self, obj):
         try:

@@ -30,10 +30,10 @@ class EmailVerificationService:
             if brevo_key and brevo_key != 'xkeysib-your-api-key-here':
                 # Use Brevo API
                 api_instance = EmailVerificationService._get_brevo_api_instance()
-                
-                sender = {"name": "AeroSync", "email": settings.DEFAULT_FROM_EMAIL.split('<')[1].strip('>')}
+                    
+                sender = {"name": "AeroSync", "email": settings.DEFAULT_FROM_EMAIL.split('<')[1].strip('>')}  
                 to = [{"email": to_email}]
-                
+                    
                 send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
                     to=to,
                     html_content=html_content,
@@ -41,7 +41,7 @@ class EmailVerificationService:
                     sender=sender,
                     subject=subject
                 )
-                
+                    
                 response = api_instance.send_transac_email(send_smtp_email)
                 print(f"Email sent successfully via Brevo! Message ID: {response.message_id}")
                 return True
@@ -57,6 +57,18 @@ class EmailVerificationService:
                 msg.send()
                 print(f"Email sent successfully via Gmail!")
                 return True
+        except sib_api_v3_sdk.rest.ApiException as e:
+            # Handle Brevo API errors specifically
+            import logging
+            logger = logging.getLogger('email_service')
+                
+            if e.status == 401 and 'unrecognised IP address' in str(e.body):
+                logger.error(f'Brevo IP authorization failed (105.160.78.41). Add IP at https://app.brevo.com/security/authorised_ips')
+                # Re-raise with clearer message for views to handle
+                raise Exception('Email service IP not authorized in Brevo')
+            else:
+                logger.error(f'Brevo API error: {e}')
+                raise
         except Exception as e:
             print(f"Error sending email: {str(e)}")
             raise

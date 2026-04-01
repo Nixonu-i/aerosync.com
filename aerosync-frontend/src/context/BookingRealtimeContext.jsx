@@ -24,8 +24,6 @@ export const BookingRealtimeProvider = ({ children }) => {
       if (latestUpdate.type === 'booking_updated') {
         const { booking, changed_fields } = latestUpdate;
         
-        console.log('🔄 Processing booking update:', booking.booking_reference, changed_fields);
-        
         // Update the booking in our state
         setBookingUpdates(prev => ({
           ...prev,
@@ -40,8 +38,6 @@ export const BookingRealtimeProvider = ({ children }) => {
         notifySubscribers(booking, changed_fields);
       } else if (latestUpdate.type === 'payment_updated') {
         const { payment, booking_id, changed_fields } = latestUpdate;
-        
-        console.log('💰 Processing payment update for booking', booking_id, payment.status, changed_fields);
         
         // Dispatch custom event for payment updates
         const event = new CustomEvent('payment-update', {

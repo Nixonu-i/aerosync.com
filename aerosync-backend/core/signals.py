@@ -24,6 +24,10 @@ def broadcast_payment_update(sender, instance, created, update_fields, **kwargs)
     Notifies:
     - Customer: About their payment status changes
     - Agents: About all payment changes (for dashboard visibility)
+    
+    IMPORTANT: This signal is triggered by BOTH:
+    - Admin manually changing payment status
+    - Pesapal IPN automatically updating payment status
     """
     import logging
     logger = logging.getLogger('core.signals')
@@ -54,21 +58,18 @@ def broadcast_payment_update(sender, instance, created, update_fields, **kwargs)
     }
     
     booking = instance.booking
-    logger.info(f"Broadcasting payment update for payment {instance.id} (booking {booking.id}, status {instance.status})")
     
     # Get channel layer
     channel_layer = get_channel_layer()
     
     # Notify the customer who owns this booking/payment
     if booking.user_id:
-        logger.info(f"Sending payment update to user {booking.user_id}")
         async_to_sync(channel_layer.group_send)(
             f"user_{booking.user_id}",
             {'type': 'payment_update', **update_data}
         )
     
     # Notify all agents about the change
-    logger.info("Sending payment update to all agents")
     async_to_sync(channel_layer.group_send)(
         "agents",
         {'type': 'payment_update', **update_data}

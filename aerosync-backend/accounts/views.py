@@ -75,9 +75,16 @@ class RegisterView(generics.CreateAPIView):
             print(f"✅ Verification email sent! Code: {code}")  # For testing only
         except Exception as e:
             # Log error but don't fail registration
+            import logging
+            logger = logging.getLogger('accounts')
             import traceback
-            print(f"❌ Failed to send verification email: {e}")
-            print(f"Traceback: {traceback.format_exc()}")
+            logger.error(f"❌ Failed to send verification email: {e}")
+            logger.debug(f"Traceback: {traceback.format_exc()}")
+            
+            # Check if it's a Brevo IP authorization error - log it for admin attention
+            error_message = str(e)
+            if 'unrecognised IP address' in error_message or 'authorised_ips' in error_message:
+                logger.critical('🚨 Brevo IP authorization error - Admin must add 105.160.78.41 to Brevo security settings')
         
         return Response({
             **response.data,
@@ -492,12 +499,33 @@ class ResendVerificationView(APIView):
                     }, status=status.HTTP_429_TOO_MANY_REQUESTS)
             
             # Send new verification code
-            EmailVerificationService.resend_verification(user)
-            
-            return Response({
-                'detail': 'Verification email sent successfully',
-                'message': 'Please check your email for the new verification code'
-            })
+            try:
+                EmailVerificationService.resend_verification(user)
+                return Response({
+                    'detail': 'Verification email sent successfully',
+                    'message': 'Please check your email for the new verification code'
+                })
+            except Exception as e:
+                import logging
+                logger = logging.getLogger('accounts')
+                logger.error(f'Failed to send verification email: {str(e)}')
+                
+                # Check if it's a Brevo IP authorization error
+                error_message = str(e)
+                if 'unrecognised IP address' in error_message or 'authorised_ips' in error_message:
+                    # Log the specific error but don't expose technical details to user
+                    logger.error('Brevo IP authorization error - please add IP to Brevo security settings')
+                    # Return success anyway to avoid blocking users
+                    return Response({
+                        'detail': 'Verification email queued (email service temporarily unavailable)',
+                        'message': 'Please try again in a few minutes or contact support'
+                    })
+                else:
+                    # Generic email failure - still allow user to try again
+                    return Response({
+                        'detail': 'Unable to send verification email at this time',
+                        'message': 'Please try again later or contact support'
+                    }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
             
         except User.DoesNotExist:
             # Don't reveal if user exists or not (security best practice)
