@@ -97,6 +97,8 @@ def broadcast_payment_update(sender, instance, created, update_fields, **kwargs)
     IMPORTANT: This signal is triggered by BOTH:
     - Admin manually changing payment status
     - Pesapal IPN automatically updating payment status
+    
+    Skip broadcast if only metadata fields changed (not status).
     """
     import logging
     logger = logging.getLogger('core.signals')
@@ -104,6 +106,12 @@ def broadcast_payment_update(sender, instance, created, update_fields, **kwargs)
     # Skip if this is a new payment creation
     if created:
         logger.info(f"Skipping broadcast for new payment {instance.id}")
+        return
+    
+    # Skip broadcast if only non-status fields changed
+    # Only broadcast when payment STATUS actually changes
+    if update_fields and 'status' not in update_fields:
+        logger.debug(f"Skipping broadcast for payment {instance.id} - status unchanged")
         return
     
     # Prepare update payload
@@ -133,6 +141,7 @@ def broadcast_payment_update(sender, instance, created, update_fields, **kwargs)
     
     # Notify the customer who owns this booking/payment
     if booking.user_id:
+        logger.info(f"💰 Sent payment update to user {booking.user_id}")
         async_to_sync(channel_layer.group_send)(
             f"user_{booking.user_id}",
             {'type': 'payment_update', **update_data}

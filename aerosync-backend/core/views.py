@@ -1020,20 +1020,35 @@ class PesapalStatusCheckView(APIView):
                     'warning': 'Unable to fetch latest status from Pesapal. Showing last known state.'
                 })
             
-            if status_result['status'] in ['COMPLETED', 'COMPLETE']:
-                payment.status = 'SUCCESS'
+            # IMPORTANT: Only update payment status if it has changed
+            # This prevents unnecessary signal broadcasts during polling
+            new_payment_status = payment.status
+            needs_update = False
+            
+            if status_result['status'] in ['COMPLETED', 'COMPLETE'] and payment.status != 'SUCCESS':
+                new_payment_status = 'SUCCESS'
+                needs_update = True
+            elif status_result['status'] == 'FAILED' and payment.status != 'FAILED':
+                new_payment_status = 'FAILED'
+                needs_update = True
+            elif status_result['status'] in ['INVALID', 'CANCELLED'] and payment.status not in ['CANCELLED', 'INVALID']:
+                new_payment_status = 'CANCELLED'
+                needs_update = True
+            
+            # Only update if status actually changed
+            if needs_update:
+                payment.status = new_payment_status
                 payment.payment_detail = f"Status: {status_result['status']}"
-                payment.booking.booking_status = 'CONFIRMED'
-                payment.booking.save(update_fields=['booking_status'])
+                
+                # Only update booking status if payment is now SUCCESS
+                if new_payment_status == 'SUCCESS' and payment.booking.booking_status != 'CONFIRMED':
+                    payment.booking.booking_status = 'CONFIRMED'
+                    payment.booking.save(update_fields=['booking_status'])
+                
                 payment.save()
-            elif status_result['status'] == 'FAILED':
-                payment.status = 'FAILED'
-                payment.payment_detail = f"Status: {status_result['status']}"
-                payment.save()
-            elif status_result['status'] in ['INVALID', 'CANCELLED']:
-                payment.status = 'CANCELLED'
-                payment.payment_detail = f"Status: {status_result['status']}"
-                payment.save()
+                logger.info(f"Payment {payment.id} status updated to {new_payment_status}")
+            else:
+                logger.debug(f"Payment {payment.id} status unchanged ({payment.status})")
             
             return Response({
                 'payment': PaymentSerializer(payment).data,
