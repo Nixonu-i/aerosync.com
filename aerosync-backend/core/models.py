@@ -130,6 +130,55 @@ class Booking(models.Model):
     
     def __str__(self):
         return f"Booking {self.confirmation_code} - {self.user.username}"
+    
+    def has_successful_payment(self):
+        """Check if booking has at least one successful payment"""
+        return self.payment_set.filter(status='SUCCESS').exists()
+    
+    def update_status_based_on_payment_and_flight(self, save=True):
+        """
+        Automatically update booking status based on payment status and flight status.
+        
+        Rules:
+        1. If flight is COMPLETED and booking has SUCCESS payment → booking status = CONFIRMED
+        2. If flight is COMPLETED and NO successful payment → booking status = FAILED
+        3. If flight is not COMPLETED, keep current status (don't downgrade)
+        
+        Returns True if status was changed, False otherwise.
+        """
+        from django.utils import timezone
+        
+        old_status = self.booking_status
+        new_status = old_status
+        
+        # Only process if flight status is COMPLETED
+        if self.flight.status == 'COMPLETED':
+            if self.has_successful_payment():
+                # Flight completed + paid = confirmed booking
+                new_status = 'CONFIRMED'
+            else:
+                # Flight completed but not paid = failed booking
+                new_status = 'FAILED'
+        
+        # Don't change status if it's already correct or if we'd be downgrading unnecessarily
+        if new_status != old_status:
+            # Prevent downgrading from better statuses
+            status_priority = {
+                'ONBOARD': 5,
+                'CONFIRMED': 4,
+                'PENDING': 3,
+                'CANCELLED': 2,
+                'FAILED': 1,
+            }
+            
+            # Only update if new status is equal or better than current
+            if status_priority.get(new_status, 0) >= status_priority.get(old_status, 0):
+                self.booking_status = new_status
+                if save:
+                    self.save(update_fields=['booking_status'])
+                return True
+        
+        return False
 
 
 class Passenger(models.Model):

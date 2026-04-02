@@ -182,20 +182,58 @@ class PesapalService:
         }
         
         # Debug log - show exact JSON being sent
-        import json
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Pesapal Order Request - Amount: {payload['amount']} {payload['currency']}, Reference: {payload['id']}")
+        logger.info(f"Pesapal Order Request - Email: {payload['billing_address']['email_address']}, Phone: {payload['billing_address']['phone_number']}")
         
         # Debug log
         
         try:
             response = requests.post(url, json=payload, headers=headers, timeout=10)
-            
-            
-            response.raise_for_status()
-            
+                    
+            # Log the response for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Pesapal response status: {response.status_code}")
+                    
+            # Check if response contains error before raising for status
+            if response.status_code >= 400:
+                try:
+                    error_data = response.json()
+                    error_info = error_data.get('error', {})
+                    error_type = error_info.get('error_type', 'unknown')
+                    error_code = error_info.get('code', '')
+                    error_message = error_info.get('message', response.reason)
+                            
+                    # Log detailed error information
+                    logger.error(f"Pesapal API error {response.status_code}: {error_type} - {error_code}: {error_message}")
+                            
+                    # Raise specific exception based on error type
+                    if error_code == 'amount_exceeds_default_limit':
+                        raise Exception(f"Transaction amount exceeds Pesapal limit. Please contact support or use a different payment method.")
+                    elif response.status_code == 401:
+                        raise Exception("Pesapal authentication failed: Invalid credentials")
+                    elif response.status_code == 403:
+                        raise Exception(f"Pesapal authorization failed: {error_message}")
+                    else:
+                        raise Exception(f"Pesapal error ({response.status_code}): {error_type} - {error_code}: {error_message}")
+                except (ValueError, KeyError):
+                    # If we can't parse the error response, raise generic error
+                    response.raise_for_status()
+                    
             data = response.json()
-            
+                    
             if data.get('error'):
-                raise Exception(f"Pesapal error: {data.get('error')}")
+                error_info = data.get('error', {})
+                if isinstance(error_info, dict):
+                    error_code = error_info.get('code', '')
+                    error_message = error_info.get('message', 'Unknown error')
+                    if error_code == 'amount_exceeds_default_limit':
+                        raise Exception(f"Transaction amount exceeds limit. Please contact support for assistance.")
+                    raise Exception(f"Pesapal error: {error_message}")
+                else:
+                    raise Exception(f"Pesapal error: {error_info}")
             
             redirect_url = data.get('redirect_url')
             order_tracking_id = data.get('order_tracking_id')
@@ -211,6 +249,9 @@ class PesapalService:
             }
             
         except requests.exceptions.RequestException as e:
+            if hasattr(e, 'response') and e.response is not None:
+                # Already handled in the try block above
+                raise
             raise Exception(f"Pesapal order submission failed: {str(e)}")
     
     def check_transaction_status(self, order_tracking_id):
@@ -253,8 +294,42 @@ class PesapalService:
                 'currency': data.get('currency', '')
             }
             
+        except requests.exceptions.HTTPError as e:
+            # Pesapal API returned an HTTP error (4xx or 5xx)
+            response_status = e.response.status_code if e.response else 'unknown'
+            logger.error(f"Pesapal HTTP error {response_status}: {str(e)}")
+            
+            # Return a safe default response instead of crashing
+            return {
+                'status': 'ERROR',
+                'status_code': '',
+                'payment_method': '',
+                'confirmation_code': '',
+                'transaction_type': '',
+                'amount': 0,
+                'payment_account': '',
+                'created_date': '',
+                'description': f'Pesapal API error: {response_status}',
+                'currency': ''
+            }
+            
         except requests.exceptions.RequestException as e:
-            raise Exception(f"Pesapal status check failed: {str(e)}")
+            # Network error, timeout, or other request exception
+            logger.error(f"Pesapal request failed: {str(e)}")
+            
+            # Return a safe default response instead of crashing
+            return {
+                'status': 'ERROR',
+                'status_code': '',
+                'payment_method': '',
+                'confirmation_code': '',
+                'transaction_type': '',
+                'amount': 0,
+                'payment_account': '',
+                'created_date': '',
+                'description': f'Request failed: {str(e)}',
+                'currency': ''
+            }
     
     @staticmethod
     def parse_ipn_notification(notification_data):

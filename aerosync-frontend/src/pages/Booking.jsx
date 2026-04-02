@@ -1438,10 +1438,11 @@ function BookingItem({ booking, onDownloadPass }) {
             </div>
           )}
                     
-          {/* Show Pay Now button when payment is PENDING, FAILED, or doesn't exist */}
+          {/* Show Pay Now button when payment is PENDING, FAILED, CANCELLED, or doesn't exist */}
           {(!paymentStatus.latest_payment || 
             paymentStatus.latest_payment.status === 'PENDING' || 
-            paymentStatus.latest_payment.status === 'FAILED') && (
+            paymentStatus.latest_payment.status === 'FAILED' ||
+            paymentStatus.latest_payment.status === 'CANCELLED') && (
             <button 
               onClick={() => setShowPesapalModal(true)} 
               disabled={loading}

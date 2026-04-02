@@ -2,7 +2,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-from .models import Payment, Booking
+from .models import Payment, Booking, Flight
 
 
 @receiver(post_save, sender=Payment)
@@ -15,6 +15,46 @@ def auto_confirm_booking_on_payment_success(sender, instance, **kwargs):
         if booking.booking_status != 'CONFIRMED':
             booking.booking_status = 'CONFIRMED'
             booking.save(update_fields=['booking_status'])
+
+
+@receiver(post_save, sender=Flight)
+def auto_update_bookings_on_flight_completion(sender, instance, **kwargs):
+    """
+    Automatically update all bookings for a flight when flight status changes to COMPLETED.
+    
+    This ensures:
+    - Paid bookings → CONFIRMED
+    - Unpaid bookings → FAILED
+    """
+    import logging
+    logger = logging.getLogger('core.signals')
+    
+    # Only process if flight status is now COMPLETED
+    if instance.status == 'COMPLETED':
+        # Get all unpaid/pending bookings for this flight
+        bookings = Booking.objects.filter(
+            flight=instance
+        ).exclude(
+            booking_status__in=['CONFIRMED', 'CANCELLED']
+        )
+        
+        updated_count = 0
+        failed_count = 0
+        
+        for booking in bookings:
+            try:
+                changed = booking.update_status_based_on_payment_and_flight(save=True)
+                if changed:
+                    if booking.booking_status == 'CONFIRMED':
+                        updated_count += 1
+                    elif booking.booking_status == 'FAILED':
+                        failed_count += 1
+                        logger.warning(f"Booking {booking.confirmation_code} marked as FAILED (flight completed, no payment)")
+            except Exception as e:
+                logger.error(f"Failed to update booking {booking.id}: {str(e)}")
+        
+        if updated_count > 0 or failed_count > 0:
+            logger.info(f"Flight {instance.flight_number} completed: {updated_count} bookings confirmed, {failed_count} bookings failed")
 
 
 @receiver(post_save, sender=Payment)
@@ -51,7 +91,7 @@ def broadcast_payment_update(sender, instance, created, update_fields, **kwargs)
         }
     
     update_data = {
-        'type': 'payment_updated',
+        'type': 'payment_update',  # Must match the handler method name in websocket.py
         'payment': payment_data,
         'booking_id': instance.booking.id,
         'changed_fields': list(update_fields) if update_fields else None,

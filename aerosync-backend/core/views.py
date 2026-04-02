@@ -713,7 +713,38 @@ class PesapalInitiatePaymentView(APIView):
             from django.core.cache import cache
             cache.delete('pesapal_access_token')
             
-            result = pesapal.submit_order(order_details)
+            # Log the amount being sent for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Initiating Pesapal payment for booking {booking.id} - Amount: {booking.total_amount} KES")
+            
+            try:
+                result = pesapal.submit_order(order_details)
+            except Exception as e:
+                logger.error(f"Pesapal initiation error: {str(e)}")
+                error_message = str(e)
+                
+                # Provide specific guidance based on error type
+                if "amount_exceeds_default_limit" in error_message.lower() or "exceeds limit" in error_message.lower():
+                    return Response(
+                        {
+                            "detail": "Transaction amount exceeds payment gateway limits. Please contact our support team at support@aerosync.live or call us to complete this booking.",
+                            "error_code": "AMOUNT_LIMIT_EXCEEDED",
+                            "amount": str(booking.total_amount),
+                            "currency": "KES"
+                        },
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                elif "authentication" in error_message.lower():
+                    return Response(
+                        {"detail": "Payment gateway configuration error. Please contact support."},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+                else:
+                    return Response(
+                        {"detail": f"Payment initiation failed: {error_message}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
             
             ip_address = request.META.get('REMOTE_ADDR', 'unknown')
             timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -898,8 +929,12 @@ class PesapalIPNView(APIView):
             if payment_status in ['COMPLETED', 'COMPLETE'] or str(status_code) == '1':
                 payment.status = 'SUCCESS'
                 payment.payment_detail = f"Status: {payment_status} | Code: {status_code}"
+                
+                # Update booking status to CONFIRMED
+                # Note: This will also be triggered by the post_save signal, but we do it here for immediate effect
                 payment.booking.booking_status = 'CONFIRMED'
                 payment.booking.save(update_fields=['booking_status'])
+                
                 payment.save()
                 print(f"[{timestamp}] {ip_address} ✅ SUCCESS - Booking {payment.booking.id} confirmed")
                 
@@ -975,15 +1010,30 @@ class PesapalStatusCheckView(APIView):
             
             status_result = pesapal.check_transaction_status(payment.provider_reference)
             
+            # Handle ERROR status from Pesapal API
+            if status_result.get('status') == 'ERROR':
+                logger.warning(f"Pesapal API returned error: {status_result.get('description', 'Unknown error')}")
+                return Response({
+                    'payment': PaymentSerializer(payment).data,
+                    'pesapal_status': status_result,
+                    'booking_is_confirmed': payment.booking.booking_status == 'CONFIRMED',
+                    'warning': 'Unable to fetch latest status from Pesapal. Showing last known state.'
+                })
+            
             if status_result['status'] in ['COMPLETED', 'COMPLETE']:
                 payment.status = 'SUCCESS'
                 payment.payment_detail = f"Status: {status_result['status']}"
                 payment.booking.booking_status = 'CONFIRMED'
-                payment.booking.save()
+                payment.booking.save(update_fields=['booking_status'])
+                payment.save()
             elif status_result['status'] == 'FAILED':
                 payment.status = 'FAILED'
-            
-            payment.save()
+                payment.payment_detail = f"Status: {status_result['status']}"
+                payment.save()
+            elif status_result['status'] in ['INVALID', 'CANCELLED']:
+                payment.status = 'CANCELLED'
+                payment.payment_detail = f"Status: {status_result['status']}"
+                payment.save()
             
             return Response({
                 'payment': PaymentSerializer(payment).data,

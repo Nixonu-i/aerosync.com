@@ -122,8 +122,8 @@ function BookingCard({ booking, onStatusUpdate }) {
           </div>
 
           <div style={{ display: "flex", gap: "8px", flexShrink: 0, flexWrap: "wrap", alignItems: "flex-start" }}>
-            {/* Pay Button — only for PENDING bookings */}
-            {isPending && (
+            {/* Pay Button — only for PENDING or CANCELLED bookings */}
+            {(isPending || booking.booking_status === 'CANCELLED') && (
               <button
                 onClick={() => setShowPesapalModal(true)}
                 style={{
@@ -141,8 +141,8 @@ function BookingCard({ booking, onStatusUpdate }) {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> Pay Now
               </button>
             )}
-            {/* Check Status — only for PENDING bookings */}
-            {isPending && (
+            {/* Check status — only for PENDING or CANCELLED bookings */}
+            {(isPending || booking.booking_status === 'CANCELLED') && (
               <button
                 onClick={handleCheckStatus}
                 disabled={checking}
