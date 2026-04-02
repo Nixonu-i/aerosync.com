@@ -312,3 +312,143 @@ If you didn't request this password reset, please ignore this email.
         user.save(update_fields=['password_reset_code', 'password_reset_created_at'])
         
         return True
+    
+    @staticmethod
+    def send_boarding_pass_email(booking, passenger=None):
+        """
+        Send boarding pass email to user when booking status changes to CONFIRMED.
+        Attaches the actual boarding pass PNG file to the email.
+        For bookings with multiple passengers, this can be called for each passenger.
+        """
+        from django.template.loader import render_to_string
+        from django.utils import timezone
+        from django.conf import settings
+        from io import BytesIO
+        
+        user = booking.user
+        flight = booking.flight
+        
+        # Get the boarding pass for this passenger
+        if passenger:
+            boarding_pass = booking.boarding_passes.filter(passenger=passenger).first()
+        else:
+            boarding_pass = booking.boarding_passes.first()
+            passenger = boarding_pass.passenger if boarding_pass else None
+        
+        if not boarding_pass:
+            print(f"Warning: No boarding pass found for booking {booking.confirmation_code}")
+            return False
+        
+        # Generate the boarding pass PNG
+        try:
+            from core.services import build_boarding_pass_png
+            png_bytes = build_boarding_pass_png(booking, passenger)
+        except Exception as e:
+            print(f"Error generating boarding pass PNG: {str(e)}")
+            return False
+        
+        # Prepare flight details
+        tz = timezone.get_current_timezone()
+        departure_time = flight.departure_time.astimezone(tz).strftime("%d %b %Y %H:%M")
+        
+        # Prepare email content
+        subject = f'Your Boarding Pass - Flight {flight.flight_number}'
+        
+        # HTML content using template
+        html_content = render_to_string('emails/boarding_pass.html', {
+            'user': user,
+            'confirmation_code': booking.confirmation_code,
+            'flight_number': flight.flight_number,
+            'departure_airport': f"{flight.departure_airport.code} ({flight.departure_airport.city})",
+            'arrival_airport': f"{flight.arrival_airport.code} ({flight.arrival_airport.city})",
+            'departure_time': departure_time,
+            'seat_number': boarding_pass.seat.seat_number,
+            'seat_class': boarding_pass.seat.flight_class,
+        })
+        
+        # Plain text content
+        text_content = f"""
+Hello {user.first_name or user.username},
+
+Great news! Your booking has been confirmed and your boarding pass is attached to this email.
+
+Flight Details:
+- Confirmation Code: {booking.confirmation_code}
+- Flight Number: {flight.flight_number}
+- Route: {flight.departure_airport.code} → {flight.arrival_airport.code}
+- Departure: {departure_time}
+- Seat: {boarding_pass.seat.seat_number} ({boarding_pass.seat.flight_class})
+
+Please save this boarding pass and have it ready (digital or printed) at the airport.
+
+Important Information:
+- Please arrive at the airport at least 2 hours before your scheduled departure
+- Have your boarding pass (digital or printed) and valid ID ready
+- Check-in counters close 45 minutes before departure
+- For international flights, ensure you have all required travel documents
+
+Need help? Contact our support team at support@aerosync.com
+
+Best regards,
+The AeroSync Team
+"""
+        
+        # Send email using configured backend (Brevo or Gmail)
+        try:
+            brevo_key = os.getenv('BREVO_API_KEY', '')
+            if brevo_key and brevo_key != 'xkeysib-your-api-key-here':
+                # Use Brevo API with attachment
+                api_instance = EmailVerificationService._get_brevo_api_instance()
+                    
+                sender = {"name": "AeroSync", "email": settings.DEFAULT_FROM_EMAIL.split('<')[1].strip('>')}  
+                to = [{"email": user.email}]
+                
+                # Convert PNG bytes to base64 for Brevo attachment
+                import base64
+                attachment_content = base64.b64encode(png_bytes).decode('utf-8')
+                
+                # Create attachment object - Brevo expects dict format
+                attachment = {
+                    'name': f"boarding-pass-{booking.confirmation_code}-{passenger.full_name.replace(' ', '_') if passenger else 'passenger'}.png",
+                    'content': attachment_content
+                }
+                
+                send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
+                    to=to,
+                    html_content=html_content,
+                    text_content=text_content,
+                    sender=sender,
+                    subject=subject,
+                    attachment=[attachment]  # Pass as list of dicts
+                )
+                    
+                response = api_instance.send_transac_email(send_smtp_email)
+                print(f"✈️ Boarding pass email sent successfully via Brevo! Message ID: {response.message_id}")
+            else:
+                # Use Django's configured email backend (Gmail OAuth) with attachment
+                msg = EmailMultiAlternatives(
+                    subject=subject,
+                    body=text_content,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    to=[user.email]
+                )
+                msg.attach_alternative(html_content, "text/html")
+                
+                # Attach boarding pass PNG
+                filename = f"boarding-pass-{booking.confirmation_code}-{passenger.full_name.replace(' ', '_') if passenger else 'passenger'}.png"
+                msg.attach(filename, png_bytes, 'image/png')
+                
+                msg.send()
+                print(f"✈️ Boarding pass email sent successfully via Gmail!")
+                
+        except sib_api_v3_sdk.rest.ApiException as e:
+            import logging
+            logger = logging.getLogger('email_service')
+            logger.error(f'Brevo API error: {e}')
+            raise
+        except Exception as e:
+            print(f"Error sending boarding pass email: {str(e)}")
+            raise
+        
+        print(f"✈️ Boarding pass email sent to {user.email} for booking {booking.confirmation_code}")
+        return True

@@ -9,12 +9,29 @@ from .models import Payment, Booking, Flight
 def auto_confirm_booking_on_payment_success(sender, instance, **kwargs):
     """
     Automatically confirm the booking when its payment is marked SUCCESS.
+    Also sends boarding pass email when booking becomes confirmed.
     """
     if instance.status == 'SUCCESS':
         booking = instance.booking
+        old_status = booking.booking_status
+        
         if booking.booking_status != 'CONFIRMED':
             booking.booking_status = 'CONFIRMED'
             booking.save(update_fields=['booking_status'])
+            
+            # Send boarding pass email only if status just changed to CONFIRMED
+            if old_status != 'CONFIRMED':
+                try:
+                    from accounts.services.email_service import EmailVerificationService
+                    # Send email for each passenger in the booking
+                    for passenger in booking.passengers.all():
+                        boarding_pass = booking.boarding_passes.filter(passenger=passenger).first()
+                        if boarding_pass:
+                            EmailVerificationService.send_boarding_pass_email(booking, passenger)
+                except Exception as e:
+                    import logging
+                    logger = logging.getLogger('core.signals')
+                    logger.error(f"Failed to send boarding pass email for booking {booking.id}: {str(e)}")
 
 
 @receiver(post_save, sender=Flight)
@@ -23,7 +40,7 @@ def auto_update_bookings_on_flight_completion(sender, instance, **kwargs):
     Automatically update all bookings for a flight when flight status changes to COMPLETED.
     
     This ensures:
-    - Paid bookings → CONFIRMED
+    - Paid bookings → CONFIRMED (and sends boarding pass email)
     - Unpaid bookings → FAILED
     """
     import logging
@@ -43,10 +60,22 @@ def auto_update_bookings_on_flight_completion(sender, instance, **kwargs):
         
         for booking in bookings:
             try:
+                old_status = booking.booking_status
                 changed = booking.update_status_based_on_payment_and_flight(save=True)
                 if changed:
                     if booking.booking_status == 'CONFIRMED':
                         updated_count += 1
+                        # Send boarding pass email for newly confirmed bookings
+                        try:
+                            from accounts.services.email_service import EmailVerificationService
+                            # Only send if status just changed to CONFIRMED (not already confirmed)
+                            if old_status != 'CONFIRMED':
+                                for passenger in booking.passengers.all():
+                                    boarding_pass = booking.boarding_passes.filter(passenger=passenger).first()
+                                    if boarding_pass:
+                                        EmailVerificationService.send_boarding_pass_email(booking, passenger)
+                        except Exception as e:
+                            logger.error(f"Failed to send boarding pass email for booking {booking.id}: {str(e)}")
                     elif booking.booking_status == 'FAILED':
                         failed_count += 1
                         logger.warning(f"Booking {booking.confirmation_code} marked as FAILED (flight completed, no payment)")
