@@ -975,6 +975,9 @@ class PesapalStatusCheckView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def get(self, request, payment_id):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         try:
             from .pesapal_service import PesapalService
             
