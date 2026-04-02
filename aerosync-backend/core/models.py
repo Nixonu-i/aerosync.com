@@ -101,6 +101,7 @@ class Booking(models.Model):
     BOOKING_STATUS_CHOICES = [
         ('PENDING', 'Pending Payment'),
         ('CONFIRMED', 'Confirmed'),
+        ('COMPLETED', 'Completed'),
         ('CANCELLED', 'Cancelled'),
         ('FAILED', 'Failed'),
         ('ONBOARD', 'On Board'),
@@ -133,7 +134,7 @@ class Booking(models.Model):
     
     def has_successful_payment(self):
         """Check if booking has at least one successful payment"""
-        return self.payment_set.filter(status='SUCCESS').exists()
+        return self.payments.filter(status='SUCCESS').exists()
     
     def update_status_based_on_payment_and_flight(self, save=True):
         """
