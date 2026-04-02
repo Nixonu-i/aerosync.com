@@ -144,20 +144,30 @@ const PesapalPaymentModal = ({ booking, onClose, onPaymentComplete }) => {
       clearInterval(pollingRef.current);
     }
     
+    // Track if we've seen a PENDING status first (ensures user actually interacted with payment)
+    let hasSeenPending = false;
+    
     pollingRef.current = setInterval(async () => {
       try {
         const response = await API.get(`payments/pesapal/status/${id}/`);
         const { payment, booking_is_confirmed } = response.data;
         
+        // Track if payment was ever PENDING (user engaged with payment flow)
+        if (payment.status === 'PENDING') {
+          hasSeenPending = true;
+        }
         
-        if (payment.status === 'SUCCESS' || booking_is_confirmed) {
+        // Only close modal on SUCCESS if:
+        // 1. Payment status is SUCCESS, OR
+        // 2. Booking is confirmed AND we've seen PENDING status first (prevents premature close)
+        if (payment.status === 'SUCCESS' || (booking_is_confirmed && hasSeenPending)) {
           // ONLY close modal on SUCCESS
           stopPolling();
           onPaymentComplete(payment);  // This will close the modal
-        } else if (payment.status === 'FAILED' || payment.status === 'CANCELLED') {
-          // Don't close modal on FAILED - let user try again
+        } else if (['FAILED', 'CANCELLED', 'INVALID'].includes(payment.status)) {
+          // Don't close modal on FAILED/CANCELLED/INVALID - let user try again
           stopPolling();
-          setError(`Payment ${payment.status.toLowerCase()}. Please try again or choose another payment method.`);
+          setError(`Payment ${payment.status.toLowerCase()}. ${payment.status === 'CANCELLED' ? 'Transaction was cancelled.' : ''}Please try again or choose another payment method.`);
           setLoading(false);
           // Modal stays open - user can retry or close manually
         }
