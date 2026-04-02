@@ -11,27 +11,79 @@ def auto_confirm_booking_on_payment_success(sender, instance, **kwargs):
     Automatically confirm the booking when its payment is marked SUCCESS.
     Also sends boarding pass email when booking becomes confirmed.
     """
+    import logging
+    logger = logging.getLogger('core.signals')
+    
     if instance.status == 'SUCCESS':
         booking = instance.booking
         old_status = booking.booking_status
+        
+        logger.info(f"Payment {instance.id} is SUCCESS. Booking {booking.id} status: {old_status}")
         
         if booking.booking_status != 'CONFIRMED':
             booking.booking_status = 'CONFIRMED'
             booking.save(update_fields=['booking_status'])
             
+            logger.info(f"Booking {booking.id} set to CONFIRMED")
+            
+            # Broadcast booking status change via WebSocket
+            try:
+                from asgiref.sync import async_to_sync
+                from channels.layers import get_channel_layer
+                channel_layer = get_channel_layer()
+                
+                booking_data = {
+                    'id': booking.id,
+                    'booking_status': 'CONFIRMED',
+                    'confirmation_code': booking.confirmation_code,
+                }
+                
+                # Send to user
+                if booking.user_id:
+                    async_to_sync(channel_layer.group_send)(
+                        f"user_{booking.user_id}",
+                        {
+                            'type': 'booking_updated',
+                            'booking': booking_data,
+                        }
+                    )
+                    logger.info(f"📢 Sent booking status update to user {booking.user_id}")
+            except Exception as e:
+                logger.error(f"Failed to broadcast booking update: {str(e)}")
+            
             # Send boarding pass email only if status just changed to CONFIRMED
             if old_status != 'CONFIRMED':
+                logger.info(f"Sending boarding pass email for booking {booking.id} (was {old_status})")
                 try:
                     from accounts.services.email_service import EmailVerificationService
+                    from core.services import ensure_boarding_pass
+                    
                     # Send email for each passenger in the booking
                     for passenger in booking.passengers.all():
+                        # Ensure boarding pass exists before trying to send it
                         boarding_pass = booking.boarding_passes.filter(passenger=passenger).first()
+                        if not boarding_pass:
+                            logger.info(f"Boarding pass missing for passenger {passenger.full_name}, generating...")
+                            try:
+                                # Get the seat for this passenger
+                                seat = booking.seats.filter(passenger=passenger).first()
+                                if seat:
+                                    boarding_pass = ensure_boarding_pass(booking, seat)
+                                    logger.info(f"Generated boarding pass for {passenger.full_name}")
+                                else:
+                                    logger.error(f"No seat found for passenger {passenger.full_name}")
+                                    continue
+                            except Exception as bp_error:
+                                logger.error(f"Failed to generate boarding pass: {str(bp_error)}")
+                                continue
+                        
                         if boarding_pass:
+                            logger.info(f"Sending boarding pass for passenger {passenger.full_name}")
                             EmailVerificationService.send_boarding_pass_email(booking, passenger)
+                        else:
+                            logger.error(f"Cannot send email - no boarding pass for {passenger.full_name}")
                 except Exception as e:
-                    import logging
-                    logger = logging.getLogger('core.signals')
-                    logger.error(f"Failed to send boarding pass email for booking {booking.id}: {str(e)}")
+                    logger.error(f"Failed to send boarding pass email for booking {booking.id}: {str(e)}", exc_info=True)
 
 
 @receiver(post_save, sender=Flight)
@@ -114,6 +166,9 @@ def broadcast_payment_update(sender, instance, created, update_fields, **kwargs)
         logger.debug(f"Skipping broadcast for payment {instance.id} - status unchanged")
         return
     
+    # Get booking reference early to avoid scope issues
+    booking = instance.booking if hasattr(instance, 'booking') else None
+    
     # Prepare update payload
     from .serializers import PaymentSerializer
     try:
@@ -127,10 +182,14 @@ def broadcast_payment_update(sender, instance, created, update_fields, **kwargs)
             'amount': str(instance.amount),
         }
     
+    # Get current booking status to include in broadcast
+    booking_status = booking.booking_status if booking else None
+    
     update_data = {
         'type': 'payment_update',  # Must match the handler method name in websocket.py
         'payment': payment_data,
-        'booking_id': instance.booking.id,
+        'booking_id': instance.booking.id if instance.booking else None,
+        'booking_status': booking_status,  # Include booking status for frontend
         'changed_fields': list(update_fields) if update_fields else None,
     }
     
@@ -199,12 +258,12 @@ def broadcast_booking_update(sender, instance, created, update_fields, **kwargs)
         logger.info(f"Sending update to user {instance.user_id}")
         async_to_sync(channel_layer.group_send)(
             f"user_{instance.user_id}",
-            {'type': 'booking_update', **update_data}
+            {'type': 'booking_updated', **update_data}
         )
     
     # Notify all agents about the change (for their dashboards)
     logger.info("Sending update to all agents")
     async_to_sync(channel_layer.group_send)(
         "agents",
-        {'type': 'booking_update', **update_data}
+        {'type': 'booking_updated', **update_data}
     )

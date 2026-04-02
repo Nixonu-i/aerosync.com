@@ -52,7 +52,10 @@ def protected_media(request, path):
         request.user.is_staff or request.user.is_superuser
     ):
         filename = os.path.basename(final_path)
-        if not filename.startswith(f"user{request.user.id}-"):
+        # Check if file belongs to current user (supports both old and new naming)
+        user_uuid_str = str(request.user.pk)
+        if not (filename.startswith(f"user{request.user.pk}-") or 
+                filename.startswith(f"user_{user_uuid_str}_")):
             # users may only see their own uploads
             raise Http404()
 

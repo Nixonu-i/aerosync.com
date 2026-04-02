@@ -4,13 +4,27 @@ import os
 import uuid
 
 def profile_photo_upload_to(instance, filename):
-    # generate a unique filename using user id and uuid4 to avoid collisions
+    """
+    Upload profile photos to organized directory structure.
+    Files are stored outside the project in MEDIA_ROOT.
+    Path format: profile_photos/{year}/{month}/{user_uuid}_{unique_id}.{ext}
+    """
+    from django.utils import timezone
+    now = timezone.now()
     base, ext = os.path.splitext(filename)
     ext = ext.lower()
-    return os.path.join('profile_photos', f"user{instance.user.id}-{uuid.uuid4().hex}{ext}")
+    # Organize by year/month for better file management
+    return os.path.join(
+        'profile_photos',
+        f"{now.year}",
+        f"{now.month:02d}",
+        f"user_{instance.user.pk}_{uuid.uuid4().hex[:8]}{ext}"
+    )
 
 
 class User(AbstractUser):
+    # Use UUID as primary key
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     GENDER_CHOICES = [
         ('MALE', 'Male'),
         ('FEMALE', 'Female'),

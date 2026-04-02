@@ -2,9 +2,11 @@ from django.conf import settings
 from django.db import models
 from accounts.models import User
 from django.core.validators import RegexValidator
+import uuid
 
 
 class Airline(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=150, unique=True)
     iata_code = models.CharField(max_length=3, blank=True, default="")
     country = models.CharField(max_length=100, blank=True, default="")
@@ -18,6 +20,7 @@ class Airline(models.Model):
 
 
 class Aircraft(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     model = models.CharField(max_length=120)
     total_seats = models.PositiveIntegerField()
     number_plate = models.CharField(max_length=50, unique=True)
@@ -27,6 +30,7 @@ class Aircraft(models.Model):
 
 
 class Airport(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     code = models.CharField(max_length=3, unique=True)
     name = models.CharField(max_length=200)
     city = models.CharField(max_length=100)
@@ -37,6 +41,7 @@ class Airport(models.Model):
 
 
 class Flight(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     TRIP_TYPE_CHOICES = [
         ('ONE_WAY', 'One Way'),
         ('ROUND_TRIP', 'Round Trip'),
@@ -78,6 +83,7 @@ class Flight(models.Model):
 
 
 class Seat(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     FLIGHT_CLASS_CHOICES = [
         ('ECONOMY', 'Economy'),
         ('BUSINESS', 'Business'),
@@ -98,6 +104,7 @@ class Seat(models.Model):
 
 
 class Booking(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     BOOKING_STATUS_CHOICES = [
         ('PENDING', 'Pending Payment'),
         ('CONFIRMED', 'Confirmed'),
@@ -183,6 +190,7 @@ class Booking(models.Model):
 
 
 class Passenger(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     PASSENGER_TYPE_CHOICES = [
         ('ADULT', 'Adult'),
         ('CHILD', 'Child'),
@@ -210,6 +218,7 @@ class Passenger(models.Model):
 
 
 class Payment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     PAYMENT_STATUS_CHOICES = [
         ('PENDING', 'Pending'),
         ('SUCCESS', 'Success'),
@@ -255,6 +264,7 @@ class Payment(models.Model):
 
 
 class BoardingPass(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='boarding_passes')
     passenger = models.ForeignKey(Passenger, on_delete=models.CASCADE, related_name='boarding_passes')
     seat = models.ForeignKey(Seat, on_delete=models.CASCADE, related_name='boarding_passes')
@@ -268,6 +278,7 @@ class BoardingPass(models.Model):
 
 
 class ScanLog(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     """Persistent record of every QR scan attempt by an agent/admin."""
     scanned_by   = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -297,6 +308,7 @@ class ScanLog(models.Model):
 
 
 class UserActivityLog(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     """Model to store user activity logs in database"""
     
     ACTION_CHOICES = [

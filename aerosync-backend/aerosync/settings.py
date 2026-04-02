@@ -250,8 +250,13 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
+# Media files configuration - store outside project directory
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+# Store media files in a dedicated directory outside the project
+# In development: ~/aerosync-media/ or /var/aerosync/media/
+# In production: Use cloud storage (S3, Cloudinary, etc.)
+import os
+MEDIA_ROOT = os.path.expanduser("~/aerosync-media/")  # Outside project
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

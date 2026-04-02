@@ -231,17 +231,22 @@ def build_boarding_pass_png(booking: Booking, passenger=None) -> bytes:
 def ensure_boarding_pass(booking: Booking, seat) -> BoardingPass:
     """
     Create boarding pass if doesn't exist.
+    Note: This function assumes one boarding pass per booking.
+    For multiple passengers, use the logic in signals.py which creates per-passenger boarding passes.
     """
-    try:
-        return booking.boarding_pass
-    except BoardingPass.DoesNotExist:
-        passenger = booking.passengers.first()
-        pax_name = passenger.full_name if passenger else "UNKNOWN"
-        qr_data = f"AEROSYNC|REF={booking.confirmation_code}|FLIGHT={booking.flight_id}|SEAT={seat.seat_number}|PAX={pax_name}"
-
-        bp = BoardingPass.objects.create(
-            booking=booking,
-            seat=seat,
-            qr_code_data=qr_data,
-        )
+    # Try to get existing boarding pass for this booking and seat
+    bp = booking.boarding_passes.filter(seat=seat).first()
+    if bp:
         return bp
+    
+    # Create new boarding pass
+    passenger = booking.passengers.first()
+    pax_name = passenger.full_name if passenger else "UNKNOWN"
+    qr_data = f"AEROSYNC|REF={booking.confirmation_code}|FLIGHT={booking.flight_id}|SEAT={seat.seat_number}|PAX={pax_name}"
+
+    bp = BoardingPass.objects.create(
+        booking=booking,
+        seat=seat,
+        qr_code_data=qr_data,
+    )
+    return bp
