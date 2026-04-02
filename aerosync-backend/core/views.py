@@ -930,13 +930,13 @@ class PesapalIPNView(APIView):
                 payment.status = 'SUCCESS'
                 payment.payment_detail = f"Status: {payment_status} | Code: {status_code}"
                 
-                # Update booking status to CONFIRMED
-                # Note: This will also be triggered by the post_save signal, but we do it here for immediate effect
-                payment.booking.booking_status = 'CONFIRMED'
-                payment.booking.save(update_fields=['booking_status'])
-                
+                # Save payment first - this will trigger the post_save signal
+                # The signal will:
+                # 1. Set booking status to CONFIRMED (if not already)
+                # 2. Send boarding pass email
                 payment.save()
-                print(f"[{timestamp}] {ip_address} ✅ SUCCESS - Booking {payment.booking.id} confirmed")
+                
+                print(f"[{timestamp}] {ip_address} ✅ SUCCESS - Booking {payment.booking.id} confirmed via signal")
                 
             elif payment_status == 'FAILED' or str(status_code) == '2':
                 payment.status = 'FAILED'
@@ -1013,6 +1013,9 @@ class PesapalStatusCheckView(APIView):
             
             status_result = pesapal.check_transaction_status(payment.provider_reference)
             
+            # Log full Pesapal response for debugging
+            logger.info(f"Pesapal status check for payment {payment.id}: {status_result}")
+            
             # Handle ERROR status from Pesapal API
             if status_result.get('status') == 'ERROR':
                 logger.warning(f"Pesapal API returned error: {status_result.get('description', 'Unknown error')}")
@@ -1025,18 +1028,23 @@ class PesapalStatusCheckView(APIView):
             
             # IMPORTANT: Only update payment status if it has changed
             # This prevents unnecessary signal broadcasts during polling
+            # CONSERVATIVE APPROACH: Only auto-update to SUCCESS, not to CANCELLED/FAILED
+            # (Those should come from IPN webhook to avoid false positives)
             new_payment_status = payment.status
             needs_update = False
             
             if status_result['status'] in ['COMPLETED', 'COMPLETE'] and payment.status != 'SUCCESS':
                 new_payment_status = 'SUCCESS'
                 needs_update = True
+                logger.info(f"Payment {payment.id} marked as SUCCESS via polling")
             elif status_result['status'] == 'FAILED' and payment.status != 'FAILED':
-                new_payment_status = 'FAILED'
-                needs_update = True
+                # Don't auto-update to FAILED during polling - wait for IPN
+                # This prevents premature modal closure
+                logger.debug(f"Payment {payment.id} shows FAILED but waiting for IPN confirmation")
             elif status_result['status'] in ['INVALID', 'CANCELLED'] and payment.status not in ['CANCELLED', 'INVALID']:
-                new_payment_status = 'CANCELLED'
-                needs_update = True
+                # Don't auto-update to CANCELLED during polling - wait for IPN
+                # Pesapal sandbox often returns CANCELLED prematurely
+                logger.debug(f"Payment {payment.id} shows {status_result['status']} but waiting for IPN confirmation")
             
             # Only update if status actually changed
             if needs_update:

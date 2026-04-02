@@ -1,6 +1,7 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../api/api";
+import { AuthContext } from "../context/AuthContext";
 
 const PAGE_SIZE = 10;
 
@@ -135,6 +136,7 @@ function SearchableSelect({ value, onChange, options, placeholder }) {
 
 export default function Flights() {
   const navigate = useNavigate();
+  const { user, loading } = useContext(AuthContext);
   const [items, setItems]         = useState([]);
   const [busy, setBusy]           = useState(true);
   const [moreBusy, setMoreBusy]   = useState(false);
@@ -148,8 +150,8 @@ export default function Flights() {
     all_cities: []
   });
 
-  // Check if user is authenticated
-  const isAuthenticated = !!localStorage.getItem('token');
+  // Use auth context instead of localStorage check
+  const isAuthenticated = !!user && !loading;
 
   // Filter states
   const [filters, setFilters] = useState({
