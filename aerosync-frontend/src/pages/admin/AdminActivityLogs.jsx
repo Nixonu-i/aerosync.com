@@ -34,14 +34,14 @@ const AdminActivityLogs = () => {
       if (filters.ip_address) params.append('ip_address', filters.ip_address);
       if (filters.search) params.append('search', filters.search);
 
-      const response = await API.get(`/admin/user-activities/?${params.toString()}`);
+      const url = `/admin/user-activities/?${params.toString()}`;
+      const response = await API.get(url);
       const { activities: fetchedActivities, pagination } = response.data;
 
       setActivities(fetchedActivities);
       setTotalPages(pagination.total_pages);
       setError(null);
     } catch (err) {
-      console.error('Error fetching activity logs:', err);
       setError('Failed to fetch activity logs');
     } finally {
       setLoading(false);
@@ -181,7 +181,7 @@ const AdminActivityLogs = () => {
           {/* Filters */}
           <div className="as-card-body">
             <form onSubmit={handleSearch}>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-4">
               <div>
                 <label className="as-label" style={{ color: darkMode ? '#e2e8f0' : '#374151' }}>Search</label>
                 <input
@@ -256,19 +256,29 @@ const AdminActivityLogs = () => {
                   }}
                 />
               </div>
-              <div className="flex items-end gap-2">
+              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-end', gap: '12px', marginTop: '24px' }}>
                 <button
                   type="submit"
-                  className="as-btn as-btn-primary flex-1"
-                  style={{ fontWeight: '600' }}
+                  className="as-btn as-btn-primary"
+                  style={{ fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flex: 1 }}
                 >
-                  🔍 Search
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                  </svg>
+                  Search
                 </button>
                 <button
                   type="button"
                   onClick={handleClearFilters}
-                  className="as-btn as-btn-secondary flex-1"
-                  style={{ fontWeight: '600' }}
+                  className="as-btn"
+                  style={{ 
+                    fontWeight: '600', 
+                    flex: 1,
+                    background: '#fee2e2',
+                    color: '#991b1b',
+                    border: '1px solid #fecaca'
+                  }}
                 >
                   Clear
                 </button>
@@ -302,7 +312,15 @@ const AdminActivityLogs = () => {
                 {activities.length === 0 ? (
                   <tr>
                     <td colSpan="8" className="px-6 py-12 text-center" style={{ color: darkMode ? '#94a3b8' : '#64748b', fontSize: '14px' }}>
-                      <div style={{ marginBottom: '8px', fontSize: '32px' }}>📋</div>
+                      <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'center' }}>
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
+                          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                          <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                          <path d="M9 12h6"></path>
+                          <path d="M9 16h6"></path>
+                          <path d="M9 8h6"></path>
+                        </svg>
+                      </div>
                       No activity logs found
                     </td>
                   </tr>

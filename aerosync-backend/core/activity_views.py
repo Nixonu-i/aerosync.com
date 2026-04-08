@@ -56,20 +56,23 @@ def get_user_activities(request):
     
     # Apply filters
     if user_id:
-        # Check if user_id is numeric (ID) or string (username)
-        if user_id.isdigit():
+        # Try to filter by user ID (UUID) first
+        try:
+            from uuid import UUID
+            UUID(user_id)  # Validate if it's a valid UUID
             queryset = queryset.filter(user_id=user_id)
-        else:
-            # Assume it's a username
+            print(f'DEBUG: Filtered by user_id UUID ({user_id}): {queryset.count()}')
+        except ValueError:
+            # Not a UUID, try username
             queryset = queryset.filter(user__username__iexact=user_id)
-        print(f'DEBUG: After user_id filter ({user_id}): {queryset.count()}')
+            print(f'DEBUG: Filtered by username ({user_id}): {queryset.count()}')
     
     if action:
         queryset = queryset.filter(action=action)
         print(f'DEBUG: After action filter ({action}): {queryset.count()}')
     
     if ip_address:
-        queryset = queryset.filter(ip_address=ip_address)
+        queryset = queryset.filter(ip_address__icontains=ip_address)
         print(f'DEBUG: After ip_address filter ({ip_address}): {queryset.count()}')
     
     if search:
