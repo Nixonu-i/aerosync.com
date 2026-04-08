@@ -215,6 +215,7 @@ const AdminActivityLogs = () => {
                 >
                   <option value="">All Actions</option>
                   <option value="login">Login</option>
+                  <option value="login_blocked">Login Blocked</option>
                   <option value="logout">Logout</option>
                   <option value="profile_update">Profile Update</option>
                   <option value="booking_create">Booking Create</option>
@@ -338,6 +339,7 @@ const AdminActivityLogs = () => {
                           textTransform: 'uppercase',
                           background: activity.action === 'api_access' ? '#fef3c7' :
                                  activity.action === 'admin_action' ? '#fee2e2' :
+                                 activity.action === 'login_blocked' ? '#fee2e2' :
                                  activity.action === 'login' ? '#d1fae5' :
                                  activity.action === 'logout' ? '#e0f2fe' :
                                  activity.action === 'profile_update' ? '#fef3c7' :
@@ -347,6 +349,7 @@ const AdminActivityLogs = () => {
                                  '#f3f4f6',
                           color: activity.action === 'api_access' ? '#92400e' :
                                  activity.action === 'admin_action' ? '#991b1b' :
+                                 activity.action === 'login_blocked' ? '#991b1b' :
                                  activity.action === 'login' ? '#065f46' :
                                  activity.action === 'logout' ? '#075985' :
                                  activity.action === 'profile_update' ? '#92400e' :

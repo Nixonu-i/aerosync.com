@@ -22,6 +22,9 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 # Email verification service
 from .services.email_service import EmailVerificationService
 
+# IP Risk checking service
+from core.ip_risk_service import check_ip_risk
+
 
 @api_view(["GET"])
 @authentication_classes([JWTAuthentication])
@@ -100,8 +103,52 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     """
     Custom login view that checks if email is verified before allowing login.
     Supports login with either username OR email.
+    Includes IP risk score checking for security.
     """
     def post(self, request, *args, **kwargs):
+        # Get client IP address
+        client_ip = self.get_client_ip(request)
+        
+        # Check IP risk score
+        ip_risk = check_ip_risk(client_ip)
+        
+        # Block access if IP is high risk, using TOR, VPN, or Proxy
+        if ip_risk.get('blocked'):
+            print(f'🚨 BLOCKED LOGIN - IP: {client_ip}, Risk: {ip_risk.get("risk_score")}, Reason: {ip_risk.get("block_reason")}')
+            
+            # Log the blocked attempt
+            from core.models import UserActivityLog
+            try:
+                UserActivityLog.objects.create(
+                    user=None,  # No user yet, they're blocked
+                    action='login_blocked',
+                    ip_address=client_ip,
+                    user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                    path='/api/accounts/login/',
+                    method='POST',
+                    status_code=403,
+                    additional_data={
+                        'ip_risk_score': ip_risk.get('risk_score'),
+                        'block_reason': ip_risk.get('block_reason'),
+                        'tor': ip_risk.get('tor'),
+                        'vpn': ip_risk.get('vpn'),
+                        'proxy': ip_risk.get('proxy'),
+                        'country': ip_risk.get('country'),
+                        'isp': ip_risk.get('isp')
+                    }
+                )
+            except Exception as e:
+                print(f'Failed to log blocked login: {e}')
+            
+            return Response(
+                {
+                    'detail': 'Access denied. Your connection has been flagged for security reasons.',
+                    'blocked': True,
+                    'reason': ip_risk.get('block_reason', 'High risk connection')
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         # Support both 'email' and 'username' fields for flexibility
         email = request.data.get('email', '').strip().lower() if request.data.get('email') else ''
         username = request.data.get('username', '').strip() if request.data.get('username') else ''
@@ -167,7 +214,32 @@ class CustomTokenObtainPairView(TokenObtainPairView):
             # Replace request._full_data (DRF uses this internally)
             request._full_data = mutable_data
             
-            return super().post(request, *args, **kwargs)
+            # Log successful login with IP risk info
+            response = super().post(request, *args, **kwargs)
+            
+            if response.status_code == 200:
+                from core.models import UserActivityLog
+                try:
+                    UserActivityLog.objects.create(
+                        user=user,
+                        action='login',
+                        ip_address=client_ip,
+                        user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                        path='/api/accounts/login/',
+                        method='POST',
+                        status_code=200,
+                        additional_data={
+                            'ip_risk_score': ip_risk.get('risk_score'),
+                            'ip_country': ip_risk.get('country'),
+                            'ip_isp': ip_risk.get('isp'),
+                            'ip_tor': ip_risk.get('tor', False),
+                            'ip_vpn': ip_risk.get('vpn', False)
+                        }
+                    )
+                except Exception as e:
+                    print(f'Failed to log login: {e}')
+            
+            return response
             
         except User.DoesNotExist:
             # Return generic error (don't reveal if user exists or which field failed)
@@ -175,6 +247,15 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 {'detail': 'Invalid email/username or password'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
+    
+    def get_client_ip(self, request):
+        """Get client IP address from request"""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+        return ip
 
 
 class MeView(APIView):

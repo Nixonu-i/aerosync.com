@@ -313,6 +313,7 @@ class UserActivityLog(models.Model):
     
     ACTION_CHOICES = [
         ('login', 'User Login'),
+        ('login_blocked', 'Login Blocked - IP Risk'),
         ('logout', 'User Logout'),
         ('profile_update', 'Profile Update'),
         ('booking_create', 'Booking Created'),
