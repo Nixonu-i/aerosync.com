@@ -14,7 +14,7 @@ const AdminActivityLogs = () => {
     search: ''
   });
   const [showDetails, setShowDetails] = useState(null);
-  const [darkMode, setDarkMode] = useState(false);
+  const darkMode = true;
 
   useEffect(() => {
     fetchActivities();
@@ -150,20 +150,6 @@ const AdminActivityLogs = () => {
                 <p className="text-sm mt-1" style={{ color: '#94a3b8' }}>Monitor user activities and system interactions</p>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                {/* Dark Mode Toggle */}
-                <button 
-                  onClick={() => setDarkMode(!darkMode)}
-                  className="as-btn as-btn-sm"
-                  style={{ 
-                    background: darkMode ? '#fbbf24' : '#475569', 
-                    color: darkMode ? '#0b1220' : 'white', 
-                    border: 'none',
-                    fontWeight: '600',
-                    padding: '6px 12px'
-                  }}
-                >
-                  {darkMode ? '☀️ Light' : '🌙 Dark'}
-                </button>
                 <button 
                   onClick={exportToCSV}
                   disabled={activities.length === 0}
