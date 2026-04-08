@@ -118,7 +118,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
             
             # Determine specific user-friendly error message
             block_reason = ip_risk.get('block_reason', '')
-            if 'High risk score' in block_reason:
+            if 'High risk score' in block_reason or 'Extreme risk score' in block_reason:
                 error_message = 'Access denied. Your IP address has been flagged as high risk. Please contact support if you believe this is an error.'
             elif 'TOR usage' in block_reason:
                 error_message = 'Access denied. TOR connections are not allowed. Please disable TOR and try again.'
@@ -126,9 +126,6 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 error_message = 'Access denied. VPN connections are not allowed. Please disable your VPN and try again.'
             elif 'Proxy usage' in block_reason:
                 error_message = 'Access denied. Proxy connections are not allowed. Please disable your proxy and try again.'
-            elif 'Unsupported country' in block_reason:
-                country = ip_risk.get('country', 'your location')
-                error_message = f'Access denied. Service is only available in Kenya. Detected location: {country}.'
             else:
                 error_message = 'Access denied. Your connection has been flagged for security reasons.'
             

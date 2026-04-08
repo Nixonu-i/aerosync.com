@@ -625,11 +625,10 @@ def check_ip_risk(ip_address: str) -> dict:
 **Blocking Logic:**
 ```python
 blocked = (
-    risk_score == 'High' or
+    risk_score in ['High', 'Extreme'] or
     using_tor or
     using_vpn or
-    using_proxy or
-    (country_code and country_code != 'KE')  # Kenya only
+    using_proxy
 )
 ```
 
@@ -1071,10 +1070,10 @@ Login attempts are **automatically blocked** if ANY of the following conditions 
 | Threat Type | Description | Block Reason |
 |------------|-------------|--------------|
 | **High Risk Score** | IP flagged with high fraud risk | `"High risk score"` |
+| **Extreme Risk Score** | IP flagged with extreme fraud risk | `"Extreme risk score"` |
 | **TOR Usage** | Connection through TOR network | `"TOR usage detected"` |
 | **VPN Usage** | Connection through VPN service | `"VPN usage detected"` |
 | **Proxy Usage** | Connection through proxy server | `"Proxy usage detected"` |
-| **Non-Kenya IP** | IP address not from Kenya | `"Unsupported country: {Country}"` |
 
 #### 3. **Implementation Architecture**
 
@@ -1197,7 +1196,6 @@ UserActivityLog.objects.create(
         'vpn': False,
         'proxy': False,
         'country': 'United States',
-        'country_code': 'US',
         'isp': 'Quad9'
     }
 )
@@ -1272,12 +1270,12 @@ The system gracefully handles API failures:
 
 ✅ **Fraud Prevention:** Blocks high-risk IP addresses  
 ✅ **Anonymization Detection:** Prevents TOR, VPN, and proxy usage  
-✅ **Geographic Restriction:** Kenya-only access (country code: KE)  
 ✅ **Audit Trail:** All attempts logged with full metadata  
 ✅ **Real-time Protection:** Checks happen before authentication  
 ✅ **Performance:** Cached results reduce latency  
 ✅ **Resilient:** Graceful degradation on API failures  
 ✅ **Admin Visibility:** Full monitoring and export capabilities  
+✅ **Development Friendly:** Local/private IPs bypass checks  
 
 ---
 
