@@ -23,13 +23,18 @@ const AdminActivityLogs = () => {
   const fetchActivities = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({
-        page: currentPage,
-        limit: 20,
-        ...filters
-      }).toString();
+      
+      // Build params object, only including non-empty filters
+      const params = new URLSearchParams();
+      params.append('page', currentPage);
+      params.append('limit', '20');
+      
+      if (filters.user_id) params.append('user_id', filters.user_id);
+      if (filters.action) params.append('action', filters.action);
+      if (filters.ip_address) params.append('ip_address', filters.ip_address);
+      if (filters.search) params.append('search', filters.search);
 
-      const response = await API.get(`/admin/user-activities/?${params}`);
+      const response = await API.get(`/admin/user-activities/?${params.toString()}`);
       const { activities: fetchedActivities, pagination } = response.data;
 
       setActivities(fetchedActivities);
