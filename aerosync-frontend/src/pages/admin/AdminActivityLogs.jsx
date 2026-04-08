@@ -18,7 +18,7 @@ const AdminActivityLogs = () => {
 
   useEffect(() => {
     fetchActivities();
-  }, [currentPage, filters]);
+  }, [currentPage]);
 
   const fetchActivities = async () => {
     try {
@@ -49,7 +49,12 @@ const AdminActivityLogs = () => {
       ...prev,
       [name]: value
     }));
-    setCurrentPage(1); // Reset to first page when filters change
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setCurrentPage(1);
+    fetchActivities();
   };
 
   const handleClearFilters = () => {
@@ -170,9 +175,10 @@ const AdminActivityLogs = () => {
 
           {/* Filters */}
           <div className="as-card-body">
+            <form onSubmit={handleSearch}>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-4">
               <div>
-                <label className="as-label">Search</label>
+                <label className="as-label" style={{ color: darkMode ? '#e2e8f0' : '#374151' }}>Search</label>
                 <input
                   type="text"
                   name="search"
@@ -180,10 +186,15 @@ const AdminActivityLogs = () => {
                   onChange={handleFilterChange}
                   placeholder="Search users, IPs..."
                   className="as-input"
+                  style={{
+                    background: darkMode ? '#334155' : '#ffffff',
+                    color: darkMode ? '#f1f5f9' : '#0f172a',
+                    border: `1px solid ${darkMode ? '#475569' : '#d1d5db'}`
+                  }}
                 />
               </div>
               <div>
-                <label className="as-label">User ID</label>
+                <label className="as-label" style={{ color: darkMode ? '#e2e8f0' : '#374151' }}>User ID</label>
                 <input
                   type="text"
                   name="user_id"
@@ -191,15 +202,25 @@ const AdminActivityLogs = () => {
                   onChange={handleFilterChange}
                   placeholder="User ID"
                   className="as-input"
+                  style={{
+                    background: darkMode ? '#334155' : '#ffffff',
+                    color: darkMode ? '#f1f5f9' : '#0f172a',
+                    border: `1px solid ${darkMode ? '#475569' : '#d1d5db'}`
+                  }}
                 />
               </div>
               <div>
-                <label className="as-label">Action</label>
+                <label className="as-label" style={{ color: darkMode ? '#e2e8f0' : '#374151' }}>Action</label>
                 <select
                   name="action"
                   value={filters.action}
                   onChange={handleFilterChange}
                   className="as-select"
+                  style={{
+                    background: darkMode ? '#334155' : '#ffffff',
+                    color: darkMode ? '#f1f5f9' : '#0f172a',
+                    border: `1px solid ${darkMode ? '#475569' : '#d1d5db'}`
+                  }}
                 >
                   <option value="">All Actions</option>
                   <option value="login">Login</option>
@@ -215,7 +236,7 @@ const AdminActivityLogs = () => {
                 </select>
               </div>
               <div>
-                <label className="as-label">IP Address</label>
+                <label className="as-label" style={{ color: darkMode ? '#e2e8f0' : '#374151' }}>IP Address</label>
                 <input
                   type="text"
                   name="ip_address"
@@ -223,22 +244,43 @@ const AdminActivityLogs = () => {
                   onChange={handleFilterChange}
                   placeholder="IP Address"
                   className="as-input"
+                  style={{
+                    background: darkMode ? '#334155' : '#ffffff',
+                    color: darkMode ? '#f1f5f9' : '#0f172a',
+                    border: `1px solid ${darkMode ? '#475569' : '#d1d5db'}`
+                  }}
                 />
               </div>
-              <div className="flex items-end">
+              <div className="flex items-end gap-2">
                 <button
+                  type="submit"
+                  className="as-btn as-btn-primary flex-1"
+                  style={{ fontWeight: '600' }}
+                >
+                  🔍 Search
+                </button>
+                <button
+                  type="button"
                   onClick={handleClearFilters}
-                  className="as-btn as-btn-secondary w-full"
+                  className="as-btn as-btn-secondary flex-1"
+                  style={{ fontWeight: '600' }}
                 >
                   Clear
                 </button>
               </div>
             </div>
+            </form>
           </div>
 
           {/* Activity Table */}
-          <div className="overflow-x-auto" style={{ background: darkMode ? '#1e293b' : '#ffffff' }}>
-            <table className="as-table">
+          <div className="overflow-x-auto" style={{ 
+            background: darkMode ? '#1e293b' : '#ffffff',
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            msOverflowStyle: '-ms-autohiding-scrollbar'
+          }}>
+            <div style={{ minWidth: '1200px' }}>
+            <table className="as-table" style={{ width: '100%' }}>
               <thead>
                 <tr style={{ background: 'linear-gradient(135deg, #0b1220 0%, #1a2332 100%)' }}>
                   <th style={{ color: '#d4af37', borderBottom: '2px solid #d4af37', fontSize: '12px' }}>User</th>
@@ -423,6 +465,7 @@ const AdminActivityLogs = () => {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
 
           {/* Pagination */}
