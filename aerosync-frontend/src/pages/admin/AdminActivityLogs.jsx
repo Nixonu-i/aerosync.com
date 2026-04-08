@@ -14,6 +14,7 @@ const AdminActivityLogs = () => {
     search: ''
   });
   const [showDetails, setShowDetails] = useState(null);
+  const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
     fetchActivities();
@@ -128,25 +129,39 @@ const AdminActivityLogs = () => {
   };
 
   return (
-    <div className="as-admin-container">
+    <div className="as-admin-container" style={{ background: darkMode ? '#0f172a' : '#f1f5f9' }}>
       <div className="as-admin-content">
-        <div className="as-card">
+        <div className="as-card" style={{ background: darkMode ? '#1e293b' : '#ffffff' }}>
           {/* Header */}
-          <div className="as-card-header">
+          <div className="as-card-header" style={{ background: 'linear-gradient(135deg, #0b1220 0%, #1a2332 100%)', borderBottom: '2px solid #d4af37' }}>
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-semibold text-gray-800">User Activity Logs</h2>
-                <p className="text-sm text-gray-600 mt-1">Monitor user activities and system interactions</p>
+                <h2 className="text-xl font-semibold" style={{ color: '#d4af37', fontWeight: '800', letterSpacing: '0.04em' }}>USER ACTIVITY LOGS</h2>
+                <p className="text-sm mt-1" style={{ color: '#94a3b8' }}>Monitor user activities and system interactions</p>
               </div>
-              <div className="flex space-x-2">
+              <div className="flex space-x-2 items-center gap-2">
+                {/* Dark Mode Toggle */}
+                <button 
+                  onClick={() => setDarkMode(!darkMode)}
+                  className="as-btn as-btn-sm"
+                  style={{ 
+                    background: darkMode ? '#fbbf24' : '#475569', 
+                    color: darkMode ? '#0b1220' : 'white', 
+                    border: 'none',
+                    fontWeight: '600',
+                    padding: '6px 12px'
+                  }}
+                >
+                  {darkMode ? '☀️ Light' : '🌙 Dark'}
+                </button>
                 <button 
                   onClick={exportToCSV}
                   disabled={activities.length === 0}
-                  className="as-btn as-btn-sm as-btn-outline-secondary"
+                  className="as-btn as-btn-sm" style={{ background: 'linear-gradient(135deg, #d4af37 0%, #f4d03f 100%)', color: '#0b1220', border: 'none', fontWeight: '600' }}
                 >
                   Export CSV
                 </button>
-                <span className="as-badge as-badge-secondary">
+                <span className="as-badge" style={{ background: '#334155', color: '#d4af37', fontWeight: '600' }}>
                   {activities.length} records
                 </span>
               </div>
@@ -222,79 +237,140 @@ const AdminActivityLogs = () => {
           </div>
 
           {/* Activity Table */}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" style={{ background: darkMode ? '#1e293b' : '#ffffff' }}>
             <table className="as-table">
               <thead>
-                <tr>
-                  <th>User</th>
-                  <th>Action</th>
-                  <th>IP Address</th>
-                  <th>Method</th>
-                  <th>Path</th>
-                  <th>Status</th>
-                  <th>Time</th>
-                  <th>Details</th>
+                <tr style={{ background: 'linear-gradient(135deg, #0b1220 0%, #1a2332 100%)' }}>
+                  <th style={{ color: '#d4af37', borderBottom: '2px solid #d4af37', fontSize: '12px' }}>User</th>
+                  <th style={{ color: '#d4af37', borderBottom: '2px solid #d4af37', fontSize: '12px' }}>Action</th>
+                  <th style={{ color: '#d4af37', borderBottom: '2px solid #d4af37', fontSize: '12px' }}>IP Address</th>
+                  <th style={{ color: '#d4af37', borderBottom: '2px solid #d4af37', fontSize: '12px' }}>Method</th>
+                  <th style={{ color: '#d4af37', borderBottom: '2px solid #d4af37', fontSize: '12px' }}>Path</th>
+                  <th style={{ color: '#d4af37', borderBottom: '2px solid #d4af37', fontSize: '12px' }}>Status</th>
+                  <th style={{ color: '#d4af37', borderBottom: '2px solid #d4af37', fontSize: '12px' }}>Time</th>
+                  <th style={{ color: '#d4af37', borderBottom: '2px solid #d4af37', fontSize: '12px' }}>Details</th>
                 </tr>
               </thead>
               <tbody>
                 {activities.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500">
+                    <td colSpan="8" className="px-6 py-12 text-center" style={{ color: darkMode ? '#94a3b8' : '#64748b', fontSize: '14px' }}>
+                      <div style={{ marginBottom: '8px', fontSize: '32px' }}>📋</div>
                       No activity logs found
                     </td>
                   </tr>
                 ) : (
-                  activities.map((activity) => (
-                    <tr key={activity.id} className="as-table-row">
+                  activities.map((activity, index) => (
+                    <tr key={activity.id} className="as-table-row" style={{ 
+                      background: darkMode ? 
+                        (index % 2 === 0 ? '#1e293b' : '#0f172a') : 
+                        (index % 2 === 0 ? '#ffffff' : '#f8fafc'),
+                      borderBottom: darkMode ? '1px solid #334155' : '1px solid #e2e8f0'
+                    }}>
                       <td className="as-table-cell">
-                        <div className="font-medium text-gray-900" title={activity.username || 'Anonymous'}>
+                        <div className="font-medium" style={{ color: darkMode ? '#f1f5f9' : '#0f172a', fontWeight: '700' }} title={activity.username || 'Anonymous'}>
                           {activity.username || 'Anonymous'}
                         </div>
                         {activity.user_id && (
-                          <div className="text-xs text-gray-500" title={`ID: ${activity.user_id}`}>
-                            ID: {activity.user_id}
+                          <div style={{ fontSize: '11px', color: darkMode ? '#94a3b8' : '#64748b', marginTop: '2px' }} title={`ID: ${activity.user_id}`}>
+                            ID: {String(activity.user_id).substring(0, 8)}...
                           </div>
                         )}
                       </td>
                       <td className="as-table-cell">
-                        <span className={`as-badge ${activity.action === 'login' ? 'as-badge-success' :
-                            activity.action === 'logout' ? 'as-badge-info' :
-                            activity.action === 'profile_update' ? 'as-badge-warning' :
-                            activity.action === 'booking_create' ? 'as-badge-primary' :
-                            activity.action === 'payment' ? 'as-badge-indigo' :
-                            activity.action === 'admin_action' ? 'as-badge-danger' :
-                            activity.action === 'file_upload' ? 'as-badge-teal' :
-                            'as-badge-secondary'}`}>
-                          {activity.action.replace('_', ' ').toUpperCase()}
+                        <span style={{ 
+                          display: 'inline-block',
+                          padding: '6px 12px',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          borderRadius: '12px',
+                          textTransform: 'uppercase',
+                          background: activity.action === 'api_access' ? '#fef3c7' :
+                                 activity.action === 'admin_action' ? '#fee2e2' :
+                                 activity.action === 'login' ? '#d1fae5' :
+                                 activity.action === 'logout' ? '#e0f2fe' :
+                                 activity.action === 'profile_update' ? '#fef3c7' :
+                                 activity.action === 'booking_create' ? '#dbeafe' :
+                                 activity.action === 'payment' ? '#e0e7ff' :
+                                 activity.action === 'file_upload' ? '#ccfbf1' :
+                                 '#f3f4f6',
+                          color: activity.action === 'api_access' ? '#92400e' :
+                                 activity.action === 'admin_action' ? '#991b1b' :
+                                 activity.action === 'login' ? '#065f46' :
+                                 activity.action === 'logout' ? '#075985' :
+                                 activity.action === 'profile_update' ? '#92400e' :
+                                 activity.action === 'booking_create' ? '#1e40af' :
+                                 activity.action === 'payment' ? '#3730a3' :
+                                 activity.action === 'file_upload' ? '#115e59' :
+                                 '#4b5563'
+                        }}>
+                          {activity.action.replace('_', ' ')}
                         </span>
                       </td>
                       <td className="as-table-cell">
-                        <span className="font-mono text-xs">
+                        <span style={{ 
+                          fontFamily: 'monospace', 
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          color: darkMode ? '#cbd5e1' : '#334155'
+                        }}>
                           {activity.ip_address}
                         </span>
                       </td>
                       <td className="as-table-cell">
-                        <span className={`as-badge ${activity.method === 'GET' ? 'as-badge-success' :
-                            activity.method === 'POST' ? 'as-badge-info' :
-                            activity.method === 'PUT' ? 'as-badge-warning' :
-                            activity.method === 'DELETE' ? 'as-badge-danger' :
-                            activity.method === 'PATCH' ? 'as-badge-purple' :
-                            'as-badge-secondary'}`}>
+                        <span style={{ 
+                          display: 'inline-block',
+                          padding: '6px 12px',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          borderRadius: '12px',
+                          background: activity.method === 'GET' ? '#d1fae5' :
+                                 activity.method === 'POST' ? '#dbeafe' :
+                                 activity.method === 'PUT' ? '#fef3c7' :
+                                 activity.method === 'DELETE' ? '#fee2e2' :
+                                 activity.method === 'PATCH' ? '#e0e7ff' :
+                                 '#f3f4f6',
+                          color: activity.method === 'GET' ? '#065f46' :
+                                 activity.method === 'POST' ? '#1e40af' :
+                                 activity.method === 'PUT' ? '#92400e' :
+                                 activity.method === 'DELETE' ? '#991b1b' :
+                                 activity.method === 'PATCH' ? '#3730a3' :
+                                 '#4b5563'
+                        }}>
                           {activity.method}
                         </span>
                       </td>
                       <td className="as-table-cell">
-                        <div className="truncate max-w-xs" title={activity.path}>{activity.path}</div>
+                        <div style={{ 
+                          maxWidth: '250px', 
+                          overflow: 'hidden', 
+                          textOverflow: 'ellipsis', 
+                          whiteSpace: 'nowrap',
+                          color: darkMode ? '#cbd5e1' : '#475569',
+                          fontSize: '13px'
+                        }} title={activity.path}>
+                          {activity.path}
+                        </div>
                       </td>
                       <td className="as-table-cell">
-                        <span className={`font-mono ${getStatusColor(activity.status_code) === 'red' ? 'text-red-600' : getStatusColor(activity.status_code) === 'orange' ? 'text-orange-500' : getStatusColor(activity.status_code) === 'green' ? 'text-green-600' : 'text-gray-600'}`}>
+                        <span style={{ 
+                          fontFamily: 'monospace',
+                          fontWeight: '600',
+                          fontSize: '13px',
+                          color: activity.status_code >= 500 ? '#dc2626' : 
+                                 activity.status_code >= 400 ? '#ea580c' : 
+                                 activity.status_code >= 200 ? '#16a34a' : '#6b7280'
+                        }}>
                           {activity.status_code}
                         </span>
                       </td>
                       <td className="as-table-cell">
-                        <div className="text-xs">
-                          {new Date(activity.timestamp).toLocaleDateString()}<br />
-                          <span className="text-gray-400">
+                        <div style={{ fontSize: '12px', color: darkMode ? '#cbd5e1' : '#475569' }}>
+                          <strong style={{ fontWeight: '700', color: darkMode ? '#e2e8f0' : '#1e293b' }}>
+                            {new Date(activity.timestamp).toLocaleDateString()}
+                          </strong>
+                          <br />
+                          <span style={{ color: darkMode ? '#64748b' : '#94a3b8', fontSize: '11px' }}>
                             {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
@@ -302,13 +378,31 @@ const AdminActivityLogs = () => {
                       <td className="as-table-cell">
                         <button 
                           onClick={() => toggleDetails(activity.id)}
-                          className="as-btn as-btn-sm as-btn-outline-primary"
+                          className="as-btn as-btn-sm"
+                          style={{ 
+                            background: showDetails === activity.id ? '#3b82f6' : 'transparent',
+                            color: showDetails === activity.id ? 'white' : '#3b82f6',
+                            border: '1px solid #3b82f6',
+                            fontSize: '11px',
+                            padding: '4px 10px'
+                          }}
                         >
                           {showDetails === activity.id ? 'Hide' : 'Show'}
                         </button>
                         {showDetails === activity.id && (
-                          <div className="mt-2 p-3 bg-gray-50 rounded border border-gray-200 text-xs font-mono max-h-40 overflow-auto">
-                            <pre>{JSON.stringify({
+                          <div style={{ 
+                            marginTop: '8px', 
+                            padding: '12px', 
+                            background: '#f8fafc', 
+                            borderRadius: '6px', 
+                            border: '1px solid #e2e8f0',
+                            fontSize: '11px', 
+                            fontFamily: 'monospace', 
+                            maxHeight: '300px', 
+                            overflow: 'auto',
+                            color: '#334155'
+                          }}>
+                            <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{JSON.stringify({
                               id: activity.id,
                               user_id: activity.user_id,
                               username: activity.username,
