@@ -628,7 +628,8 @@ blocked = (
     risk_score == 'High' or
     using_tor or
     using_vpn or
-    using_proxy
+    using_proxy or
+    (country_code and country_code != 'KE')  # Kenya only
 )
 ```
 
@@ -1073,6 +1074,7 @@ Login attempts are **automatically blocked** if ANY of the following conditions 
 | **TOR Usage** | Connection through TOR network | `"TOR usage detected"` |
 | **VPN Usage** | Connection through VPN service | `"VPN usage detected"` |
 | **Proxy Usage** | Connection through proxy server | `"Proxy usage detected"` |
+| **Non-Kenya IP** | IP address not from Kenya | `"Unsupported country: {Country}"` |
 
 #### 3. **Implementation Architecture**
 
@@ -1195,6 +1197,7 @@ UserActivityLog.objects.create(
         'vpn': False,
         'proxy': False,
         'country': 'United States',
+        'country_code': 'US',
         'isp': 'Quad9'
     }
 )
@@ -1269,6 +1272,7 @@ The system gracefully handles API failures:
 
 ✅ **Fraud Prevention:** Blocks high-risk IP addresses  
 ✅ **Anonymization Detection:** Prevents TOR, VPN, and proxy usage  
+✅ **Geographic Restriction:** Kenya-only access (country code: KE)  
 ✅ **Audit Trail:** All attempts logged with full metadata  
 ✅ **Real-time Protection:** Checks happen before authentication  
 ✅ **Performance:** Cached results reduce latency  

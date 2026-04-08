@@ -4,6 +4,7 @@ IP Risk Score checking service using Fraudlogix API
 import requests
 import logging
 import os
+import ipaddress
 from django.core.cache import cache
 from django.conf import settings
 
@@ -15,6 +16,15 @@ CACHE_TIMEOUT = 3600  # Cache results for 1 hour
 
 if not FRAUDLOGIX_API_KEY:
     logger.warning('FRAUDLOGIX_API_KEY not set in environment variables')
+
+
+def is_private_ip(ip_address: str) -> bool:
+    """Check if IP is a private/local address"""
+    try:
+        ip = ipaddress.ip_address(ip_address)
+        return ip.is_private or ip.is_loopback or ip.is_reserved
+    except ValueError:
+        return False
 
 
 def check_ip_risk(ip_address: str) -> dict:
@@ -32,6 +42,27 @@ def check_ip_risk(ip_address: str) -> dict:
             'risk_score': 'Unknown',
             'blocked': False,
             'reason': 'No IP provided'
+        }
+    
+    # Allow localhost and private IP addresses (development/testing)
+    if is_private_ip(ip_address):
+        return {
+            'ip': ip_address,
+            'risk_score': 'Low',
+            'recently_seen': 0,
+            'blocked': False,
+            'block_reason': None,
+            'tor': False,
+            'vpn': False,
+            'proxy': False,
+            'datacenter': False,
+            'masked_devices': False,
+            'country': 'Local Network',
+            'country_code': '',
+            'isp': 'Local Network',
+            'organization': 'Local Network',
+            'connection_type': 'Local',
+            'raw_data': {}
         }
     
     # Check cache first
@@ -61,23 +92,37 @@ def check_ip_risk(ip_address: str) -> dict:
             using_tor = data.get('TOR', False)
             using_vpn = data.get('VPN', False)
             using_proxy = data.get('Proxy', False)
+            country_code = data.get('CountryCode', '')
             
-            # Block if risk is High, using TOR, VPN, or Proxy
-            blocked = risk_score == 'High' or using_tor or using_vpn or using_proxy
+            # Block if risk is High, using TOR, VPN, Proxy, or not from Kenya
+            blocked = (
+                risk_score == 'High' or 
+                using_tor or 
+                using_vpn or 
+                using_proxy or
+                (country_code and country_code != 'KE')  # Block if country is specified and not Kenya
+            )
             
             result = {
                 'ip': ip_address,
                 'risk_score': risk_score,
                 'recently_seen': data.get('RecentlySeen', 0),
                 'blocked': blocked,
-                'block_reason': 'High risk score' if risk_score == 'High' else 'TOR usage detected' if using_tor else 'VPN usage detected' if using_vpn else 'Proxy usage detected' if using_proxy else None,
+                'block_reason': (
+                    'High risk score' if risk_score == 'High' else 
+                    'TOR usage detected' if using_tor else 
+                    'VPN usage detected' if using_vpn else 
+                    'Proxy usage detected' if using_proxy else 
+                    f'Unsupported country: {data.get("Country", country_code)}' if (country_code and country_code != 'KE') else
+                    None
+                ),
                 'tor': using_tor,
                 'vpn': using_vpn,
                 'proxy': using_proxy,
+                'country': data.get('Country', ''),
+                'country_code': country_code,
                 'datacenter': data.get('DataCenter', False),
                 'masked_devices': data.get('MaskedDevices', False),
-                'country': data.get('Country', ''),
-                'country_code': data.get('CountryCode', ''),
                 'isp': data.get('ISP', ''),
                 'organization': data.get('Organization', ''),
                 'connection_type': data.get('ConnectionType', ''),
