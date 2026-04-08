@@ -8,9 +8,10 @@
 5. [API Endpoints](#api-endpoints)
 6. [Key Features](#key-features)
 7. [Authentication & Authorization](#authentication--authorization)
-8. [Real-time Communication](#real-time-communication)
-9. [Payment Processing](#payment-processing)
-10. [Deployment](#deployment)
+8. [IP Risk Scoring & Security](#ip-risk-scoring--security)
+9. [Real-time Communication](#real-time-communication)
+10. [Payment Processing](#payment-processing)
+11. [Deployment](#deployment)
 
 ---
 
@@ -31,6 +32,7 @@ AeroSync is a full-stack flight booking system with real-time WebSocket updates,
 - **Celery** - Background task processing (optional)
 - **JWT** - Token-based authentication
 - **Brevo (SendInBlue)** - Email service
+- **Fraudlogix** - IP risk scoring and threat detection
 
 **Frontend:**
 - **React 19.2.0** - UI library
@@ -360,7 +362,19 @@ ScanLog
      scanned_at, success
 
 UserActivityLog
-  └─ user (FK→User), action, ip_address, user_agent
+  ├─ ACTION_CHOICES:
+  │   ├─ login - User Login
+  │   ├─ login_blocked - Login Blocked - IP Risk (NEW)
+  │   ├─ logout - User Logout
+  │   ├─ profile_update - Profile Update
+  │   ├─ booking_create - Booking Created
+  │   ├─ booking_cancel - Booking Cancelled
+  │   ├─ payment - Payment Processed
+  │   ├─ api_access - API Access
+  │   ├─ admin_action - Admin Action
+  │   ├─ file_upload - File Upload
+  │   └─ other - Other Action
+  └─ Fields: user (FK→User), action, ip_address, user_agent, path, method, status_code, timestamp, additional_data
 ```
 
 **UUID Primary Keys:**
@@ -575,7 +589,55 @@ class BookingUpdatesConsumer(AsyncWebsocketConsumer):
 6. Client updates UI in real-time
 ```
 
-### 11. `core/services.py`
+### 12. `core/ip_risk_service.py` (NEW)
+
+**Purpose:** IP risk assessment and threat detection using Fraudlogix API
+
+**Key Function:**
+
+```python
+def check_ip_risk(ip_address: str) -> dict:
+    """
+    Check IP risk score using Fraudlogix API
+    
+    Returns:
+        dict with:
+        - ip: IP address checked
+        - risk_score: 'Low', 'Medium', 'High', or 'Unknown'
+        - blocked: Boolean - should access be blocked?
+        - block_reason: Why it was blocked (if applicable)
+        - tor: Boolean - using TOR?
+        - vpn: Boolean - using VPN?
+        - proxy: Boolean - using proxy?
+        - country: Country name
+        - isp: ISP name
+        - raw_data: Full API response
+    """
+```
+
+**How it works:**
+1. Check cache for existing result (1 hour TTL)
+2. If not cached, call Fraudlogix API
+3. Parse response and determine if blocked
+4. Cache result for future requests
+5. Return risk assessment
+
+**Blocking Logic:**
+```python
+blocked = (
+    risk_score == 'High' or
+    using_tor or
+    using_vpn or
+    using_proxy
+)
+```
+
+**Integration Points:**
+- Called in `accounts/views.py` during login
+- Results logged to `UserActivityLog`
+- Admin can view blocked attempts in Activity Logs
+
+### 13. `core/services.py`
 
 **Purpose:** Business logic services
 
@@ -939,12 +1001,29 @@ WS     /ws/bookings/                # Real-time booking updates
    ↓
    Returns: {access_token, refresh_token}
 
-2. User makes API request
+2. User logs in
+   POST /api/auth/login/
+   Body: {email/username, password}
+   ↓
+   CustomTokenObtainPairView.post():
+   a. Extract client IP address
+   b. Check IP risk via Fraudlogix API
+   c. If blocked (High risk/TOR/VPN/Proxy):
+      → Return 403 Forbidden
+      → Log as 'login_blocked'
+   d. If safe:
+      → Verify email verification status
+      → Generate JWT tokens
+      → Log successful login with IP metadata
+   ↓
+   Returns: {access_token, refresh_token}
+
+3. User makes API request
    Headers: {Authorization: "Bearer <access_token>"}
    ↓
    JWTAuthentication validates token
 
-3. Token expires (5 minutes)
+4. Token expires (5 minutes)
    POST /api/auth/refresh/
    Headers: {Authorization: "Bearer <refresh_token>"}
    ↓
@@ -970,6 +1049,231 @@ WS     /ws/bookings/                # Real-time booking updates
 - Make payments
 - View boarding passes
 ```
+
+---
+
+## IP Risk Scoring & Security
+
+### Overview
+AeroSync integrates with **Fraudlogix API** to provide real-time IP risk assessment and threat detection during login attempts. This security layer protects the platform from high-risk connections, anonymization services, and potential fraud.
+
+### Security Features
+
+#### 1. **IP Risk Assessment**
+- Every login attempt triggers an IP risk check
+- Results are cached for 1 hour to reduce API calls
+- Risk metadata is logged for audit purposes
+
+#### 2. **Blocking Criteria**
+Login attempts are **automatically blocked** if ANY of the following conditions are met:
+
+| Threat Type | Description | Block Reason |
+|------------|-------------|--------------|
+| **High Risk Score** | IP flagged with high fraud risk | `"High risk score"` |
+| **TOR Usage** | Connection through TOR network | `"TOR usage detected"` |
+| **VPN Usage** | Connection through VPN service | `"VPN usage detected"` |
+| **Proxy Usage** | Connection through proxy server | `"Proxy usage detected"` |
+
+#### 3. **Implementation Architecture**
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                   User Login Attempt                    │
+│              POST /api/accounts/login/                  │
+└───────────────────┬─────────────────────────────────────┘
+                    │
+                    ▼
+┌─────────────────────────────────────────────────────────┐
+│        CustomTokenObtainPairView.post()                 │
+│  1. Extract client IP address                           │
+│  2. Call check_ip_risk(ip_address)                      │
+└───────────────────┬─────────────────────────────────────┘
+                    │
+                    ▼
+┌─────────────────────────────────────────────────────────┐
+│         IP Risk Service (ip_risk_service.py)            │
+│  1. Check cache for existing result                     │
+│  2. If not cached:                                      │
+│     → Call Fraudlogix API                               │
+│     → GET https://iplist.fraudlogix.com/v5?ip={ip}      │
+│     → Headers: x-api-key: {API_KEY}                     │
+│  3. Parse response                                      │
+│  4. Determine if blocked                                │
+│  5. Cache result for 1 hour                             │
+└───────────────────┬─────────────────────────────────────┘
+                    │
+        ┌───────────┴───────────┐
+        │                       │
+        ▼                       ▼
+   BLOCKED                  ALLOWED
+        │                       │
+        ▼                       ▼
+┌──────────────┐      ┌──────────────────┐
+│ Return 403   │      │ Continue login   │
+│ Log attempt  │      │ Log with IP info │
+│ No details   │      │ Return tokens    │
+└──────────────┘      └──────────────────┘
+```
+
+### API Integration
+
+#### Fraudlogix API Request
+
+```python
+# core/ip_risk_service.py
+
+def check_ip_risk(ip_address: str) -> dict:
+    """Check IP risk score using Fraudlogix API"""
+    
+    # Check cache first
+    cache_key = f'ip_risk_{ip_address}'
+    cached_result = cache.get(cache_key)
+    if cached_result:
+        return cached_result
+    
+    # Make API request
+    headers = {
+        'x-api-key': settings.FRAUDLOGIX_API_KEY,
+        'Content-Type': 'application/json'
+    }
+    
+    response = requests.get(
+        'https://iplist.fraudlogix.com/v5',
+        params={'ip': ip_address},
+        headers=headers,
+        timeout=5
+    )
+    
+    return parse_response(response.json())
+```
+
+#### API Response Example
+
+```json
+{
+    "IP": "192.168.1.100",
+    "RecentlySeen": 27,
+    "RiskScore": "Low",
+    "MaskedDevices": true,
+    "Proxy": false,
+    "TOR": false,
+    "VPN": false,
+    "DataCenter": false,
+    "SearchEngineBot": false,
+    "AbnormalTraffic": false,
+    "ASN": "19281",
+    "Organization": "Quad9",
+    "ISP": "Quad9",
+    "City": "",
+    "Country": "United States",
+    "CountryCode": "US",
+    "Region": "",
+    "Timezone": "America/Chicago",
+    "ConnectionType": "Residential"
+}
+```
+
+### Activity Logging
+
+#### Blocked Login Attempts
+
+When a login is blocked, the system creates an activity log entry:
+
+```python
+UserActivityLog.objects.create(
+    user=None,  # No user yet, they're blocked
+    action='login_blocked',
+    ip_address=client_ip,
+    user_agent=request.META.get('HTTP_USER_AGENT', ''),
+    path='/api/accounts/login/',
+    method='POST',
+    status_code=403,
+    additional_data={
+        'ip_risk_score': 'High',
+        'block_reason': 'High risk score',
+        'tor': False,
+        'vpn': False,
+        'proxy': False,
+        'country': 'United States',
+        'isp': 'Quad9'
+    }
+)
+```
+
+#### Successful Logins
+
+Successful logins also include IP risk metadata:
+
+```python
+UserActivityLog.objects.create(
+    user=user,
+    action='login',
+    ip_address=client_ip,
+    additional_data={
+        'ip_risk_score': 'Low',
+        'ip_country': 'United States',
+        'ip_isp': 'Quad9',
+        'ip_tor': False,
+        'ip_vpn': False
+    }
+)
+```
+
+### Configuration
+
+#### Environment Variables
+
+```bash
+# .env file
+FRAUDLOGIX_API_KEY=your_api_key_here
+```
+
+**Important:** The API key is stored in environment variables, NOT in code, for security.
+
+#### Cache Configuration
+
+- **Cache Duration:** 1 hour (3600 seconds)
+- **Cache Key Format:** `ip_risk_{ip_address}`
+- **Purpose:** Reduces API calls and improves response time
+
+### Admin Monitoring
+
+#### Activity Logs Interface
+
+Admins can monitor IP risk events in the Activity Logs page:
+
+1. **Filter by Action:** Select "Login Blocked" to view blocked attempts
+2. **View Details:** Click "Show" to see full IP risk metadata
+3. **Export CSV:** Download logs for analysis
+
+#### Blocked Login Badge
+
+- **Color:** Red background (`#fee2e2`) with dark red text (`#991b1b`)
+- **Label:** "login blocked"
+- **Visibility:** Clearly distinguishes blocked attempts from successful logins
+
+### Error Handling
+
+The system gracefully handles API failures:
+
+| Error Type | Behavior |
+|-----------|----------|
+| **API Timeout** | Allow login, log warning |
+| **API Error** | Allow login, log error |
+| **Missing API Key** | Log warning, allow login |
+| **Network Error** | Allow login, log error |
+
+**Rationale:** Fail-open approach ensures legitimate users aren't blocked if the security service is unavailable.
+
+### Security Benefits
+
+✅ **Fraud Prevention:** Blocks high-risk IP addresses  
+✅ **Anonymization Detection:** Prevents TOR, VPN, and proxy usage  
+✅ **Audit Trail:** All attempts logged with full metadata  
+✅ **Real-time Protection:** Checks happen before authentication  
+✅ **Performance:** Cached results reduce latency  
+✅ **Resilient:** Graceful degradation on API failures  
+✅ **Admin Visibility:** Full monitoring and export capabilities  
 
 ---
 
