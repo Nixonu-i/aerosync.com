@@ -149,7 +149,7 @@ const AdminActivityLogs = () => {
                 <h2 className="text-xl font-semibold" style={{ color: '#d4af37', fontWeight: '800', letterSpacing: '0.04em' }}>USER ACTIVITY LOGS</h2>
                 <p className="text-sm mt-1" style={{ color: '#94a3b8' }}>Monitor user activities and system interactions</p>
               </div>
-              <div className="flex space-x-2 items-center gap-2">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 {/* Dark Mode Toggle */}
                 <button 
                   onClick={() => setDarkMode(!darkMode)}
