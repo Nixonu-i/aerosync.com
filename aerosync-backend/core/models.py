@@ -2,9 +2,17 @@ from django.conf import settings
 from django.db import models
 from accounts.models import User
 from django.core.validators import RegexValidator
+<<<<<<< HEAD
 
 
 class Airline(models.Model):
+=======
+import uuid
+
+
+class Airline(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     name = models.CharField(max_length=150, unique=True)
     iata_code = models.CharField(max_length=3, blank=True, default="")
     country = models.CharField(max_length=100, blank=True, default="")
@@ -18,6 +26,10 @@ class Airline(models.Model):
 
 
 class Aircraft(models.Model):
+<<<<<<< HEAD
+=======
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     model = models.CharField(max_length=120)
     total_seats = models.PositiveIntegerField()
     number_plate = models.CharField(max_length=50, unique=True)
@@ -27,6 +39,10 @@ class Aircraft(models.Model):
 
 
 class Airport(models.Model):
+<<<<<<< HEAD
+=======
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     code = models.CharField(max_length=3, unique=True)
     name = models.CharField(max_length=200)
     city = models.CharField(max_length=100)
@@ -37,6 +53,10 @@ class Airport(models.Model):
 
 
 class Flight(models.Model):
+<<<<<<< HEAD
+=======
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     TRIP_TYPE_CHOICES = [
         ('ONE_WAY', 'One Way'),
         ('ROUND_TRIP', 'Round Trip'),
@@ -78,6 +98,10 @@ class Flight(models.Model):
 
 
 class Seat(models.Model):
+<<<<<<< HEAD
+=======
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     FLIGHT_CLASS_CHOICES = [
         ('ECONOMY', 'Economy'),
         ('BUSINESS', 'Business'),
@@ -98,9 +122,17 @@ class Seat(models.Model):
 
 
 class Booking(models.Model):
+<<<<<<< HEAD
     BOOKING_STATUS_CHOICES = [
         ('PENDING', 'Pending Payment'),
         ('CONFIRMED', 'Confirmed'),
+=======
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    BOOKING_STATUS_CHOICES = [
+        ('PENDING', 'Pending Payment'),
+        ('CONFIRMED', 'Confirmed'),
+        ('COMPLETED', 'Completed'),
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         ('CANCELLED', 'Cancelled'),
         ('FAILED', 'Failed'),
         ('ONBOARD', 'On Board'),
@@ -130,9 +162,65 @@ class Booking(models.Model):
     
     def __str__(self):
         return f"Booking {self.confirmation_code} - {self.user.username}"
+<<<<<<< HEAD
 
 
 class Passenger(models.Model):
+=======
+    
+    def has_successful_payment(self):
+        """Check if booking has at least one successful payment"""
+        return self.payments.filter(status='SUCCESS').exists()
+    
+    def update_status_based_on_payment_and_flight(self, save=True):
+        """
+        Automatically update booking status based on payment status and flight status.
+        
+        Rules:
+        1. If flight is COMPLETED and booking has SUCCESS payment → booking status = CONFIRMED
+        2. If flight is COMPLETED and NO successful payment → booking status = FAILED
+        3. If flight is not COMPLETED, keep current status (don't downgrade)
+        
+        Returns True if status was changed, False otherwise.
+        """
+        from django.utils import timezone
+        
+        old_status = self.booking_status
+        new_status = old_status
+        
+        # Only process if flight status is COMPLETED
+        if self.flight.status == 'COMPLETED':
+            if self.has_successful_payment():
+                # Flight completed + paid = confirmed booking
+                new_status = 'CONFIRMED'
+            else:
+                # Flight completed but not paid = failed booking
+                new_status = 'FAILED'
+        
+        # Don't change status if it's already correct or if we'd be downgrading unnecessarily
+        if new_status != old_status:
+            # Prevent downgrading from better statuses
+            status_priority = {
+                'ONBOARD': 5,
+                'CONFIRMED': 4,
+                'PENDING': 3,
+                'CANCELLED': 2,
+                'FAILED': 1,
+            }
+            
+            # Only update if new status is equal or better than current
+            if status_priority.get(new_status, 0) >= status_priority.get(old_status, 0):
+                self.booking_status = new_status
+                if save:
+                    self.save(update_fields=['booking_status'])
+                return True
+        
+        return False
+
+
+class Passenger(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     PASSENGER_TYPE_CHOICES = [
         ('ADULT', 'Adult'),
         ('CHILD', 'Child'),
@@ -160,6 +248,10 @@ class Passenger(models.Model):
 
 
 class Payment(models.Model):
+<<<<<<< HEAD
+=======
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     PAYMENT_STATUS_CHOICES = [
         ('PENDING', 'Pending'),
         ('SUCCESS', 'Success'),
@@ -173,11 +265,19 @@ class Payment(models.Model):
         ('STRIPE', 'Stripe'),
         ('CARD', 'Credit Card'),
         ('BANK_TRANSFER', 'Bank Transfer'),
+<<<<<<< HEAD
+=======
+        ('PESAPAL', 'Pesapal'),
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     ]
     
     booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='payments')
     provider = models.CharField(max_length=20, choices=PAYMENT_PROVIDER_CHOICES)
+<<<<<<< HEAD
     provider_reference = models.CharField(max_length=100, blank=True)
+=======
+    provider_reference = models.CharField(max_length=100, blank=True, db_index=True)
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     payment_detail = models.CharField(
         max_length=255, blank=True, null=True,
         help_text="Phone (M-Pesa), email (PayPal), masked card (Card), bank ref (Bank Transfer)"
@@ -188,11 +288,29 @@ class Payment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+<<<<<<< HEAD
+=======
+    class Meta:
+        # Each booking can only have ONE active Pesapal payment at a time
+        # (excludes CANCELLED payments to allow retries after cancellation)
+        constraints = [
+            models.UniqueConstraint(
+                fields=['booking', 'provider'],
+                name='unique_booking_payment',
+                condition=~models.Q(status='CANCELLED')
+            )
+        ]
+    
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     def __str__(self):
         return f"Payment {self.provider} - {self.amount} ({self.status})"
 
 
 class BoardingPass(models.Model):
+<<<<<<< HEAD
+=======
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='boarding_passes')
     passenger = models.ForeignKey(Passenger, on_delete=models.CASCADE, related_name='boarding_passes')
     seat = models.ForeignKey(Seat, on_delete=models.CASCADE, related_name='boarding_passes')
@@ -206,6 +324,10 @@ class BoardingPass(models.Model):
 
 
 class ScanLog(models.Model):
+<<<<<<< HEAD
+=======
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     """Persistent record of every QR scan attempt by an agent/admin."""
     scanned_by   = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -235,6 +357,10 @@ class ScanLog(models.Model):
 
 
 class UserActivityLog(models.Model):
+<<<<<<< HEAD
+=======
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     """Model to store user activity logs in database"""
     
     ACTION_CHOICES = [

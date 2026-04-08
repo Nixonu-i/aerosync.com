@@ -22,7 +22,18 @@ export default function Navbar() {
 
         {/* Centre nav links — hidden on mobile */}
         <div className="as-nav-links">
-          <NavLink to="/" end className={({ isActive }) => `as-nav-link${isActive ? " active" : ""}`}>
+          <NavLink 
+            to={(() => {
+              // Admin users go to admin dashboard
+              if (user.is_admin || user.role === 'ADMIN') return '/admin';
+              // Agent users go to agent dashboard
+              if (user.is_agent || user.role === 'AGENT') return '/agent';
+              // Regular customers go to customer dashboard
+              return '/dashboard';
+            })()} 
+            end 
+            className={({ isActive }) => `as-nav-link${isActive ? " active" : ""}`}
+          >
             Dashboard
           </NavLink>
           <NavLink to="/flights" className={({ isActive }) => `as-nav-link${isActive ? " active" : ""}`}>
@@ -59,7 +70,19 @@ export default function Navbar() {
 
       {/* ── Mobile drawer ── */}
       <div className={`as-navbar-mobile${open ? " open" : ""}`}>
-        <NavLink to="/" end className={({ isActive }) => `as-nav-link${isActive ? " active" : ""}`} onClick={() => setOpen(false)}>
+        <NavLink 
+          to={(() => {
+            // Admin users go to admin dashboard
+            if (user.is_admin || user.role === 'ADMIN') return '/admin';
+            // Agent users go to agent dashboard
+            if (user.is_agent || user.role === 'AGENT') return '/agent';
+            // Regular customers go to customer dashboard
+            return '/dashboard';
+          })()} 
+          end 
+          className={({ isActive }) => `as-nav-link${isActive ? " active" : ""}`} 
+          onClick={() => setOpen(false)}
+        >
           Dashboard
         </NavLink>
         <NavLink to="/flights" className={({ isActive }) => `as-nav-link${isActive ? " active" : ""}`} onClick={() => setOpen(false)}>

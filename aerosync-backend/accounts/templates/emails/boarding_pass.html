@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Boarding Pass - AeroSync</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td align="center" style="padding: 40px 0;">
+                <table role="presentation" style="width: 600px; border-collapse: collapse; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden;">
+                    
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #0b1220 0%, #1a2744 100%); padding: 40px 30px; text-align: center;">
+                            <h1 style="color: #d4af37; margin: 0; font-size: 32px; font-weight: 700; letter-spacing: 2px;">
+                                AEROSYNC
+                            </h1>
+                            <p style="color: rgba(255,255,255,0.7); margin: 10px 0 0 0; font-size: 14px;">
+                                Flight Booking System
+                            </p>
+                        </td>
+                    </tr>
+                    
+                    <!-- Success Banner -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 20px 30px; text-align: center;">
+                            <h2 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">
+                                ✈️ Your Booking is Confirmed!
+                            </h2>
+                        </td>
+                    </tr>
+                    
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <p style="color: #333333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+                                Hello {{ user.first_name|default:user.username }},
+                            </p>
+                            
+                            <p style="color: #333333; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
+                                Great news! Your booking has been confirmed and your boarding pass is ready. We're excited to fly with you!
+                            </p>
+                            
+                            <!-- Flight Details Box -->
+                            <table role="presentation" style="width: 100%; margin: 30px 0; background-color: #f8f9fa; border-left: 4px solid #d4af37; border-radius: 4px;">
+                                <tr>
+                                    <td style="padding: 25px;">
+                                        <h3 style="color: #0b1220; margin: 0 0 20px 0; font-size: 18px; font-weight: 600;">
+                                            Flight Details
+                                        </h3>
+                                        
+                                        <table style="width: 100%; border-collapse: collapse;">
+                                            <tr>
+                                                <td style="padding: 8px 0; border-bottom: 1px solid #e9ecef;">
+                                                    <span style="color: #666666; font-size: 14px;">Confirmation Code:</span>
+                                                </td>
+                                                <td style="padding: 8px 0; border-bottom: 1px solid #e9ecef; text-align: right;">
+                                                    <span style="color: #0b1220; font-size: 14px; font-weight: 600; letter-spacing: 2px;">{{ confirmation_code }}</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0; border-bottom: 1px solid #e9ecef;">
+                                                    <span style="color: #666666; font-size: 14px;">Flight Number:</span>
+                                                </td>
+                                                <td style="padding: 8px 0; border-bottom: 1px solid #e9ecef; text-align: right;">
+                                                    <span style="color: #0b1220; font-size: 14px; font-weight: 600;">{{ flight_number }}</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0; border-bottom: 1px solid #e9ecef;">
+                                                    <span style="color: #666666; font-size: 14px;">Route:</span>
+                                                </td>
+                                                <td style="padding: 8px 0; border-bottom: 1px solid #e9ecef; text-align: right;">
+                                                    <span style="color: #0b1220; font-size: 14px; font-weight: 600;">{{ departure_airport }} → {{ arrival_airport }}</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0; border-bottom: 1px solid #e9ecef;">
+                                                    <span style="color: #666666; font-size: 14px;">Departure:</span>
+                                                </td>
+                                                <td style="padding: 8px 0; border-bottom: 1px solid #e9ecef; text-align: right;">
+                                                    <span style="color: #0b1220; font-size: 14px; font-weight: 600;">{{ departure_time }}</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0;">
+                                                    <span style="color: #666666; font-size: 14px;">Seat:</span>
+                                                </td>
+                                                <td style="padding: 8px 0; text-align: right;">
+                                                    <span style="color: #0b1220; font-size: 14px; font-weight: 600;">{{ seat_number }} ({{ seat_class }})</span>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Attachment Notice -->
+                            <table role="presentation" style="width: 100%; margin: 30px 0; background-color: #e8f5e9; border-radius: 6px;">
+                                <tr>
+                                    <td align="center" style="padding: 20px;">
+                                        <p style="color: #2e7d32; font-size: 16px; font-weight: 600; margin: 0 0 10px 0;">
+                                            ✈️ Your Boarding Pass is Attached!
+                                        </p>
+                                        <p style="color: #1b5e20; font-size: 14px; margin: 0;">
+                                            Please find your boarding pass attached to this email as a PNG file.
+                                            Save it on your phone or print it for your journey.
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <p style="color: #333333; font-size: 14px; line-height: 1.6; margin: 20px 0;">
+                                <strong>Important Information:</strong>
+                            </p>
+                            <ul style="color: #666666; font-size: 14px; line-height: 1.8; margin: 10px 0 30px 0; padding-left: 20px;">
+                                <li>Please arrive at the airport at least <strong>2 hours</strong> before your scheduled departure</li>
+                                <li>Have your boarding pass (digital or printed) and valid ID ready</li>
+                                <li>Check-in counters close <strong>45 minutes</strong> before departure</li>
+                                <li>For international flights, ensure you have all required travel documents</li>
+                            </ul>
+                            
+                            <p style="color: #666666; font-size: 14px; line-height: 1.6; margin: 20px 0;">
+                                Need help? You can manage your booking or download additional copies of your boarding pass by logging into your AeroSync account.
+                            </p>
+                        </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e9ecef;">
+                            <p style="color: #666666; font-size: 13px; margin: 0 0 10px 0;">
+                                Questions? Contact our support team at 
+                                <a href="mailto:support@aerosync.com" style="color: #d4af37; text-decoration: none;">support@aerosync.com</a>
+                            </p>
+                            <p style="color: #999999; font-size: 12px; margin: 10px 0 0 0;">
+                                © {% now "Y" %} AeroSync. All rights reserved.
+                            </p>
+                        </td>
+                    </tr>
+                    
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

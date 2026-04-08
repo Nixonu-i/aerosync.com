@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import API from "../../api/api";
+import PesapalPaymentModal from "../../components/PesapalPaymentModal";
 
 /* ─── Theme ─────────────────────────────────────────── */
 const teal  = "#20c997";
@@ -75,6 +76,7 @@ function BookingCard({ booking, onStatusUpdate }) {
   const [downloading, setDownloading] = useState({});
   const [checking, setChecking]       = useState(false);
   const [checkErr, setCheckErr]       = useState("");
+  const [showPesapalModal, setShowPesapalModal] = useState(false);
   const isPending   = booking.booking_status === "PENDING";
   const canDownload = booking.booking_status === "CONFIRMED" || booking.booking_status === "ONBOARD";
 
@@ -97,141 +99,182 @@ function BookingCard({ booking, onStatusUpdate }) {
     }
   };
 
-
   return (
-    <div style={CARD}>
-      {/* Header row */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "10px", marginBottom: "10px" }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-            <span style={{ color: "#fff", fontWeight: 800, fontSize: "15px", fontFamily: "monospace" }}>
-              {booking.confirmation_code}
-            </span>
-            <StatusBadge status={booking.booking_status} />
+    <>
+      <div style={CARD}>
+        {/* Header row */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "10px", marginBottom: "10px" }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+              <span style={{ color: "#fff", fontWeight: 800, fontSize: "15px", fontFamily: "monospace" }}>
+                {booking.confirmation_code}
+              </span>
+              <StatusBadge status={booking.booking_status} />
+            </div>
+            <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "12px", marginTop: "4px" }}>
+              {booking.flight_number ? `${booking.flight_number} ·` : ''} &nbsp;{booking.route || 'Route not specified'} &nbsp;·&nbsp; {fmt(booking.departure_time)}
+            </div>
+            <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "12px", marginTop: "2px" }}>
+              Customer: <span style={{ color: "rgba(255,255,255,0.65)" }}>{booking.username}</span>
+              &nbsp;·&nbsp; {booking.passengers?.length || 1} passenger(s)
+              &nbsp;·&nbsp; KES {Number(booking.total_amount || 0).toLocaleString()}
+            </div>
           </div>
-          <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "12px", marginTop: "4px" }}>
-            {booking.flight_number} &nbsp;·&nbsp; {booking.route} &nbsp;·&nbsp; {fmt(booking.departure_time)}
-          </div>
-          <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "12px", marginTop: "2px" }}>
-            Customer: <span style={{ color: "rgba(255,255,255,0.65)" }}>{booking.username}</span>
-            &nbsp;·&nbsp; {booking.passengers?.length || 1} passenger(s)
-            &nbsp;·&nbsp; KES {Number(booking.total_amount || 0).toLocaleString()}
-          </div>
-        </div>
 
-        <div style={{ display: "flex", gap: "8px", flexShrink: 0, flexWrap: "wrap", alignItems: "flex-start" }}>
-          {/* Check Status — only for PENDING bookings */}
-          {isPending && (
+          <div style={{ display: "flex", gap: "8px", flexShrink: 0, flexWrap: "wrap", alignItems: "flex-start" }}>
+            {/* Pay Button — only for PENDING or CANCELLED bookings */}
+            {(isPending || booking.booking_status === 'CANCELLED') && (
+              <button
+                onClick={() => setShowPesapalModal(true)}
+                style={{
+                  background: "rgba(32,201,151,0.18)",
+                  color: teal,
+                  border: `1px solid rgba(32,201,151,0.5)`,
+                  borderRadius: "7px",
+                  padding: "6px 14px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> Pay Now
+              </button>
+            )}
+            {/* Check status — only for PENDING or CANCELLED bookings */}
+            {(isPending || booking.booking_status === 'CANCELLED') && (
+              <button
+                onClick={handleCheckStatus}
+                disabled={checking}
+                style={{
+                  background: checking ? "rgba(253,126,20,0.1)" : "rgba(253,126,20,0.18)",
+                  color: amber,
+                  border: `1px solid rgba(253,126,20,${checking ? "0.2" : "0.5"})`,
+                  borderRadius: "7px",
+                  padding: "6px 14px",
+                  cursor: checking ? "default" : "pointer",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {checking ? "Checking…" : "Check Status"}
+              </button>
+            )}
             <button
-              onClick={handleCheckStatus}
-              disabled={checking}
+              onClick={() => setExpanded(e => !e)}
               style={{
-                background: checking ? "rgba(253,126,20,0.1)" : "rgba(253,126,20,0.18)",
-                color: amber,
-                border: `1px solid rgba(253,126,20,${checking ? "0.2" : "0.5"})`,
+                background: "rgba(255,255,255,0.07)",
+                color: "rgba(255,255,255,0.7)",
+                border: "1px solid rgba(255,255,255,0.15)",
                 borderRadius: "7px",
                 padding: "6px 14px",
-                cursor: checking ? "default" : "pointer",
+                cursor: "pointer",
                 fontSize: "12px",
-                fontWeight: 700,
+                fontWeight: 600,
                 whiteSpace: "nowrap",
               }}
             >
-              {checking ? "Checking…" : "Check Status"}
+              {expanded ? "Hide Passengers ▲" : "Passengers & Downloads ▼"}
             </button>
-          )}
-          <button
-            onClick={() => setExpanded(e => !e)}
-            style={{
-              background: "rgba(255,255,255,0.07)",
-              color: "rgba(255,255,255,0.7)",
-              border: "1px solid rgba(255,255,255,0.15)",
-              borderRadius: "7px",
-              padding: "6px 14px",
-              cursor: "pointer",
-              fontSize: "12px",
-              fontWeight: 600,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {expanded ? "Hide Passengers ▲" : "Passengers & Downloads ▼"}
-          </button>
+          </div>
         </div>
-      </div>
 
-      {/* Check status error */}
-      {checkErr && (
-        <div style={{ background: "rgba(220,53,69,0.1)", border: "1px solid rgba(220,53,69,0.4)", borderRadius: "7px", padding: "8px 14px", fontSize: "12px", color: "#ff8891", marginBottom: "10px" }}>
-          {checkErr}
-        </div>
-      )}
+        {/* Check status error */}
+        {checkErr && (
+          <div style={{ background: "rgba(220,53,69,0.1)", border: "1px solid rgba(220,53,69,0.4)", borderRadius: "7px", padding: "8px 14px", fontSize: "12px", color: "#ff8891", marginBottom: "10px" }}>
+            {checkErr}
+          </div>
+        )}
 
-      {/* Passenger download list */}
-      {expanded && (
-        <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "14px", marginTop: "6px" }}>
-          {!canDownload && (
-            <div style={{
-              background: "rgba(253,126,20,0.1)",
-              border: "1px solid rgba(253,126,20,0.3)",
-              borderRadius: "8px",
-              padding: "10px 14px",
-              fontSize: "13px",
-              color: "rgba(255,255,255,0.7)",
-              marginBottom: "12px",
-            }}>
-              ℹ️ Boarding pass available only after payment is confirmed (CONFIRMED or ONBOARD status).
-            </div>
-          )}
-
-          {(booking.passengers || []).length === 0 ? (
-            <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "13px" }}>No passenger data available.</div>
-          ) : (
-            (booking.passengers || []).map(p => (
-              <div key={p.id} style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "10px 14px",
-                background: "rgba(255,255,255,0.04)",
+        {/* Passenger download list */}
+        {expanded && (
+          <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "14px", marginTop: "6px" }}>
+            {!canDownload && (
+              <div style={{
+                background: "rgba(253,126,20,0.1)",
+                border: "1px solid rgba(253,126,20,0.3)",
                 borderRadius: "8px",
-                marginBottom: "6px",
-                flexWrap: "wrap",
-                gap: "8px",
+                padding: "10px 14px",
+                fontSize: "13px",
+                color: "rgba(255,255,255,0.7)",
+                marginBottom: "12px",
               }}>
-                <div>
-                  <div style={{ color: "#fff", fontWeight: 600, fontSize: "14px" }}>{p.full_name}</div>
-                  <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "12px", textTransform: "capitalize" }}>
-                    {(p.passenger_type || "ADULT").toLowerCase()}
-                  </div>
-                </div>
-
-                {canDownload ? (
-                  <button
-                    onClick={() => handleDownload(p)}
-                    disabled={downloading[p.id]}
-                    style={{
-                      background: downloading[p.id] ? "rgba(32,201,151,0.1)" : "rgba(32,201,151,0.18)",
-                      color: teal,
-                      border: `1px solid rgba(32,201,151,${downloading[p.id] ? "0.2" : "0.4"})`,
-                      borderRadius: "7px",
-                      padding: "7px 16px",
-                      cursor: downloading[p.id] ? "default" : "pointer",
-                      fontSize: "13px",
-                      fontWeight: 700,
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {downloading[p.id] ? "Downloading…" : "⬇ Download Pass"}
-                  </button>
-                ) : (
-                  <span style={{ color: "rgba(255,255,255,0.25)", fontSize: "12px" }}>Unavailable</span>
-                )}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> Boarding pass available only after payment is confirmed (CONFIRMED or ONBOARD status).
               </div>
-            ))
-          )}
-        </div>
+            )}
+
+            {(booking.passengers || []).length === 0 ? (
+              <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "13px" }}>No passenger data available.</div>
+            ) : (
+              (booking.passengers || []).map(p => (
+                <div key={p.id} style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "10px 14px",
+                  background: "rgba(255,255,255,0.04)",
+                  borderRadius: "8px",
+                  marginBottom: "6px",
+                  flexWrap: "wrap",
+                  gap: "8px",
+                }}>
+                  <div>
+                    <div style={{ color: "#fff", fontWeight: 600, fontSize: "14px" }}>{p.full_name}</div>
+                    <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "12px", textTransform: "capitalize" }}>
+                      {(p.passenger_type || "ADULT").toLowerCase()}
+                    </div>
+                  </div>
+
+                  {canDownload ? (
+                    <button
+                      onClick={() => handleDownload(p)}
+                      disabled={downloading[p.id]}
+                      style={{
+                        background: downloading[p.id] ? "rgba(32,201,151,0.1)" : "rgba(32,201,151,0.18)",
+                        color: teal,
+                        border: `1px solid rgba(32,201,151,${downloading[p.id] ? "0.2" : "0.4"})`,
+                        borderRadius: "7px",
+                        padding: "7px 16px",
+                        cursor: downloading[p.id] ? "default" : "pointer",
+                        fontSize: "13px",
+                        fontWeight: 700,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {downloading[p.id] ? "Downloading…" : "⬇ Download Pass"}
+                    </button>
+                  ) : (
+                    <span style={{ color: "rgba(255,255,255,0.25)", fontSize: "12px" }}>Unavailable</span>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+      
+      {/* Pesapal Payment Modal */}
+      {showPesapalModal && (
+        <PesapalPaymentModal
+          booking={booking}
+          onClose={() => setShowPesapalModal(false)}
+          onPaymentComplete={(payment) => {
+            setShowPesapalModal(false);
+            // Refresh bookings list to show updated status
+            const refreshBookings = async () => {
+              try {
+                const res = await API.get("agent/bookings/");
+                // This will be handled by parent component
+              } catch (err) {
+                console.error('Failed to refresh bookings:', err);
+              }
+            };
+            refreshBookings();
+          }}
+        />
       )}
-    </div>
+    </>
   );
 }
 
@@ -324,11 +367,11 @@ export default function AgentBookings() {
         </div>
       ) : error ? (
         <div style={{ background: "rgba(220,53,69,0.12)", border: `1px solid ${red}`, borderRadius: "10px", padding: "16px 20px", color: "#ff8891" }}>
-          ❌ {error}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> {error}
         </div>
       ) : filtered.length === 0 ? (
         <div style={{ ...CARD, textAlign: "center", padding: "50px 20px" }}>
-          <div style={{ fontSize: "40px", marginBottom: "10px" }}>🎫</div>
+          <div style={{ fontSize: "40px", marginBottom: "10px" }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h.01M18 12h.01"/></svg></div>
           <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "14px" }}>
             {bookings.length === 0 ? "No bookings found." : "No bookings match your filters."}
           </div>

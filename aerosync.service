@@ -2,21 +2,27 @@
 # Place this file in /etc/systemd/system/aerosync.service
 
 [Unit]
-Description=AeroSync Django Application
+Description=AeroSync Backend (Daphne + Cloudflare Tunnel)
 After=network.target
 
 [Service]
 Type=simple
 User=nixii
 Group=nixii
-WorkingDirectory=/home/nixii/projectsem2/aerosync-backend
-Environment=PATH=/home/nixii/projectsem2/aerosync-backend/venv/bin
+WorkingDirectory=/home/nixii/Documents/aerosync/aerosync-backend
+Environment=PATH=/home/nixii/Documents/aerosync/aerosync-backend/venv/bin
 Environment=DJANGO_DEBUG=0
 Environment=SERVE_MEDIA_FROM_DJANGO=1
+<<<<<<< HEAD
 ExecStart=/home/nixii/projectsem2/aerosync-backend/venv/bin/gunicorn --config /home/nixii/projectsem2/aerosync-backend/gunicorn_config.py aerosync.wsgi:application
+=======
+ExecStart=/home/nixii/Documents/aerosync/aerosync-backend/start.sh
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
 ExecReload=/bin/kill -s HUP $MAINPID
 Restart=always
 RestartSec=10
+TimeoutStartSec=30
+TimeoutStopSec=30
 
 [Install]
 WantedBy=multi-user.target

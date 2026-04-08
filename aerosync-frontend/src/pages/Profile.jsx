@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import API from "../api/api";
 import { useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
@@ -9,6 +9,10 @@ import ProtectedImage from "../components/ProtectedImage";
 export default function Profile() {
   const { user, updateUserProfile } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get flight ID from login state (if user came from flights page)
+  const flightId = location.state?.flightId;
   
   const [formData, setFormData] = useState({
     date_of_birth: "",
@@ -19,6 +23,7 @@ export default function Profile() {
     profile_photo: null
   });
   
+  const [phoneError, setPhoneError] = useState("");
   const [isProfileComplete, setIsProfileComplete] = useState(false);
   const [isFirstTime, setIsFirstTime] = useState(false); // Track if user is logging in for the first time
   
@@ -62,10 +67,42 @@ export default function Profile() {
   }, [user]);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    const { name, value } = e.target;
+    
+    // Reset saved state when user modifies any field
+    if (saved) setSaved(false);
+    
+    // Phone number validation - only digits, correct length
+    if (name === 'phone_number') {
+      // Remove any non-digit characters
+      const digitsOnly = value.replace(/\D/g, '');
+      
+      // Validate length based on country code
+      const expectedLength = formData.phone_area_code === '+254' ? 10 : null; // Kenya expects 10 digits
+      
+      if (digitsOnly.length > 0 && expectedLength && digitsOnly.length < expectedLength) {
+        setPhoneError(`Phone number is too short. Expected ${expectedLength} digits.`);
+      } else if (digitsOnly.length > expectedLength) {
+        setPhoneError(`Phone number is too long. Expected ${expectedLength} digits.`);
+        setFormData({
+          ...formData,
+          [name]: digitsOnly.slice(0, expectedLength)
+        });
+        return;
+      } else {
+        setPhoneError("");
+      }
+      
+      setFormData({
+        ...formData,
+        [name]: digitsOnly
+      });
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value
+      });
+    }
   };
   
   const handlePhotoChange = (e) => {
@@ -75,6 +112,8 @@ export default function Profile() {
         ...prev,
         profile_photo: file
       }));
+      // Reset saved state when user changes photo
+      if (saved) setSaved(false);
     }
   };
 
@@ -83,7 +122,7 @@ export default function Profile() {
     setLoading(true);
     setError("");
     setSuccess("");
-
+  
     // On first save, all fields are required
     if (isFirstTime) {
       if (!formData.date_of_birth) {
@@ -106,49 +145,87 @@ export default function Profile() {
         setLoading(false);
         return;
       }
+        
+      // Validate phone number length
+      const expectedLength = formData.phone_area_code === '+254' ? 10 : null;
+      if (expectedLength && formData.phone_number.length !== expectedLength) {
+        setError(`Phone number must be exactly ${expectedLength} digits for ${formData.phone_area_code}.`);
+        setLoading(false);
+        return;
+      }
     }
-    
-    // Profile photo is always required
-    if (!formData.profile_photo) {
+      
+    // Profile photo is always required (on first time)
+    if (isFirstTime && !formData.profile_photo) {
       setError("Profile photo is required.");
       setLoading(false);
       return;
     }
-
+  
     try {
       // Prepare form data for upload
       const profileData = new FormData();
-      profileData.append('date_of_birth', formData.date_of_birth);
-      profileData.append('gender', formData.gender);
-      profileData.append('nationality', formData.nationality);
+      
+      // CRITICAL: On first-time setup, MUST send ALL required fields
+      if (isFirstTime) {
+        profileData.append('date_of_birth', formData.date_of_birth);
+        profileData.append('gender', formData.gender);
+        profileData.append('nationality', formData.nationality);
+      }
+          
+      // Always send phone number fields
       profileData.append('phone_area_code', formData.phone_area_code);
       profileData.append('phone_number', formData.phone_number);
-      if (formData.profile_photo) {
+          
+      // Send photo if it exists (either new file or keep existing)
+      // Backend will keep existing photo if no new one is uploaded
+      if (formData.profile_photo && typeof formData.profile_photo !== 'string') {
+        // It's a new File object - upload it
         profileData.append('profile_photo', formData.profile_photo);
       }
-      
+      // If it's a string (existing URL), don't send anything - backend keeps current photo
+          
       // Save profile data via API
       await API.post("auth/profile/", profileData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
       });
+<<<<<<< HEAD
       
       // the API sets initial_setup_done; frontend state will be
       // updated by re‑fetching or by the existing logic above.
+=======
+        
+      // Update state
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
       setIsProfileComplete(true);
       setIsFirstTime(false);
       setSaved(true); // flip button to green "Saved"
-      
+        
       setSuccess("Profile updated successfully!");
-      
+        
       // Optionally, update user context with profile data
       if (updateUserProfile) {
         updateUserProfile({ ...user, profile: formData });
       }
+        
+      // Redirect to booking page if user came from flights
+      if (flightId) {
+        setTimeout(() => {
+          navigate(`/bookings?flight=flightId}&seat=choice`, {
+            state: { message: 'Profile completed! Continue with your booking.' }
+          });
+        }, 1000); // Wait 1 second so user sees success message
+      }
     } catch (err) {
-      setError("Failed to update profile. Please try again.");
-      console.error("Profile update error:", err);
+      // Get detailed error from backend
+      const errorMsg = err.response?.data?.phone_number || 
+                       err.response?.data?.profile_photo ||
+                       err.response?.data?.detail || 
+                       "Failed to update profile. Please try again.";
+      setError(errorMsg);
+      console.error("Profile update error:", err.response?.data);
     } finally {
       setLoading(false);
     }
@@ -163,6 +240,8 @@ export default function Profile() {
     boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
   };
   const locked = !isFirstTime && isProfileComplete;
+  // Phone number and profile photo can always be edited
+  const phonePhotoEditable = true;
   const inputSt = {
     width: "100%", padding: "11px 14px", borderRadius: "8px",
     border: "1px solid rgba(255,255,255,0.12)",
@@ -170,6 +249,13 @@ export default function Profile() {
     color: locked ? "rgba(255,255,255,0.5)" : "#fff",
     fontSize: "14px", outline: "none", boxSizing: "border-box",
     cursor: locked ? "not-allowed" : "auto",
+  };
+  // Input style for always-editable fields (phone number)
+  const editableInputSt = {
+    ...inputSt,
+    background: "rgba(255,255,255,0.07)",
+    color: "#fff",
+    cursor: "auto",  // Normal text cursor for inputs
   };
   const labelSt = {
     display: "block", marginBottom: "7px",
@@ -284,7 +370,7 @@ export default function Profile() {
           <DateOfBirthPicker
             value={formData.date_of_birth}
             onChange={(v) => handleChange({ target: { name: "date_of_birth", value: v } })}
-            disabled={locked}
+            disabled={locked && name !== "phone_number" && name !== "phone_area_code"}
             theme="dark"
           />
         </div>
@@ -296,8 +382,8 @@ export default function Profile() {
             name="gender"
             value={formData.gender}
             onChange={handleChange}
-            required={!locked}
-            disabled={locked}
+            required={!locked || name === "phone_number" || name === "phone_area_code"}
+            disabled={locked && name !== "phone_number" && name !== "phone_area_code"}
             style={{ ...inputSt, appearance: "none" }}
           >
             <option value="" style={{ background: "#0b1220" }}>Select Gender</option>
@@ -314,8 +400,8 @@ export default function Profile() {
             name="nationality"
             value={formData.nationality}
             onChange={handleChange}
-            required={!locked}
-            disabled={locked}
+            required={!locked || name === "phone_number" || name === "phone_area_code"}
+            disabled={locked && name !== "phone_number" && name !== "phone_area_code"}
             style={{ ...inputSt, appearance: "none" }}
           >
             <option value="" style={{ background: "#0b1220" }}>Select Nationality</option>
@@ -354,9 +440,9 @@ export default function Profile() {
               name="phone_area_code"
               value={formData.phone_area_code || "+254"}
               onChange={handleChange}
-              required={!locked}
-              disabled={locked}
-              style={{ ...inputSt, width: "auto", minWidth: "110px", flex: "0 0 auto", appearance: "none" }}
+              required={true}
+              disabled={false}
+              style={{ ...editableInputSt, width: "auto", minWidth: "110px", flex: "0 0 auto", appearance: "none" }}
             >
               <option value="+254" style={{ background: "#0b1220" }}>+254 (KE)</option>
               <option value="+255" style={{ background: "#0b1220" }}>+255 (TZ)</option>
@@ -377,11 +463,27 @@ export default function Profile() {
               value={formData.phone_number}
               onChange={handleChange}
               placeholder="712345678"
-              required={!locked}
-              disabled={locked}
-              style={{ ...inputSt, flex: 1 }}
+              required={true}
+              disabled={false}
+              style={{ 
+                ...editableInputSt, 
+                flex: 1,
+                borderColor: phoneError ? '#dc3545' : editableInputSt.borderColor
+              }}
             />
           </div>
+          {phoneError && (
+            <div style={{ 
+              color: '#ff6b75', 
+              fontSize: '12px', 
+              marginTop: '6px',
+              background: 'rgba(220,53,69,0.1)',
+              padding: '6px 10px',
+              borderRadius: '4px'
+            }}>
+              {phoneError}
+            </div>
+          )}
         </div>
 
         {/* locked notice */}
@@ -395,16 +497,15 @@ export default function Profile() {
         <button
           type="submit"
           disabled={loading || saved}
-          onClick={saved ? (e) => e.preventDefault() : undefined}
           style={{
-            backgroundColor: saved ? "#28a745" : loading ? "rgba(255,255,255,0.15)" : "#d4af37",
-            color: saved || loading ? "#fff" : "#0b1220",
+            backgroundColor: saved ? "#28a745" : loading ? "#d4af37" : "#d4af37",
+            color: "#fff",
             border: "none",
             padding: "13px 25px",
             borderRadius: "9px",
             fontSize: "15px",
             fontWeight: 700,
-            cursor: saved || loading ? "not-allowed" : "pointer",
+            cursor: loading ? "wait" : (saved ? "default" : "pointer"), opacity: loading ? 0.8 : 1,
             width: "100%",
             display: "flex",
             alignItems: "center",
@@ -422,7 +523,17 @@ export default function Profile() {
               </svg>
               Saved
             </>
-          ) : loading ? "Saving..." : "Save Profile"}
+          ) : loading ? (
+            <>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" strokeOpacity="0.3"/>
+                <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round">
+                  <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
+                </path>
+              </svg>
+              Saving...
+            </>
+          ) : "Save Profile"}
         </button>
       </form>
     </div>

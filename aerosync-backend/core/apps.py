@@ -8,6 +8,10 @@ class CoreConfig(AppConfig):
     def ready(self):
         import core.signals  # noqa: F401
         self._start_flight_auto_complete()
+<<<<<<< HEAD
+=======
+        self._start_booking_auto_complete()
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
 
     # ------------------------------------------------------------------
     # Background scheduler: auto-complete past flights every 5 minutes.
@@ -35,4 +39,34 @@ class CoreConfig(AppConfig):
                 time.sleep(5 * 60)  # check every 5 minutes
 
         t = threading.Thread(target=loop, daemon=True, name="flight-auto-complete")
+<<<<<<< HEAD
+=======
+        t.start()
+    
+    # ------------------------------------------------------------------
+    # Background scheduler: auto-complete bookings for completed flights.
+    # Runs every 5 minutes, 1 minute after flight auto-complete to ensure
+    # flights are marked completed first.
+    # ------------------------------------------------------------------
+    def _start_booking_auto_complete(self):
+        import threading
+        import time
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        def loop():
+            # Wait for flight auto-complete to run first
+            time.sleep(80)
+            logger.info("[AeroSync] Booking auto-complete scheduler started (interval: 5 min).")
+            while True:
+                try:
+                    from core.tasks import mark_completed_bookings
+                    mark_completed_bookings()
+                except Exception as exc:  # pragma: no cover
+                    logger.error("[AeroSync] Booking auto-complete error: %s", exc)
+                time.sleep(5 * 60)  # check every 5 minutes
+
+        t = threading.Thread(target=loop, daemon=True, name="booking-auto-complete")
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         t.start()

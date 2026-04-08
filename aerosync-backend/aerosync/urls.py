@@ -12,6 +12,10 @@ urlpatterns = [
     path("", api_root),
     path("admin/", admin.site.urls),
 
+<<<<<<< HEAD
+=======
+    # WebSocket endpoint is handled by ASGI routing
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     path("api/auth/", include("accounts.urls")),
     path("api/", include("core.urls")),
 ]

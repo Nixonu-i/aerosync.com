@@ -151,7 +151,7 @@ export default function AgentFlights() {
               <tbody>
                 {items.map((f, i) => (
                   <tr
-                    key={f.id}
+                    key={`${f.id}-${i}`}
                     style={{ background: i % 2 === 0 ? "rgba(255,255,255,0.03)" : "transparent", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
                   >
                     <td style={{ padding: "10px 14px", color: "#fff", fontFamily: "monospace", fontWeight: 700 }}>{f.flight_number}</td>
@@ -164,7 +164,7 @@ export default function AgentFlights() {
                     <td style={{ padding: "10px 14px", color: "rgba(255,255,255,0.8)" }}>{f.airline || "—"}</td>
                     <td style={{ padding: "10px 14px", color: "rgba(255,255,255,0.8)" }}>{f.duration_minutes ? `${f.duration_minutes}m` : "—"}</td>
                     <td style={{ padding: "10px 14px", color: teal, fontWeight: 700 }}>
-                      {f.price != null ? `$${Number(f.price).toFixed(2)}` : "—"}
+                      {f.price != null ? `KES ${Number(f.price).toLocaleString()}` : "—"}
                     </td>
                     <td style={{ padding: "10px 14px" }}>
                       <span style={{

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../../api/api";
 import DateOfBirthPicker from "../../components/DateOfBirthPicker";
+import PesapalPaymentModal from "../../components/PesapalPaymentModal";
 
 /* ─── Theme ──────────────────────────────────────────────── */
 const teal  = "#20c997";
@@ -150,13 +151,29 @@ function PassengerForm({ index, data, onChange, onRemove, showRemove }) {
                   placeholder="Phone number"
                   inputMode="numeric"
                   maxLength={15}
-                  onChange={e => set("phone_number", e.target.value.replace(/[^0-9]/g, ""))} />
+                  onChange={e => set("phone_number", e.target.value.replace(/[^0-9]/g, "")) } />
               </div>
             </div>
             <div>
               <label style={labelStyle}>Passport / ID (numbers only) *</label>
-              <input value={data.passport_number} style={inputStyle} placeholder="Numbers only" inputMode="numeric"
-                onChange={e => set("passport_number", e.target.value.replace(/[^0-9]/g, ""))} />
+              <input 
+                value={data.passport_number} 
+                style={inputStyle} 
+                placeholder="7-9 digits" 
+                inputMode="numeric"
+                maxLength={9}
+                onChange={e => {
+                  const val = e.target.value.replace(/[^0-9]/g, "");
+                  // Only update if length is 0 or between 7-9 digits
+                  if (val.length === 0 || (val.length >= 7 && val.length <= 9)) {
+                    set("passport_number", val);
+                  }
+                }} />
+              {data.passport_number && (data.passport_number.length < 7 || data.passport_number.length > 9) && (
+                <div style={{ color: "#dc3545", fontSize: "10px", marginTop: "4px", fontWeight: 600 }}>
+                  ID must be 7-9 digits (current: {data.passport_number.length})
+                </div>
+              )}
             </div>
           </>
         )}
@@ -510,6 +527,7 @@ export default function AgentCreateBooking() {
 
   // Payment
   const [showPayment, setShowPayment]   = useState(false);
+  const [showPesapalModal, setShowPesapalModal] = useState(false);
   const [paymentProviders, setPaymentProviders] = useState([]);
   const [paymentMsg, setPaymentMsg]     = useState("");
 
@@ -634,6 +652,18 @@ export default function AgentCreateBooking() {
 
   /* Submit */
   const handleConfirm = async () => {
+    // Validate all adult passengers have valid ID numbers (7-9 digits)
+    const invalidPassenger = passengers.find(p => 
+      p.passenger_type === 'ADULT' && 
+      (!p.passport_number || p.passport_number.length < 7 || p.passport_number.length > 9)
+    );
+    
+    if (invalidPassenger) {
+      const index = passengers.indexOf(invalidPassenger);
+      setErr(`Passenger ${index + 1}: Passport/ID must be 7-9 digits (current: ${invalidPassenger.passport_number?.length || 0})`);
+      return;
+    }
+    
     setSubmitting(true);
     setErr("");
     try {
@@ -647,8 +677,14 @@ export default function AgentCreateBooking() {
         passengers: passengers.map(p => ({ ...p })),
         seat_ids,
       });
-      setBooking(res.data);
+      
+      // Fetch full booking details with flight info, seats, etc.
+      const fullBooking = await API.get(`agent/bookings/${res.data.booking_id}/`);
+      
+      setBooking(fullBooking.data);
       setStep("done");
+
+      
     } catch (e) {
       setErr(e?.response?.data?.detail || JSON.stringify(e?.response?.data) || "Booking failed.");
     } finally {
@@ -668,18 +704,21 @@ export default function AgentCreateBooking() {
       <div style={{ maxWidth: "640px" }}>
         <div style={{ background: "rgba(40,167,69,0.10)", border: "1px solid #28a745", borderRadius: "14px", padding: "28px", marginBottom: "20px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "18px" }}>
-            <span style={{ fontSize: "40px" }}>✅</span>
+            <span style={{ fontSize: "40px" }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
             <div>
               <div style={{ color: "#28a745", fontWeight: 800, fontSize: "20px" }}>Booking Created!</div>
               <div style={{ color: "rgba(255,255,255,0.6)", fontSize: "14px", marginTop: "3px" }}>Awaiting payment to confirm.</div>
             </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "10px", marginBottom: "20px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "10px", marginBottom: "20px" }}>
             {[
-              ["Ref",        booking.confirmation_code],
-              ["Passengers", booking.passenger_count],
-              ["Total",      `KES ${booking.total_amount}`],
-              ["Status",     "PENDING"],
+              ["Confirmation Code", booking.confirmation_code],
+              ["Flight", booking.flight_number || "Not specified"],
+              ["Route", booking.route || "Not specified"],
+              ["Seats", booking.seat_numbers?.join(", ") || "Not assigned"],
+              ["Passengers", booking.passenger_count || booking.passengers?.length || 0],
+              ["Amount", `KES ${Number(booking.total_amount || 0).toLocaleString()}`],
+              ["Status", "PENDING"],
             ].map(([lbl, val]) => (
               <div key={lbl} style={{ background: "rgba(5,19,30,0.7)", borderRadius: "8px", padding: "10px 14px" }}>
                 <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: "3px" }}>{lbl}</div>
@@ -697,18 +736,23 @@ export default function AgentCreateBooking() {
               style={{ background: "rgba(255,255,255,0.08)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px", padding: "11px 22px", cursor: "pointer", fontWeight: 600 }}>
               + New Booking
             </button>
-            <button type="button" onClick={() => setShowPayment(true)}
+            <button type="button" onClick={() => setShowPesapalModal(true)}
               style={{ background: teal, color: "#fff", border: "none", borderRadius: "8px", padding: "11px 24px", cursor: "pointer", fontWeight: 800 }}>
-              Initiate Payment
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> Pay Now
             </button>
           </div>
         </div>
-        {showPayment && (
-          <PaymentModal
+        
+        {/* Pesapal Payment Modal */}
+        {showPesapalModal && (
+          <PesapalPaymentModal
             booking={booking}
-            providers={paymentProviders}
-            onClose={() => setShowPayment(false)}
-            onPaid={msg => { setShowPayment(false); setPaymentMsg(msg); navigate("/agent/bookings"); }}
+            onClose={() => setShowPesapalModal(false)}
+            onPaymentComplete={(payment) => {
+              setShowPesapalModal(false);
+              setPaymentMsg(`Payment completed successfully! Ref: ${booking.confirmation_code}`);
+              navigate("/agent/bookings");
+            }}
           />
         )}
       </div>
@@ -971,7 +1015,7 @@ export default function AgentCreateBooking() {
           </div>
 
           <div style={{ background: "rgba(253,126,20,0.08)", border: "1px solid rgba(253,126,20,0.25)", borderRadius: "8px", padding: "12px 16px", marginBottom: "20px", fontSize: "13px", color: "rgba(255,255,255,0.7)" }}>
-            ℹ️ Booking will be created as <strong style={{ color: "#fd7e14" }}>PENDING</strong>. Payment is required to confirm and generate the boarding pass.
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> Booking will be created as <strong style={{ color: "#fd7e14" }}>PENDING</strong>. Payment is required to confirm and generate the boarding pass.
           </div>
 
           <div style={{ display: "flex", gap: "12px" }}>

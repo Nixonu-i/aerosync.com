@@ -1,10 +1,12 @@
-import { useContext, useEffect, useMemo, useState, createPortal } from "react";
+import { useContext, useEffect, useMemo, useState, useRef } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import API from "../api/api";
 import { AuthContext } from "../context/AuthContext";
+import { useBookingRealtime } from "../context/BookingRealtimeContext";
 import MultiPassengerBooking from "../components/MultiPassengerBooking";
 import DateOfBirthPicker from "../components/DateOfBirthPicker";
 import ImprovedMultiPassengerBooking from "../components/ImprovedMultiPassengerBooking";
+import PesapalPaymentModal from "../components/PesapalPaymentModal";
 
 export default function Booking() {
   const { user } = useContext(AuthContext);
@@ -127,17 +129,27 @@ function CreateBookingMultiPassenger({ flightId }) {
     window.location.href = "/bookings";
   };
   
-  const downloadPass = async (bookingId, ref) => {
+  const downloadPass = async (bookingId, ref, passengerId = null) => {
     try {
-      const res = await API.get(`bookings/${bookingId}/boarding_pass_png/`, { responseType: "blob" });
-      const url = window.URL.createObjectURL(res.data);
+      // Build URL with optional passenger_id query parameter
+      let url = `bookings/${bookingId}/boarding_pass_png/`;
+      if (passengerId) {
+        url += `?passenger_id=${passengerId}`;
+      }
+      
+      const fileName = passengerId 
+        ? `boarding-pass-${ref}-passenger-${passengerId}.png`
+        : `boarding-pass-${ref}.png`;
+      
+      const res = await API.get(url, { responseType: "blob" });
+      const blobUrl = window.URL.createObjectURL(res.data);
       const a = document.createElement("a");
-      a.href = url;
-      a.download = `boarding-pass-${ref || bookingId}.png`;
+      a.href = blobUrl;
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      window.URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(blobUrl);
     } catch (error) {
       alert(error.response?.data?.detail || "Failed to download boarding pass. Complete payment first.");
     }
@@ -685,6 +697,8 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
     if (passenger.passenger_type === "ADULT" && passenger.passport_number) {
       if (!/^[0-9]+$/.test(passenger.passport_number)) {
         errors.push("ID number can only contain numeric digits");
+      } else if (passenger.passport_number.length < 6 || passenger.passport_number.length > 9) {
+        errors.push("ID number must be between 6 and 9 digits");
       }
     }
     
@@ -949,7 +963,7 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
               </div>
               
               <div>
-                <label style={{ display: "block", marginBottom: "5px", fontWeight: "500", color: "#495057" }}>Passport/ID Number</label>
+                <label style={{ display: "block", marginBottom: "5px", fontWeight: "500", color: "#495057" }}>Passport/ID Number *</label>
                 <input
                   type="text"
                   value={passenger.passport_number}
@@ -957,7 +971,10 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
                     // Only allow numeric characters for ID number
                     const inputValue = e.target.value;
                     const cleanedValue = inputValue.replace(/[^0-9]/g, '');
-                    handlePassengerChange("passport_number", cleanedValue);
+                    // Limit to maximum 9 digits
+                    if (cleanedValue.length <= 9) {
+                      handlePassengerChange("passport_number", cleanedValue);
+                    }
                   }}
                   onInput={(e) => {
                     // Real-time cleaning of input
@@ -965,10 +982,15 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
                     const cleanedValue = inputValue.replace(/[^0-9]/g, '');
                     if (inputValue !== cleanedValue) {
                       e.target.value = cleanedValue;
-                      handlePassengerChange("passport_number", cleanedValue);
+                      if (cleanedValue.length <= 9) {
+                        handlePassengerChange("passport_number", cleanedValue);
+                      }
                     }
                   }}
-                  placeholder="ID Number"
+                  placeholder="Enter 6-9 digit ID number"
+                  minLength={6}
+                  maxLength={9}
+                  required
                   style={{
                     width: "100%",
                     padding: "10px",
@@ -977,6 +999,9 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
                     fontSize: "14px"
                   }}
                 />
+                <small style={{ color: "#6c757d", fontSize: "12px", marginTop: "4px", display: "block" }}>
+                  ID number must be between 6 and 9 digits
+                </small>
               </div>
             </>
           )}
@@ -1188,6 +1213,9 @@ function MyBookings() {
   const [items, setItems] = useState([]);
   const [busy, setBusy] = useState(true);
   const [err, setErr] = useState("");
+  
+  // WebSocket integration - only connects when this component is mounted
+  const { subscribeToAll, subscribeToPaymentUpdates, isConnected, reconnect, disconnect } = useBookingRealtime();
 
   const load = async () => {
     setBusy(true);
@@ -1204,19 +1232,55 @@ function MyBookings() {
 
   useEffect(() => {
     load();
-  }, []);
+    
+    // Connect to WebSocket stream when component mounts
+    console.log('📡 Connecting to WebSocket stream for MyBookings');
+    reconnect();
+    
+    // Subscribe to real-time booking updates (silent)
+    const unsubscribe = subscribeToAll((updatedBooking, changedFields) => {
+      // Update the booking in our list silently
+      setItems(prevItems => {
+        const index = prevItems.findIndex(b => b.id === updatedBooking.id);
+        if (index === -1) return prevItems; // Not our booking
+        
+        const newItems = [...prevItems];
+        newItems[index] = updatedBooking;
+        return newItems;
+      });
+      // No visual feedback - silent update, boarding pass button will auto-update based on status
+    });
+    
+    // Cleanup: disconnect WebSocket when component unmounts to free backend resources
+    return () => {
+      console.log('🔌 Disconnecting from WebSocket stream - component unmount');
+      unsubscribe();
+      disconnect(); // Tell backend to close the connection
+      console.log('✅ WebSocket cleanup complete');
+    };
+  }, []); // Empty dependency array - only run once on mount
 
-  const downloadPass = async (bookingId, ref) => {
+  const downloadPass = async (bookingId, ref, passengerId = null) => {
     try {
-      const res = await API.get(`bookings/${bookingId}/boarding_pass_png/`, { responseType: "blob" });
-      const url = window.URL.createObjectURL(res.data);
+      // Build URL with optional passenger_id query parameter
+      let url = `bookings/${bookingId}/boarding_pass_png/`;
+      if (passengerId) {
+        url += `?passenger_id=${passengerId}`;
+      }
+      
+      const fileName = passengerId 
+        ? `boarding-pass-${ref}-passenger-${passengerId}.png`
+        : `boarding-pass-${ref}.png`;
+      
+      const res = await API.get(url, { responseType: "blob" });
+      const blobUrl = window.URL.createObjectURL(res.data);
       const a = document.createElement("a");
-      a.href = url;
-      a.download = `boarding-pass-${ref || bookingId}.png`;
+      a.href = blobUrl;
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      window.URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(blobUrl);
     } catch (error) {
       alert(error.response?.data?.detail || "Failed to download boarding pass. Complete payment first.");
     }
@@ -1242,16 +1306,25 @@ function BookingItem({ booking, onDownloadPass }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [flashMessage, setFlashMessage] = useState({show: false, type: '', message: ''});
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentProviders, setPaymentProviders] = useState([]);
-  const [selectedProvider, setSelectedProvider] = useState('');
-  const [paymentDetails, setPaymentDetails] = useState({});
+  const [showPesapalModal, setShowPesapalModal] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const cardRef = useRef(null);
+  
+  // Access real-time payment updates from context
+  const { subscribeToPaymentUpdates } = useBookingRealtime();
+  
+  // Trigger animation when booking status changes
+  useEffect(() => {
+    setIsUpdating(true);
+    const timer = setTimeout(() => setIsUpdating(false), 2000);
+    return () => clearTimeout(timer);
+  }, [booking.booking_status, booking.total_amount]);
   
   const showFlashMessage = (message, type = 'error') => {
     setFlashMessage({show: true, type, message});
     setTimeout(() => {
       setFlashMessage({show: false, type: '', message: ''});
-    }, 5000); // Hide after 5 seconds
+    }, 5000);
   };
   
   const loadPaymentStatus = async () => {
@@ -1269,125 +1342,75 @@ function BookingItem({ booking, onDownloadPass }) {
     }
   };
   
-  const loadPaymentProviders = async () => {
-    try {
-      const res = await API.get("payment-providers/");
-      setPaymentProviders(res.data);
-      if (res.data.length > 0) {
-        setSelectedProvider(res.data[0].id);
-      }
-    } catch (e) {
-      console.error("Failed to load payment providers", e);
-      showFlashMessage("Failed to load payment providers", 'error');
-    }
-  };
-  
-  const initiatePayment = async () => {
-    // Show payment modal instead of directly initiating payment
-    await loadPaymentProviders();
-    setShowPaymentModal(true);
-  };
-  
-  const handlePaymentSubmit = async () => {
-    if (!selectedProvider) {
-      showFlashMessage("Please select a payment provider", 'error');
-      return;
-    }
-
-    // Client-side validation per provider
-    if (selectedProvider === 'mpesa') {
-      if (!paymentDetails.phone_number?.trim()) {
-        showFlashMessage("Phone number is required for M-Pesa", 'error');
-        return;
-      }
-    } else if (selectedProvider === 'paypal') {
-      const email = paymentDetails.email?.trim();
-      if (!email) {
-        showFlashMessage("Email is required for PayPal", 'error');
-        return;
-      }
-      if (!/^[^@]+@[^@]+\.[^@]+$/.test(email)) {
-        showFlashMessage("Please enter a valid email address", 'error');
-        return;
-      }
-    } else if (selectedProvider === 'card') {
-      if (!paymentDetails.card_number?.trim()) {
-        showFlashMessage("Card number is required", 'error');
-        return;
-      }
-      if (!paymentDetails.expiry_date?.trim()) {
-        showFlashMessage("Card expiry date is required", 'error');
-        return;
-      }
-      if (!paymentDetails.cvv?.trim()) {
-        showFlashMessage("CVV is required", 'error');
-        return;
-      }
-    }
-    // bank transfer: no user input required
-    
-    setLoading(true);
-    setError("");
-    
-    try {
-      const paymentData = {
-        ...paymentDetails,
-        provider: selectedProvider,
-        amount: booking.total_amount,
-        currency: 'KES'
-      };
-      
-      const res = await API.post(`bookings/${booking.id}/initiate_payment/`, paymentData);
-      
-      if (res.status === 200 || res.status === 201) {
-        showFlashMessage(res.data.detail || "Payment initiated successfully!", 'success');
-        setShowPaymentModal(false);
-      } else {
-        showFlashMessage("Unexpected response when initiating payment", 'error');
-      }
-      
-      loadPaymentStatus();
-    } catch (e) {
-      const errorMessage = e.response?.data?.detail || e.response?.data?.non_field_errors?.[0] || e.normalizedMessage || "Failed to initiate payment";
-      setError(errorMessage);
-      showFlashMessage(errorMessage, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Load payment status on mount
   useEffect(() => {
     loadPaymentStatus();
-  }, [booking.id]);
-  
-  // Load payment providers on mount
-  useEffect(() => {
-    loadPaymentProviders();
-  }, []);
-  
-  // Determine status color
-  const getStatusColor = (status) => {
-    switch(status) {
-      case 'CONFIRMED': return '#28a745';
-      case 'PENDING': return '#ffc107';
-      case 'CANCELLED': return '#dc3545';
-      case 'ONBOARD': return '#20c997';
-      case 'FAILED': return '#dc3545';
-      default: return '#6c757d';
-    }
-  };
-  
+    
+    // Subscribe to payment updates for this booking
+    const unsubscribePayment = subscribeToPaymentUpdates((payment, bookingId) => {
+      if (bookingId === booking.id) {
+        // Reload payment status when payment changes
+        loadPaymentStatus();
+      }
+    });
+    
+    return () => unsubscribePayment();
+  }, []); // Empty dependency array - only run once on mount
+
   return (
-    <div style={{ border: "1px solid #ddd", padding: 12, borderRadius: 8 }}>
-      <div style={{ fontWeight: 800 }}>Ref: {booking.confirmation_code}</div>
-      <div style={{ fontSize: 12, color: "#555", marginTop: 6 }}>
-        Status: <span style={{ fontWeight: 'bold', color: getStatusColor(booking.status) }}>
-          {booking.status}
-        </span> • Flight: {booking.flight?.departure_airport_code ?? booking.flight?.id ?? '—'} → {booking.flight?.arrival_airport_code ?? ''}
+    <div ref={cardRef} style={{
+      ...styles.bookingCard,
+      animation: isUpdating ? 'cardHighlight 2s ease-out' : 'none',
+      transition: 'all 0.3s ease'
+    }}>
+      {/* Status Badge */}
+      <div style={{
+        ...styles.statusBadge,
+        backgroundColor: booking.booking_status === 'CONFIRMED' ? '#d4edda' : 
+                         booking.booking_status === 'PENDING' ? '#fff3cd' : '#f8d7da',
+        color: booking.booking_status === 'CONFIRMED' ? '#155724' : 
+               booking.booking_status === 'PENDING' ? '#856404' : '#721c24'
+      }}>
+        {booking.booking_status}
       </div>
-      
-      {/* Flash Message Display */}
+
+      {/* Card Header */}
+      <div style={styles.cardHeader}>
+        <div style={styles.confirmationCode}>{booking.confirmation_code}</div>
+        <div style={styles.airline}>{booking.flight_name || booking.airline}</div>
+      </div>
+
+      {/* Route */}
+      <div style={styles.routeSection}>
+        <div style={styles.route}>{booking.route}</div>
+        <div style={styles.date}>
+          {booking.flight_date ? new Date(booking.flight_date).toLocaleDateString('en-US', { 
+            weekday: 'short', 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+          }) : 'Date not available'}
+        </div>
+      </div>
+
+      {/* Seats & Amount */}
+      <div style={styles.detailsRow}>
+        <div style={styles.detailItem}>
+          <div style={styles.detailLabel}>Seats</div>
+          <div style={styles.detailValue}>
+            {booking.seat_numbers && booking.seat_numbers.length > 0 
+              ? booking.seat_numbers.join(', ') 
+              : booking.passengers && booking.passengers.length > 0
+                ? booking.passengers.map(p => p.seat_number).filter(Boolean).join(', ')
+                : 'Not assigned'}
+          </div>
+        </div>
+        <div style={styles.detailItem}>
+          <div style={styles.detailLabel}>Amount</div>
+          <div style={styles.detailValue}>KES {booking.total_amount?.toLocaleString()}</div>
+        </div>
+      </div>
+
+      {/* Flash Message */}
       {flashMessage.show && (
         <div style={{
           padding: '8px',
@@ -1407,400 +1430,195 @@ function BookingItem({ booking, onDownloadPass }) {
       
       {paymentStatus ? (
         <div style={{ marginTop: 10 }}>
-          <div style={{ fontSize: 11, marginBottom: 5 }}>
-            Booking Status: <strong>{paymentStatus.booking_status}</strong><br />
-            {paymentStatus.latest_payment && (
-              <span>
-                Latest Payment: <strong>{paymentStatus.latest_payment.status}</strong> - KES {paymentStatus.latest_payment.amount}<br />
-              </span>
-            )}
-            {paymentStatus.booking_status !== 'ONBOARD' && (
-              <span>
-                Boarding Pass Available: <strong style={{ color: paymentStatus.boarding_pass_available ? '#28a745' : '#dc3545' }}>
-                  {paymentStatus.boarding_pass_available ? 'YES' : 'NO'}
-                </strong>
-              </span>
-            )}
-          </div>
-          
-          {paymentStatus.booking_status === 'PENDING' && (
-            <div>
-              <button 
-                onClick={initiatePayment} 
-                disabled={loading}
-                style={{
-                  backgroundColor: '#007bff',
-                  color: 'white',
-                  border: 'none',
-                  padding: '6px 12px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '12px',
-                  marginRight: '8px',
-                  marginBottom: '5px'
-                }}
-              >
-                {loading ? 'Processing...' : 'Initiate Payment'}
-              </button>
-              <button 
-                onClick={loadPaymentStatus} 
-                disabled={loading}
-                style={{
-                  backgroundColor: '#6c757d',
-                  color: 'white',
-                  border: 'none',
-                  padding: '6px 12px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '12px',
-                  marginRight: '8px',
-                  marginBottom: '5px'
-                }}
-              >
-                Refresh
-              </button>
-              <button 
-                onClick={async () => {
-                  if (window.confirm('Are you sure you want to cancel this booking?')) {
-                    try {
-                      setLoading(true);
-                      const res = await API.post(`bookings/${booking.id}/cancel/`);
-                      setPaymentStatus(res.data);
-                      showFlashMessage('Booking cancelled successfully', 'success');
-                    } catch (error) {
-                      const errorMessage = error.response?.data?.detail || error.normalizedMessage || 'Failed to cancel booking';
-                      setError(errorMessage);
-                      showFlashMessage(errorMessage, 'error');
-                    } finally {
-                      setLoading(false);
-                    }
-                  }
-                }}
-                disabled={loading}
-                style={{
-                  backgroundColor: '#dc3545',
-                  color: 'white',
-                  border: 'none',
-                  padding: '6px 12px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '12px',
-                  marginBottom: '5px'
-                }}
-              >
-                Cancel
-              </button>
+          {paymentStatus.latest_payment && (
+            <div style={{ fontSize: 11, marginBottom: 5, color: '#6c757d' }}>
+              Payment: <strong style={{ 
+                color: paymentStatus.latest_payment.status === 'SUCCESS' ? '#28a745' : '#dc3545' 
+              }}>{paymentStatus.latest_payment.status}</strong> - KES {paymentStatus.latest_payment.amount}
             </div>
           )}
-          
-          {paymentStatus.boarding_pass_available && (
+                    
+          {/* Show Pay Now button when payment is PENDING, FAILED, CANCELLED, or doesn't exist */}
+          {(!paymentStatus.latest_payment || 
+            paymentStatus.latest_payment.status === 'PENDING' || 
+            paymentStatus.latest_payment.status === 'FAILED' ||
+            paymentStatus.latest_payment.status === 'CANCELLED') && (
+            <button 
+              onClick={() => setShowPesapalModal(true)} 
+              disabled={loading}
+              style={styles.payButton}
+            >
+              {loading ? 'Processing...' : 'Pay Now'}
+            </button>
+          )}
+                    
+          {/* Calculate boarding pass availability dynamically based on current status and payment */}
+          {(booking.booking_status === 'CONFIRMED' || booking.booking_status === 'ONBOARD') && 
+           paymentStatus.latest_payment?.status === 'SUCCESS' && (
             <div>
-              {/* For single passenger bookings */}
-              {booking.passengers && booking.passengers.length === 1 && (
+              {/* Check if there are multiple passengers */}
+              {booking.passengers && booking.passengers.length > 1 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {booking.passengers.map((passenger, index) => (
+                    <button 
+                      key={passenger.id || index}
+                      onClick={() => onDownloadPass(booking.id, booking.confirmation_code, passenger.id)}
+                      style={{
+                        ...styles.downloadButton,
+                        marginTop: index > 0 ? '0' : '12px'
+                      }}
+                    >
+                      <img 
+                        src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white' width='18' height='18'%3E%3Cpath d='M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z'/%3E%3C/svg%3E" 
+                        alt="Download" 
+                        style={{ width: '18px', height: '18px' }}
+                      />
+                      Download - {passenger.full_name} ({booking.seat_numbers?.[index] || `Seat ${index + 1}`})
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                // Single passenger - show one button
                 <button 
                   onClick={() => onDownloadPass(booking.id, booking.confirmation_code)}
-                  style={{
-                    backgroundColor: '#28a745',
-                    color: 'white',
-                    border: 'none',
-                    padding: '6px 12px',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '12px'
-                  }}
+                  style={styles.downloadButton}
                 >
+                  <img 
+                    src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white' width='18' height='18'%3E%3Cpath d='M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z'/%3E%3C/svg%3E" 
+                    alt="Download" 
+                    style={{ width: '18px', height: '18px' }}
+                  />
                   Download Boarding Pass
                 </button>
-              )}
-              
-              {/* For multi-passenger bookings - show individual download buttons */}
-              {booking.passengers && booking.passengers.length > 1 && (
-                <div style={{ marginTop: '5px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: '600', marginBottom: '5px', color: '#0b1220' }}>
-                    Individual Passes:
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                    {booking.passengers.map((passenger) => (
-                      <button 
-                        key={passenger.id}
-                        onClick={async () => {
-                          try {
-                            const res = await API.get(`bookings/${booking.id}/boarding_pass_png/?passenger_id=${passenger.id}`, { responseType: "blob" });
-                            const url = window.URL.createObjectURL(res.data);
-                            const a = document.createElement("a");
-                            a.href = url;
-                            a.download = `boarding-pass-${booking.confirmation_code}-${passenger.full_name.replace(/\s+/g, '_')}.png`;
-                            document.body.appendChild(a);
-                            a.click();
-                            a.remove();
-                            window.URL.revokeObjectURL(url);
-                          } catch (error) {
-                            alert(error.response?.data?.detail || `Failed to download boarding pass for ${passenger.full_name}.`);
-                          }
-                        }}
-                        style={{
-                          backgroundColor: '#28a745',
-                          color: 'white',
-                          border: 'none',
-                          padding: '4px 8px',
-                          borderRadius: '3px',
-                          cursor: 'pointer',
-                          fontSize: '11px'
-                        }}
-                      >
-                        {passenger.full_name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               )}
             </div>
           )}
         </div>
       ) : (
-        <div style={{ fontSize: 12 }}>Loading payment status...</div>
+        <div style={{ fontSize: 12, color: '#6c757d' }}>Loading payment status...</div>
       )}
 
-      {/* Payment Modal */}
-      {showPaymentModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000
-        }}>
-          <div className="light-card" style={{
-            backgroundColor: 'white',
-            padding: '24px',
-            borderRadius: '12px',
-            width: '90%',
-            maxWidth: '460px',
-            height: '480px',
-            display: 'flex',
-            flexDirection: 'column',
-            position: 'relative',
-            color: '#212529',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.18)'
-          }}>
-            <h3 style={{ margin: '0 0 15px 0', color: '#0b1220' }}>Payment Details</h3>
-            
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Payment Provider</label>
-              <select
-                value={selectedProvider}
-                onChange={(e) => { setSelectedProvider(e.target.value); setPaymentDetails({}); }}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  border: '1px solid #ced4da',
-                  borderRadius: '4px',
-                  fontSize: '14px'
-                }}
-              >
-                <option value="">Select Provider</option>
-                {paymentProviders.map(provider => (
-                  <option key={provider.id} value={provider.id}>{provider.name}</option>
-                ))}
-              </select>
-            </div>
-            
-            {/* Dynamic payment form fields based on selected provider */}
-            {selectedProvider ? (
-              <div
-                key={selectedProvider}
-                className="payment-provider-content"
-                style={{ flex: 1, overflowY: 'auto', marginBottom: '12px', minHeight: 0 }}
-              >
-                {selectedProvider === 'mpesa' && (
-                  <>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>M-Pesa Phone Number</label>
-                    <input
-                      type="tel"
-                      value={paymentDetails.phone_number || ''}
-                      onChange={(e) => setPaymentDetails({...paymentDetails, phone_number: e.target.value})}
-                      placeholder="e.g. 254712345678"
-                      style={{
-                        width: '100%',
-                        padding: '10px',
-                        border: '1px solid #ced4da',
-                        borderRadius: '4px',
-                        fontSize: '14px',
-                        boxSizing: 'border-box'
-                      }}
-                    />
-                    <small style={{ color: '#6c757d' }}>Enter number in international format (254...)</small>
-                  </>
-                )}
-                {selectedProvider === 'paypal' && (
-                  <>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Email</label>
-                    <input
-                      type="email"
-                      value={paymentDetails.email || ''}
-                      onChange={(e) => setPaymentDetails({...paymentDetails, email: e.target.value})}
-                      placeholder="Enter your PayPal email"
-                      style={{
-                        width: '100%',
-                        padding: '10px',
-                        border: '1px solid #ced4da',
-                        borderRadius: '4px',
-                        fontSize: '14px',
-                        boxSizing: 'border-box'
-                      }}
-                    />
-                  </>
-                )}
-                {selectedProvider === 'card' && (
-                  <>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Card Number</label>
-                    <input
-                      type="text"
-                      value={paymentDetails.card_number || ''}
-                      onChange={(e) => setPaymentDetails({...paymentDetails, card_number: e.target.value})}
-                      placeholder="1234 5678 9012 3456"
-                      style={{
-                        width: '100%',
-                        padding: '10px',
-                        border: '1px solid #ced4da',
-                        borderRadius: '4px',
-                        fontSize: '14px',
-                        boxSizing: 'border-box'
-                      }}
-                    />
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px' }}>
-                      <div>
-                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Expiry Date</label>
-                        <input
-                          type="text"
-                          value={paymentDetails.expiry_date || ''}
-                          onChange={(e) => setPaymentDetails({...paymentDetails, expiry_date: e.target.value})}
-                          placeholder="MM/YY"
-                          style={{
-                            width: '100%',
-                            padding: '10px',
-                            border: '1px solid #ced4da',
-                            borderRadius: '4px',
-                            fontSize: '14px',
-                            boxSizing: 'border-box'
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>CVV</label>
-                        <input
-                          type="text"
-                          value={paymentDetails.cvv || ''}
-                          onChange={(e) => setPaymentDetails({...paymentDetails, cvv: e.target.value})}
-                          placeholder="123"
-                          style={{
-                            width: '100%',
-                            padding: '10px',
-                            border: '1px solid #ced4da',
-                            borderRadius: '4px',
-                            fontSize: '14px',
-                            boxSizing: 'border-box'
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </>
-                )}
-                {selectedProvider === 'bank' && (() => {
-                  const bankProvider = paymentProviders.find(p => p.id === 'bank');
-                  const bd = bankProvider?.bank_details;
-                  if (!bd) return <p style={{ color: '#6c757d' }}>Loading bank details...</p>;
-                  const rows = [
-                    ['Bank Name', bd.bank_name],
-                    ['Account Name', bd.account_name],
-                    ['Account Number', bd.account_number],
-                    ['Routing Number', bd.routing_number],
-                    ['Payment Reference', booking.confirmation_code],
-                  ];
-                  return (
-                    <div style={{
-                      backgroundColor: '#f0f4ff',
-                      border: '1px solid #c7d4f0',
-                      borderRadius: '8px',
-                      padding: '16px'
-                    }}>
-                      <p style={{ margin: '0 0 12px 0', fontWeight: '600', color: '#0b1220', fontSize: '15px' }}>
-                        Transfer to the following account:
-                      </p>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-                        <tbody>
-                          {rows.map(([label, value]) => (
-                            <tr key={label}>
-                              <td style={{ padding: '6px 8px', color: '#6c757d', fontWeight: '500', width: '45%' }}>{label}</td>
-                              <td style={{ padding: '6px 8px', color: '#0b1220', fontWeight: label === 'Payment Reference' ? '700' : '400' }}>{value}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      <p style={{ margin: '12px 0 0 0', fontSize: '12px', color: '#6c757d' }}>
-                        Use your booking reference <strong>{booking.confirmation_code}</strong> as the payment reference. Click "Process Payment" once you have made the transfer.
-                      </p>
-                    </div>
-                  );
-                })()}
-              </div>
-            ) : (
-              <div style={{ flex: 1 }} />
-            )}
-            
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Amount</label>
-              <input
-                type="text"
-                value={`KES ${booking.total_amount || '0.00'}`}
-                readOnly
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  border: '1px solid #ced4da',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                  backgroundColor: '#f8f9fa'
-                }}
-              />
-            </div>
-            
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => setShowPaymentModal(false)}
-                style={{
-                  backgroundColor: '#6c757d',
-                  color: 'white',
-                  border: 'none',
-                  padding: '8px 16px',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handlePaymentSubmit}
-                style={{
-                  backgroundColor: '#28a745',
-                  color: 'white',
-                  border: 'none',
-                  padding: '8px 16px',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                Process Payment
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Pesapal Payment Modal */}
+      {showPesapalModal && (
+        <PesapalPaymentModal
+          booking={booking}
+          onClose={() => setShowPesapalModal(false)}
+          onPaymentComplete={(payment) => {
+            setShowPesapalModal(false);
+            showFlashMessage('Payment completed successfully! 🎉', 'success');
+            loadPaymentStatus();
+          }}
+        />
       )}
     </div>
   );
 }
+
+// Styles for the new booking card design
+const styles = {
+  bookingCard: {
+    backgroundColor: '#fff',
+    borderRadius: '12px',
+    padding: '20px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+    border: '1px solid #e9ecef',
+    transition: 'transform 0.2s, box-shadow 0.2s',
+    ':hover': {
+      transform: 'translateY(-4px)',
+      boxShadow: '0 8px 24px rgba(0,0,0,0.12)'
+    }
+  },
+  statusBadge: {
+    display: 'inline-block',
+    padding: '6px 12px',
+    borderRadius: '20px',
+    fontSize: '12px',
+    fontWeight: '700',
+    marginBottom: '12px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
+  },
+  cardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '12px'
+  },
+  confirmationCode: {
+    fontSize: '16px',
+    fontWeight: '800',
+    color: '#0b1220',
+    letterSpacing: '1px'
+  },
+  airline: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#6c757d'
+  },
+  routeSection: {
+    marginBottom: '16px'
+  },
+  route: {
+    fontSize: '18px',
+    fontWeight: '700',
+    color: '#2c3e50',
+    marginBottom: '4px'
+  },
+  date: {
+    fontSize: '13px',
+    color: '#6c757d',
+    fontWeight: '500'
+  },
+  detailsRow: {
+    display: 'flex',
+    gap: '20px',
+    marginBottom: '16px',
+    flexWrap: 'wrap'
+  },
+  detailItem: {
+    flex: '1',
+    minWidth: '120px'
+  },
+  detailLabel: {
+    fontSize: '11px',
+    color: '#6c757d',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+    fontWeight: '600',
+    marginBottom: '4px'
+  },
+  detailValue: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#2c3e50'
+  },
+  payButton: {
+    width: '100%',
+    backgroundColor: '#007bff',
+    color: 'white',
+    border: 'none',
+    padding: '12px 24px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600',
+    marginTop: '12px',
+    transition: 'background-color 0.2s'
+  },
+  downloadButton: {
+    width: '100%',
+    backgroundColor: '#28a745',
+    color: 'white',
+    border: 'none',
+    padding: '10px 20px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: '600',
+    marginTop: '8px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px'
+  }
+};

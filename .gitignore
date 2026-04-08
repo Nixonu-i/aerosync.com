@@ -23,6 +23,7 @@ build/
 
 # Swap files
 *.swp
+<<<<<<< HEAD
 *.sh
 *.env
 *.env.local
@@ -43,3 +44,7 @@ build/
 *.service
 *.deb
 *.rpm
+=======
+*.env
+aerosync-backend/.env
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b

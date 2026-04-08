@@ -1,12 +1,30 @@
-import { createContext, useCallback, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useEffect, useMemo, useState, useContext } from "react";
 import API from "../api/api";
+import { useNavigate } from "react-router-dom";
 
 export const AuthContext = createContext(null);
 
+/**
+ * Custom hook to access auth context
+ */
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  
+  return context;
+};
+
 export const AuthProvider = ({ children }) => {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [profileComplete, setProfileComplete] = useState(false);
+  // FIX: token is now proper reactive state instead of a stale getToken() call
+  // This ensures useBookingUpdates re-runs its effect when the token changes
+  const [token, setToken] = useState(() => localStorage.getItem("token"));
 
   const fetchMe = useCallback(async () => {
     try {
@@ -15,7 +33,12 @@ export const AuthProvider = ({ children }) => {
       // Also fetch profile data
       try {
         const profileRes = await API.get("auth/profile/");
+<<<<<<< HEAD
         setUser({...res.data, profile: profileRes.data});
+=======
+        const userData = {...res.data, profile: profileRes.data};
+        setUser(userData);
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         // Check backend's initial_setup_done flag
         setProfileComplete(!!profileRes.data.initial_setup_done);
         // Sync to localStorage for persistence
@@ -24,31 +47,63 @@ export const AuthProvider = ({ children }) => {
         } else {
           localStorage.removeItem(`profile_completed_${res.data.id}`);
         }
+<<<<<<< HEAD
+=======
+        setLoading(false);
+        return userData;
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
       } catch {
         // If profile doesn't exist yet, just set user data
         setUser(res.data);
         setProfileComplete(false);
         localStorage.removeItem(`profile_completed_${res.data.id}`);
+<<<<<<< HEAD
       }
       
     } catch (error) {
       setUser(null);
       setProfileComplete(false);
       localStorage.removeItem("token");
+=======
+        setLoading(false);
+        return res.data;
+      }
+      
+    } catch (error) {
+      if (error.response?.status === 401) {
+        // Token expired or invalid - clear and redirect to login
+        localStorage.removeItem("token");
+        setToken(null); // FIX: clear reactive token state
+        setUser(null);
+        setProfileComplete(false);
+        setLoading(false);
+        navigate('/login', { replace: true });
+      } else {
+        setUser(null);
+        setProfileComplete(false);
+        localStorage.removeItem("token");
+        setToken(null); // FIX: clear reactive token state
+        setLoading(false);
+      }
+      throw error;
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     }
-  }, []);
+  }, [navigate]);
 
   const login = useCallback(async (username, password) => {
     const res = await API.post("auth/login/", { username, password });
     localStorage.setItem("token", res.data.access);
-    await fetchMe();
+    setToken(res.data.access); // update reactive token for WebSocket reconnection
+    const userData = await fetchMe();
+    return userData;
   }, [fetchMe]);
   
-  const updateUserProfile = useCallback((updatedUser) => {
+  const updateUserProfile = useCallback(async (updatedUser) => {
     setUser(updatedUser);
-    setProfileComplete(true);
+    // Re-fetch to get updated initial_setup_done flag from backend
+    await fetchMe();
     localStorage.setItem(`profile_completed_${updatedUser.id}`, "true");
-  }, []);
+  }, [fetchMe]);
 
   const register = useCallback(async (payload) => {
     await API.post("auth/register/", payload);
@@ -56,21 +111,28 @@ export const AuthProvider = ({ children }) => {
 
   const logout = useCallback(() => {
     localStorage.removeItem("token");
+    setToken(null); // clear reactive token for WebSocket disconnection
     setUser(null);
   }, []);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const token = localStorage.getItem("token");
-      if (token) await fetchMe();
+      const storedToken = localStorage.getItem("token");
+      if (storedToken) {
+        // FIX: sync reactive token state with whatever is in localStorage on mount
+        setToken(storedToken);
+        await fetchMe();
+      }
       setLoading(false);
     })();
   }, [fetchMe]);
 
   const value = useMemo(
-    () => ({ user, loading, login, register, logout, profileComplete, updateUserProfile }),
-    [user, loading, login, register, logout, profileComplete, updateUserProfile]
+    // FIX: token is now the reactive state variable, not getToken()
+    // useMemo will re-run when token changes, giving useBookingUpdates the fresh value
+    () => ({ user, loading, login, register, logout, profileComplete, updateUserProfile, token }),
+    [user, loading, login, register, logout, profileComplete, updateUserProfile, token]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

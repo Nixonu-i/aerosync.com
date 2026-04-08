@@ -4,20 +4,62 @@ from .models import User, Profile
 
 class RegisterSerializer(serializers.ModelSerializer):
     password2 = serializers.CharField(write_only=True)
+<<<<<<< HEAD
     full_name = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model = User
         fields = ["username", "email", "full_name", "password", "password2"]
+=======
+    first_name = serializers.CharField(required=True, max_length=30)
+    last_name = serializers.CharField(required=True, max_length=30)
+
+    class Meta:
+        model = User
+        fields = ["username", "email", "first_name", "last_name", "password", "password2"]
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         extra_kwargs = {"password": {"write_only": True}}
 
     def validate(self, attrs):
         if attrs["password"] != attrs["password2"]:
             raise serializers.ValidationError({"password": "Passwords do not match."})
+<<<<<<< HEAD
+=======
+        
+        # Validate password length (minimum 8 characters)
+        if len(attrs["password"]) < 8:
+            raise serializers.ValidationError({
+                "password": "Password must be at least 8 characters long."
+            })
+        
+        # Validate first name (letters and spaces only)
+        first_name = attrs.get("first_name", "").strip()
+        if not first_name or not first_name.replace(" ", "").isalpha():
+            raise serializers.ValidationError({
+                "first_name": "First name should contain only letters and spaces."
+            })
+        
+        # Validate last name (letters and spaces only)
+        last_name = attrs.get("last_name", "").strip()
+        if not last_name or not last_name.replace(" ", "").isalpha():
+            raise serializers.ValidationError({
+                "last_name": "Last name should contain only letters and spaces."
+            })
+        
+        # Check if email already exists
+        email = attrs.get("email", "").strip().lower()
+        if email:
+            User = get_user_model()
+            if User.objects.filter(email=email).exists():
+                raise serializers.ValidationError({"email": "This email is already registered. Please use a different email or login."})
+            attrs["email"] = email  # Ensure email is stored lowercase
+        
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         return attrs
 
     def create(self, validated_data):
         validated_data.pop("password2")
+<<<<<<< HEAD
         full_name = validated_data.pop("full_name", "").strip().upper()
 
         first, last = "", ""
@@ -31,6 +73,17 @@ class RegisterSerializer(serializers.ModelSerializer):
             email=validated_data.get("email", ""),
             first_name=first,
             last_name=last,
+=======
+        # Convert names to uppercase for consistency
+        validated_data["first_name"] = validated_data.get("first_name", "").strip().upper()
+        validated_data["last_name"] = validated_data.get("last_name", "").strip().upper()
+        
+        user = User(
+            username=validated_data["username"],
+            email=validated_data.get("email", ""),
+            first_name=validated_data["first_name"],
+            last_name=validated_data["last_name"],
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
             role=User.Role.CUST,
         )
         user.set_password(validated_data["password"])
@@ -40,6 +93,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 class MeSerializer(serializers.ModelSerializer):
     is_admin = serializers.SerializerMethodField()
     is_agent = serializers.SerializerMethodField()
+<<<<<<< HEAD
 
     def get_is_admin(self, obj):
         return obj.role == 'ADMIN' or obj.is_staff or obj.is_superuser
@@ -50,6 +104,36 @@ class MeSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["id", "username", "email", "full_name", "role", "is_admin", "is_agent", "staff_id", "created_at"]
+=======
+    profile = serializers.SerializerMethodField()
+    
+    def get_is_admin(self, obj):
+        return obj.role == 'ADMIN' or obj.is_staff or obj.is_superuser
+    
+    def get_is_agent(self, obj):
+        return obj.role == 'AGENT'
+    
+    def get_profile(self, obj):
+        try:
+            profile = obj.profile
+            return {
+                'phone_number': profile.phone_number,
+                'phone_area_code': profile.phone_area_code,
+                'address_line1': profile.address_line1,
+                'city': profile.city,
+                'postal_code': profile.postal_code,
+                'country': profile.country
+            }
+        except (AttributeError, ValueError, TypeError):
+            return None
+
+    class Meta:
+        model = User
+        fields = [
+            "id", "username", "email", "full_name", "role", "is_admin", 
+            "is_agent", "staff_id", "created_at", "profile"
+        ]
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
 
 
 class ProfileSerializer(serializers.ModelSerializer):
@@ -59,6 +143,25 @@ class ProfileSerializer(serializers.ModelSerializer):
         model = Profile
         fields = ["date_of_birth", "gender", "nationality", "phone_area_code", "phone_number", "profile_photo", "profile_photo_url", "initial_setup_done"]
     
+<<<<<<< HEAD
+=======
+    def validate_date_of_birth(self, value):
+        """
+        Validate that the user is at least 18 years old.
+        """
+        if value:
+            from datetime import date
+            today = date.today()
+            # Calculate age
+            age = today.year - value.year - ((today.month, today.day) < (value.month, value.day))
+            
+            if age < 18:
+                raise serializers.ValidationError(
+                    f'You must be at least 18 years old to register. Your current age: {age} years.'
+                )
+        return value
+    
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     def get_profile_photo_url(self, obj):
         try:
             if obj.profile_photo:
@@ -84,6 +187,25 @@ class ProfileDetailSerializer(serializers.ModelSerializer):
         model = Profile
         fields = ["date_of_birth", "gender", "nationality", "phone_area_code", "phone_number", "profile_photo", "profile_photo_url", "initial_setup_done"]
     
+<<<<<<< HEAD
+=======
+    def validate_date_of_birth(self, value):
+        """
+        Validate that the user is at least 18 years old.
+        """
+        if value:
+            from datetime import date
+            today = date.today()
+            # Calculate age
+            age = today.year - value.year - ((today.month, today.day) < (value.month, value.day))
+            
+            if age < 18:
+                raise serializers.ValidationError(
+                    f'You must be at least 18 years old. Your current age: {age} years.'
+                )
+        return value
+    
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     def get_profile_photo_url(self, obj):
         try:
             if obj.profile_photo:

@@ -8,7 +8,12 @@ from .views import (
     AirlineAdminViewSet, AirlinePublicViewSet,
     AgentFlightViewSet, AgentBookingViewSet,
     SummaryReportView, VerifyQRView, ScanHistoryView,
+<<<<<<< HEAD
     PaymentProviderView
+=======
+    PaymentProviderView,
+    PesapalInitiatePaymentView, PesapalCallbackView, PesapalIPNView, PesapalStatusCheckView
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
 )
 from . import activity_views
 
@@ -40,6 +45,16 @@ urlpatterns = [
     path("agent/scan-history/", ScanHistoryView.as_view()),
     path("payment-providers/", PaymentProviderView.as_view()),
     
+<<<<<<< HEAD
+=======
+    # Pesapal Payment Gateway Endpoints
+    path("payments/pesapal/initiate/<int:booking_id>/", PesapalInitiatePaymentView.as_view()),
+    path("payments/pesapal/callback/", PesapalCallbackView.as_view()),
+    path("payments/pesapal/ipn/", PesapalIPNView.as_view()),  # With trailing slash
+    path("payments/pesapal/ipn", PesapalIPNView.as_view()),   # Without trailing slash
+    path("payments/pesapal/status/<int:payment_id>/", PesapalStatusCheckView.as_view()),
+    
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     # User Activity Logging Endpoints
     path("admin/user-activities/", activity_views.get_user_activities),
     path("admin/user-activity-stats/", activity_views.get_user_activity_stats),

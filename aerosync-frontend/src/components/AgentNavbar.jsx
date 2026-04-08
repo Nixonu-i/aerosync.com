@@ -26,18 +26,7 @@ export default function AgentNavbar() {
         {/* Brand */}
         <NavLink to="/agent" className="as-agent-brand">
           <span style={{ color: "#20c997" }}>AERO</span>SYNC
-          <span style={{
-            marginLeft: "8px",
-            background: "rgba(32,201,151,0.18)",
-            color: "#20c997",
-            border: "1px solid rgba(32,201,151,0.4)",
-            padding: "2px 8px",
-            borderRadius: "12px",
-            fontSize: "10px",
-            fontWeight: 700,
-            letterSpacing: "1px",
-            verticalAlign: "middle",
-          }}>AGENT</span>
+          <span className="as-agent-badge-inline">AGENT</span>
         </NavLink>
 
         {/* Desktop links */}
@@ -57,24 +46,8 @@ export default function AgentNavbar() {
         {/* Desktop user area */}
         <div className="as-agent-user-desktop">
           <span className="as-agent-badge">{user.staff_id || "AGENT"}</span>
-          <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "13px" }}>
-            {user.username}
-          </span>
-          <button
-            onClick={doLogout}
-            style={{
-              background: "rgba(32,201,151,0.15)",
-              color: "#20c997",
-              border: "1px solid rgba(32,201,151,0.35)",
-              borderRadius: "6px",
-              padding: "5px 14px",
-              cursor: "pointer",
-              fontSize: "13px",
-              fontWeight: 600,
-            }}
-          >
-            Logout
-          </button>
+          <span className="as-agent-username">{user.username}</span>
+          <button className="as-btn-logout" onClick={doLogout}>Logout</button>
         </div>
 
         {/* Hamburger */}

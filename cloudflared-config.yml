@@ -1,0 +1,10 @@
+tunnel: aerosync-backend
+credentials-file: /home/nixii/.cloudflared/f54ac57b-936e-4e47-8643-87a21febdde2.json
+
+ingress:
+  - hostname: api.aerosync.live
+    service: http://localhost:8000
+  - hostname: aerosync.live
+    path: /api/payments/pesapal/callback
+    service: http://localhost:8000
+  - service: http_status:404

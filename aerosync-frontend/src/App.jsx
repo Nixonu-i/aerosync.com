@@ -1,11 +1,14 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useContext } from "react";
 import { AuthContext } from "./context/AuthContext";
+import { BookingRealtimeProvider } from "./context/BookingRealtimeContext";
 import Navbar from "./components/Navbar";
 import AdminNavbar from "./components/AdminNavbar";
 import AgentNavbar from "./components/AgentNavbar";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import VerifyEmail from "./pages/VerifyEmail";
+import ForgotPassword from "./pages/ForgotPassword";
 import Flights from "./pages/Flights";
 import Seats from "./pages/Seats";
 import Booking from "./pages/Booking";
@@ -28,6 +31,8 @@ import AgentBookings from "./pages/agent/AgentBookings";
 import AgentProfile from "./pages/agent/AgentProfile";
 
 export default function App() {
+  const { user, loading } = useContext(AuthContext);
+  
   return (
     <div style={{
       width: "100%",
@@ -36,6 +41,9 @@ export default function App() {
       overflowX: "hidden",
       position: "relative"
     }}>
+      {/* Show Navbar for authenticated users only (not admin/agent as they have custom navbars) */}
+      {!loading && user && !user.is_admin && user.role !== 'ADMIN' && !user.is_agent && user.role !== 'AGENT' && <Navbar />}
+      
       {/* Animated golden horizon glow */}
       <div style={{
         position: "fixed", bottom: 0, left: 0, right: 0, height: "40%",
@@ -53,8 +61,13 @@ export default function App() {
         zIndex: 0
       }} />
       <Routes>
+        {/* Default route goes to public flights page */}
+        <Route path="/" element={<Flights />} />
+        <Route path="/flights" element={<Flights />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="*" element={
           <PrivateContent />
         } />
@@ -86,6 +99,7 @@ function PrivateContent() {
     return <Navigate to="/login" replace />;
   }
 
+<<<<<<< HEAD
   // force onboarding: customers/agents must complete profile once
   if (!profileComplete && !user.is_admin) {
     // Redirect to appropriate profile page based on role
@@ -102,6 +116,31 @@ function PrivateContent() {
     } else if (user.role === 'CUST' || !user.role) {
       // Customer trying to access customer pages - redirect to customer profile
       return <Navigate to="/profile" replace />;
+=======
+  // Force profile completion based on user type
+  if (!profileComplete && !user.is_admin) {
+    // Check if user is agent
+    const isAgent = user.is_agent || user.role === 'AGENT';
+    
+    if (isAgent) {
+      // Agent profile completion enforcement
+      const isAgentProfilePath = location.pathname === '/agent/profile';
+      const isAgentPath = location.pathname.startsWith('/agent');
+      
+      // Allow access to agent profile page
+      if (!isAgentProfilePath && isAgentPath) {
+        // Agent trying to access other agent pages - redirect to profile
+        return <Navigate to="/agent/profile" replace />;
+      }
+    } else {
+      // Customer profile completion enforcement
+      const isProfilePath = location.pathname === '/profile';
+      
+      // Allow access to profile page, redirect everything else
+      if (!isProfilePath) {
+        return <Navigate to="/profile" replace />;
+      }
+>>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     }
   }
 
@@ -115,22 +154,20 @@ function PrivateContent() {
     return <AgentContent />;
   }
 
-
-
+  // Customer/users get customer pages
   return (
-    <>
-      <Navbar />
+    <BookingRealtimeProvider>
       <div className="as-content">
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/flights" element={<Flights />} />
+          {/* Customer Dashboard - separate from public flights */}
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/flights/:id/seats" element={<Seats />} />
           <Route path="/bookings" element={<Booking />} />
           <Route path="/profile" element={<Profile />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </div>
-    </>
+    </BookingRealtimeProvider>
   );
 }
 
