@@ -1207,9 +1207,12 @@ DEPART_HOURS = [6, 10, 12, 14, 16, 18, 20]
 _flight_generation_tasks = {}
 
 def _generate_flights_background(task_id):
-    """Background thread function to generate flights - optimized for speed"""
+    """Background thread function to generate flights - simple and fast"""
     import itertools
     import logging
+    import time
+    from django.db import transaction, models
+    from django.db.models import Max
     from django.utils import timezone
     
     logger = logging.getLogger(__name__)
@@ -1220,10 +1223,11 @@ def _generate_flights_background(task_id):
         _flight_generation_tasks[task_id]['started_at'] = timezone.now().isoformat()
         logger.info(f"Task {task_id} status set to 'running'")
         
-        DAYS  = 9  # Reduced from 30 to 9 days for faster generation
+        TARGET_FLIGHTS = 1000  # Generate exactly 1000 flights
+        DAYS = 9
         HOURS = DEPART_HOURS
 
-        airports     = list(Airport.objects.all())
+        airports = list(Airport.objects.all())
         aircraft_list = list(Aircraft.objects.all())
         airlines_list = list(Airline.objects.filter(is_active=True))
 
@@ -1243,67 +1247,162 @@ def _generate_flights_background(task_id):
             return
 
         today = date.today()
+        logger.info(f"Task {task_id}: Starting generation of {TARGET_FLIGHTS} flights")
+        logger.info(f"Task {task_id}: {len(airports)} airports, {len(aircraft_list)} aircraft, {len(airlines_list)} airlines")
 
-        # Get all route pairs
-        all_pairs = list(itertools.permutations(airports, 2))
+        # Get the highest existing flight number to start from there
+        # This ensures we never conflict with existing flights
+        existing_numbers = Flight.objects.filter(
+            flight_number__regex=r'^AS[0-9]+$'
+        ).values_list('flight_number', flat=True)
         
-        # Calculate estimated total for progress tracking
-        estimated_total = DAYS * len(all_pairs) * len(HOURS)
-        _flight_generation_tasks[task_id]['estimated_total'] = estimated_total
-
-        # Fetch existing flights in a single query for the date range
-        existing_flights = Flight.objects.filter(
-            departure_time__date__gte=today + timedelta(days=1),
-            departure_time__date__lte=today + timedelta(days=DAYS),
-        ).values_list("aircraft_id", "departure_time__date", "departure_time__hour")
+        # Parse existing numbers and find max
+        max_num = 0
+        for fn in existing_numbers:
+            try:
+                num = int(fn[2:])  # Remove "AS" prefix
+                if num > max_num:
+                    max_num = num
+            except (ValueError, IndexError):
+                pass
         
-        # Convert to a set for O(1) lookups
-        existing_slots = set((ac_id, dep_date, dep_hour) for ac_id, dep_date, dep_hour in existing_flights)
-
-        existing_fns = set(Flight.objects.values_list("flight_number", flat=True))
-        pending_fns = set()
-
-        def _new_fn():
-            while True:
-                fn = "AS" + "".join(random.choices(string.digits, k=5))
-                if fn not in existing_fns and fn not in pending_fns:
-                    pending_fns.add(fn)
-                    return fn
-
-        flights_to_create = []
+        fn_counter = max_num + 1  # Start from next number
+        logger.info(f"Task {task_id}: Starting flight numbers from AS{fn_counter:05d}")
+        
         created = 0
         skipped = 0
         n_ac = len(aircraft_list)
-        n_hr = len(HOURS)
         n_al = len(airlines_list)
-
-        # Pre-generate flight numbers to avoid repeated random generation
-        flight_numbers_cache = []
-        for _ in range(estimated_total):
-            flight_numbers_cache.append(_new_fn())
-        fn_counter = 0
-
-        # Optimized loop - generate flights more directly
+        
+        BATCH_SIZE = 100  # Commit every 100 flights
+        flights_batch = []
+        
+        # Track aircraft time slots to prevent double-booking
+        # Key: (aircraft_id, date, hour) -> True if booked
+        aircraft_schedule = {}
+        
+        # Track aircraft location: which airport is each aircraft at on each date/hour
+        # Key: (aircraft_id, date, hour) -> airport_id where aircraft is located
+        aircraft_location = {}
+        
+        # Load existing aircraft schedules from database
+        existing_flights = Flight.objects.filter(
+            departure_time__date__gte=today + timedelta(days=1),
+            departure_time__date__lte=today + timedelta(days=DAYS),
+        ).select_related('departure_airport', 'arrival_airport').values_list(
+            'aircraft_id', 
+            'departure_time__date', 
+            'departure_time__hour',
+            'departure_airport_id',
+            'arrival_airport_id',
+            'arrival_time'
+        )
+        
+        for ac_id, dep_date, dep_hour, dep_ap_id, arr_ap_id, arr_time in existing_flights:
+            # Mark aircraft as busy at departure time
+            aircraft_schedule[(ac_id, dep_date, dep_hour)] = True
+            
+            # Track aircraft movement
+            # Aircraft is at departure airport before flight
+            aircraft_location[(ac_id, dep_date, dep_hour)] = dep_ap_id
+            
+            # Calculate arrival date and hour
+            arr_date = arr_time.date()
+            arr_hour = arr_time.hour
+            
+            # After arrival, aircraft is at arrival airport
+            # Mark all hours after arrival as being at arrival airport
+            from datetime import timedelta as td
+            current_hour = arr_hour
+            current_date = arr_date
+            for _ in range(24):  # Track for rest of the day and next day
+                aircraft_location[(ac_id, current_date, current_hour)] = arr_ap_id
+                current_hour += 1
+                if current_hour >= 24:
+                    current_hour = 0
+                    current_date += td(days=1)
+        
+        logger.info(f"Task {task_id}: Loaded {len(aircraft_schedule)} existing aircraft slots")
+        
+        # Initialize aircraft locations - assume all aircraft start at a random airport
+        # (or you could set a specific home base for each aircraft)
+        import random
+        for ac in aircraft_list:
+            # Assign each aircraft a starting airport (random or use first airport)
+            start_airport = random.choice(airports)
+            for day_offset in range(DAYS + 1):
+                current_date = today + timedelta(days=day_offset)
+                for hour in range(24):
+                    key = (ac.id, current_date, hour)
+                    if key not in aircraft_location:
+                        aircraft_location[key] = start_airport.id
+        
+        # Simple nested loop to generate flights
         for day_offset in range(DAYS):
+            if created >= TARGET_FLIGHTS:
+                break
+                
             current_date = today + timedelta(days=day_offset + 1)
             
-            for dep_ap, arr_ap in all_pairs:
-                for hour in HOURS:
-                    # Try to find an available aircraft for this slot
-                    aircraft_assigned = None
-                    for ac_idx in range(n_ac):
-                        ac = aircraft_list[ac_idx]
-                        key = (ac.id, current_date, hour)
-                        if key not in existing_slots:
-                            aircraft_assigned = ac
-                            existing_slots.add(key)
-                            break
+            # Randomly sample airport pairs instead of all permutations
+            airport_pairs = list(itertools.permutations(airports, 2))
+            random.shuffle(airport_pairs)
+            
+            for dep_ap, arr_ap in airport_pairs:
+                if created >= TARGET_FLIGHTS:
+                    break
                     
-                    if aircraft_assigned is None:
+                for hour in HOURS:
+                    if created >= TARGET_FLIGHTS:
+                        break
+                    
+                    # Find an available aircraft for this time slot
+                    # THAT IS ALSO AT THE CORRECT DEPARTURE AIRPORT
+                    ac_assigned = None
+                    for ac in aircraft_list:
+                        slot_key = (ac.id, current_date, hour)
+                        
+                        # Check if aircraft is available (not booked)
+                        if slot_key in aircraft_schedule:
+                            continue
+                        
+                        # Check if aircraft is at the correct departure airport
+                        ac_current_location = aircraft_location.get(slot_key)
+                        if ac_current_location != dep_ap.id:
+                            continue
+                        
+                        # This aircraft is available AND at the right airport!
+                        ac_assigned = ac
+                        aircraft_schedule[slot_key] = True  # Mark as booked
+                        
+                        # Update aircraft location for the flight duration
+                        dep_dt = timezone.make_aware(
+                            datetime.combine(current_date, dt_time(hour, 0))
+                        )
+                        dur_h = 1.5 if dep_ap.country == arr_ap.country else 4.0
+                        arr_dt = dep_dt + timedelta(hours=dur_h)
+                        arr_date = arr_dt.date()
+                        arr_hour = arr_dt.hour
+                        
+                        # Mark aircraft at arrival airport after flight
+                        from datetime import timedelta as td
+                        current_h = arr_hour
+                        current_d = arr_date
+                        for _ in range(24):  # Mark for rest of day
+                            aircraft_location[(ac.id, current_d, current_h)] = arr_ap.id
+                            current_h += 1
+                            if current_h >= 24:
+                                current_h = 0
+                                current_d += td(days=1)
+                        
+                        break
+                    
+                    if ac_assigned is None:
+                        # No aircraft available at this airport at this time
                         skipped += 1
                         continue
                     
-                    airline = airlines_list[(day_offset + created) % n_al]
+                    airline = random.choice(airlines_list)
                     
                     dep_dt = timezone.make_aware(
                         datetime.combine(current_date, dt_time(hour, 0))
@@ -1314,13 +1413,13 @@ def _generate_flights_background(task_id):
                     base = 8_000 if dep_ap.country == arr_ap.country else 35_000
                     price = max(3_000, base + random.randint(-1_000, 5_000))
                     
-                    # Use pre-generated flight number
-                    flight_number = flight_numbers_cache[fn_counter % len(flight_numbers_cache)]
+                    # Generate unique flight number (sequential, no collisions)
+                    flight_number = f"AS{fn_counter:05d}"
                     fn_counter += 1
 
-                    flights_to_create.append(Flight(
+                    flights_batch.append(Flight(
                         flight_number=flight_number,
-                        aircraft=aircraft_assigned,
+                        aircraft=ac_assigned,
                         airline=airline.name,
                         departure_airport=dep_ap,
                         arrival_airport=arr_ap,
@@ -1333,29 +1432,35 @@ def _generate_flights_background(task_id):
                     ))
                     created += 1
                     
-                    # Update progress periodically (every 10 flights to reduce overhead)
-                    if created % 10 == 0:
-                        _flight_generation_tasks[task_id]['progress'] = created
+                    # Commit batch
+                    if len(flights_batch) >= BATCH_SIZE:
+                        logger.info(f"Task {task_id}: Committing batch ({created}/{TARGET_FLIGHTS})")
+                        with transaction.atomic():
+                            Flight.objects.bulk_create(flights_batch, batch_size=100)
+                        flights_batch = []
+                    
+                    # Update progress
+                    _flight_generation_tasks[task_id]['progress'] = created
 
-        # Bulk create all flights at once
-        if flights_to_create:
-            logger.info(f"Task {task_id}: Bulk creating {len(flights_to_create)} flights...")
-            Flight.objects.bulk_create(flights_to_create, batch_size=1000)
-            logger.info(f"Task {task_id}: Bulk create complete")
+        # Commit remaining flights
+        if flights_batch:
+            logger.info(f"Task {task_id}: Committing final batch")
+            with transaction.atomic():
+                Flight.objects.bulk_create(flights_batch, batch_size=100)
 
         _flight_generation_tasks[task_id]['status'] = 'completed'
         _flight_generation_tasks[task_id]['completed_at'] = timezone.now().isoformat()
+        _flight_generation_tasks[task_id]['estimated_total'] = TARGET_FLIGHTS
         _flight_generation_tasks[task_id]['result'] = {
-            "detail": f"Generated {created} flights over {DAYS} days. {skipped} skipped (aircraft fully booked).",
+            "detail": f"Generated {created} flights over {DAYS} days.",
             "created": created,
             "skipped": skipped,
             "days": DAYS,
-            "route_pairs": len(all_pairs),
             "airports": len(airports),
             "aircraft_used": n_ac,
             "airlines_used": n_al,
         }
-        logger.info(f"Task {task_id} completed successfully: {created} flights created")
+        logger.info(f"Task {task_id} completed: {created} flights created")
     except Exception as e:
         _flight_generation_tasks[task_id]['status'] = 'failed'
         _flight_generation_tasks[task_id]['error'] = str(e)
