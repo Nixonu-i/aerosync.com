@@ -1209,11 +1209,16 @@ _flight_generation_tasks = {}
 def _generate_flights_background(task_id):
     """Background thread function to generate flights - optimized for speed"""
     import itertools
+    import logging
     from django.utils import timezone
+    
+    logger = logging.getLogger(__name__)
+    logger.info(f"Background task {task_id} starting...")
     
     try:
         _flight_generation_tasks[task_id]['status'] = 'running'
         _flight_generation_tasks[task_id]['started_at'] = timezone.now().isoformat()
+        logger.info(f"Task {task_id} status set to 'running'")
         
         DAYS  = 9  # Reduced from 30 to 9 days for faster generation
         HOURS = DEPART_HOURS
@@ -1334,7 +1339,9 @@ def _generate_flights_background(task_id):
 
         # Bulk create all flights at once
         if flights_to_create:
+            logger.info(f"Task {task_id}: Bulk creating {len(flights_to_create)} flights...")
             Flight.objects.bulk_create(flights_to_create, batch_size=1000)
+            logger.info(f"Task {task_id}: Bulk create complete")
 
         _flight_generation_tasks[task_id]['status'] = 'completed'
         _flight_generation_tasks[task_id]['completed_at'] = timezone.now().isoformat()
@@ -1348,11 +1355,10 @@ def _generate_flights_background(task_id):
             "aircraft_used": n_ac,
             "airlines_used": n_al,
         }
+        logger.info(f"Task {task_id} completed successfully: {created} flights created")
     except Exception as e:
         _flight_generation_tasks[task_id]['status'] = 'failed'
         _flight_generation_tasks[task_id]['error'] = str(e)
-        import logging
-        logger = logging.getLogger(__name__)
         logger.error(f"Flight generation task {task_id} failed: {e}", exc_info=True)
 
 
@@ -1394,14 +1400,19 @@ class FlightAdminViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["post"], url_path="generate_flights")
     def generate_flights(self, request):
         import uuid
+        import logging
+        logger = logging.getLogger(__name__)
         
         # Create a new task
         task_id = str(uuid.uuid4())
+        logger.info(f"Creating flight generation task: {task_id}")
+        
         _flight_generation_tasks[task_id] = {
             'status': 'pending',
             'task_id': task_id,
             'created_at': timezone.now().isoformat(),
             'progress': 0,
+            'estimated_total': 0,
         }
         
         # Start background thread
@@ -1412,6 +1423,8 @@ class FlightAdminViewSet(viewsets.ModelViewSet):
         )
         thread.start()
         
+        logger.info(f"Flight generation task {task_id} started")
+        
         return Response({
             "detail": "Flight generation started. Use the task_id to check status.",
             "task_id": task_id,
@@ -1419,11 +1432,37 @@ class FlightAdminViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=["get"], url_path="generation_status/(?P<task_id>[^/.]+)")
     def generation_status(self, request, task_id=None):
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"Checking status for task_id: {task_id}")
+        logger.info(f"Available tasks: {list(_flight_generation_tasks.keys())}")
+        
         if task_id not in _flight_generation_tasks:
+            logger.warning(f"Task {task_id} not found")
             return Response({"detail": "Task not found."}, status=404)
         
         task_info = _flight_generation_tasks[task_id]
-        return Response(task_info)
+        logger.info(f"Task status: {task_info.get('status')}")
+        
+        # Return a clean response with all necessary fields
+        response_data = {
+            'task_id': task_id,
+            'status': task_info.get('status', 'unknown'),
+            'created_at': task_info.get('created_at'),
+            'started_at': task_info.get('started_at'),
+            'completed_at': task_info.get('completed_at'),
+            'progress': task_info.get('progress', 0),
+            'estimated_total': task_info.get('estimated_total', 0),
+        }
+        
+        # Add result or error if available
+        if 'result' in task_info:
+            response_data['result'] = task_info['result']
+        if 'error' in task_info:
+            response_data['error'] = task_info['error']
+        
+        return Response(response_data)
 
 
     @action(detail=True, methods=["post"], url_path="generate_seats")
