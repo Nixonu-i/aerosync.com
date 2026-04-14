@@ -1364,6 +1364,11 @@ class FlightAdminViewSet(viewsets.ModelViewSet):
         to_code       = self.request.query_params.get("to")
         airline       = self.request.query_params.get("airline")
         status        = self.request.query_params.get("status")
+        
+        # Exclude completed flights by default unless status filter is explicitly provided
+        if not status:
+            qs = qs.exclude(status='COMPLETED')
+        
         if flight_number:
             qs = qs.filter(flight_number__icontains=flight_number)
         if from_code:
