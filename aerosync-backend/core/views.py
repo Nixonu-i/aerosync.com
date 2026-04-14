@@ -1245,6 +1245,11 @@ def _generate_flights_background(task_id):
         for i, pair in enumerate(all_pairs):
             buckets[i % CYCLE].append(pair)
 
+        # Calculate estimated total for progress tracking
+        pairs_per_day = len(all_pairs) // CYCLE
+        estimated_total = DAYS * pairs_per_day
+        _flight_generation_tasks[task_id]['estimated_total'] = estimated_total
+
         existing_slots = set(
             Flight.objects.filter(
                 departure_time__date__gte=today + timedelta(days=1),
@@ -1321,9 +1326,8 @@ def _generate_flights_background(task_id):
                 ))
                 created += 1
                 
-                # Update progress every 50 flights
-                if created % 50 == 0:
-                    _flight_generation_tasks[task_id]['progress'] = created
+                # Update progress for every flight
+                _flight_generation_tasks[task_id]['progress'] = created
 
         Flight.objects.bulk_create(flights_to_create, batch_size=500)
 
@@ -1657,7 +1661,7 @@ class AgentFlightViewSet(viewsets.ReadOnlyModelViewSet):
             return (
                 Flight.objects
                 .select_related("departure_airport", "arrival_airport")
-                .filter(flight_number__icontains=search)
+                .filter(flight_number__icontains=search, status="SCHEDULED")
                 .order_by("departure_time")
             )
         from_city = self.request.query_params.get("from_city")
