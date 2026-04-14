@@ -1207,7 +1207,7 @@ DEPART_HOURS = [6, 10, 12, 14, 16, 18, 20]
 _flight_generation_tasks = {}
 
 def _generate_flights_background(task_id):
-    """Background thread function to generate flights"""
+    """Background thread function to generate flights - optimized for speed"""
     import itertools
     from django.utils import timezone
     
@@ -1215,8 +1215,7 @@ def _generate_flights_background(task_id):
         _flight_generation_tasks[task_id]['status'] = 'running'
         _flight_generation_tasks[task_id]['started_at'] = timezone.now().isoformat()
         
-        DAYS  = 30
-        CYCLE = 3
+        DAYS  = 9  # Reduced from 30 to 9 days for faster generation
         HOURS = DEPART_HOURS
 
         airports     = list(Airport.objects.all())
@@ -1240,22 +1239,21 @@ def _generate_flights_background(task_id):
 
         today = date.today()
 
+        # Get all route pairs
         all_pairs = list(itertools.permutations(airports, 2))
-        buckets = [[] for _ in range(CYCLE)]
-        for i, pair in enumerate(all_pairs):
-            buckets[i % CYCLE].append(pair)
-
+        
         # Calculate estimated total for progress tracking
-        pairs_per_day = len(all_pairs) // CYCLE
-        estimated_total = DAYS * pairs_per_day
+        estimated_total = DAYS * len(all_pairs) * len(HOURS)
         _flight_generation_tasks[task_id]['estimated_total'] = estimated_total
 
-        existing_slots = set(
-            Flight.objects.filter(
-                departure_time__date__gte=today + timedelta(days=1),
-                departure_time__date__lte=today + timedelta(days=DAYS),
-            ).values_list("aircraft_id", "departure_time__date", "departure_time__hour")
-        )
+        # Fetch existing flights in a single query for the date range
+        existing_flights = Flight.objects.filter(
+            departure_time__date__gte=today + timedelta(days=1),
+            departure_time__date__lte=today + timedelta(days=DAYS),
+        ).values_list("aircraft_id", "departure_time__date", "departure_time__hour")
+        
+        # Convert to a set for O(1) lookups
+        existing_slots = set((ac_id, dep_date, dep_hour) for ac_id, dep_date, dep_hour in existing_flights)
 
         existing_fns = set(Flight.objects.values_list("flight_number", flat=True))
         pending_fns = set()
@@ -1274,62 +1272,69 @@ def _generate_flights_background(task_id):
         n_hr = len(HOURS)
         n_al = len(airlines_list)
 
+        # Pre-generate flight numbers to avoid repeated random generation
+        flight_numbers_cache = []
+        for _ in range(estimated_total):
+            flight_numbers_cache.append(_new_fn())
+        fn_counter = 0
+
+        # Optimized loop - generate flights more directly
         for day_offset in range(DAYS):
             current_date = today + timedelta(days=day_offset + 1)
-            pairs_today = buckets[day_offset % CYCLE]
+            
+            for dep_ap, arr_ap in all_pairs:
+                for hour in HOURS:
+                    # Try to find an available aircraft for this slot
+                    aircraft_assigned = None
+                    for ac_idx in range(n_ac):
+                        ac = aircraft_list[ac_idx]
+                        key = (ac.id, current_date, hour)
+                        if key not in existing_slots:
+                            aircraft_assigned = ac
+                            existing_slots.add(key)
+                            break
+                    
+                    if aircraft_assigned is None:
+                        skipped += 1
+                        continue
+                    
+                    airline = airlines_list[(day_offset + created) % n_al]
+                    
+                    dep_dt = timezone.make_aware(
+                        datetime.combine(current_date, dt_time(hour, 0))
+                    )
+                    dur_h = 1.5 if dep_ap.country == arr_ap.country else 4.0
+                    arr_dt = dep_dt + timedelta(hours=dur_h)
 
-            ac_idx = day_offset % n_ac
-            hr_idx = 0
-            al_idx = day_offset % n_al
+                    base = 8_000 if dep_ap.country == arr_ap.country else 35_000
+                    price = max(3_000, base + random.randint(-1_000, 5_000))
+                    
+                    # Use pre-generated flight number
+                    flight_number = flight_numbers_cache[fn_counter % len(flight_numbers_cache)]
+                    fn_counter += 1
 
-            for dep_ap, arr_ap in pairs_today:
-                found = False
-                for attempt in range(n_ac * n_hr):
-                    ac = aircraft_list[(ac_idx + attempt) % n_ac]
-                    hour = HOURS[(hr_idx + attempt) % n_hr]
-                    key = (ac.id, current_date, hour)
-                    if key not in existing_slots:
-                        existing_slots.add(key)
-                        ac_idx = (ac_idx + attempt + 1) % n_ac
-                        hr_idx = (hr_idx + attempt + 1) % n_hr
-                        found = True
-                        break
+                    flights_to_create.append(Flight(
+                        flight_number=flight_number,
+                        aircraft=aircraft_assigned,
+                        airline=airline.name,
+                        departure_airport=dep_ap,
+                        arrival_airport=arr_ap,
+                        departure_time=dep_dt,
+                        arrival_time=arr_dt,
+                        price=price,
+                        trip_type="ONE_WAY",
+                        stops=0,
+                        status="SCHEDULED",
+                    ))
+                    created += 1
+                    
+                    # Update progress periodically (every 10 flights to reduce overhead)
+                    if created % 10 == 0:
+                        _flight_generation_tasks[task_id]['progress'] = created
 
-                if not found:
-                    skipped += 1
-                    continue
-
-                airline = airlines_list[al_idx % n_al]
-                al_idx += 1
-
-                dep_dt = timezone.make_aware(
-                    datetime.combine(current_date, dt_time(hour, 0))
-                )
-                dur_h = 1.5 if dep_ap.country == arr_ap.country else 4.0
-                arr_dt = dep_dt + timedelta(hours=dur_h)
-
-                base = 8_000 if dep_ap.country == arr_ap.country else 35_000
-                price = max(3_000, base + random.randint(-1_000, 5_000))
-
-                flights_to_create.append(Flight(
-                    flight_number=_new_fn(),
-                    aircraft=ac,
-                    airline=airline.name,
-                    departure_airport=dep_ap,
-                    arrival_airport=arr_ap,
-                    departure_time=dep_dt,
-                    arrival_time=arr_dt,
-                    price=price,
-                    trip_type="ONE_WAY",
-                    stops=0,
-                    status="SCHEDULED",
-                ))
-                created += 1
-                
-                # Update progress for every flight
-                _flight_generation_tasks[task_id]['progress'] = created
-
-        Flight.objects.bulk_create(flights_to_create, batch_size=500)
+        # Bulk create all flights at once
+        if flights_to_create:
+            Flight.objects.bulk_create(flights_to_create, batch_size=1000)
 
         _flight_generation_tasks[task_id]['status'] = 'completed'
         _flight_generation_tasks[task_id]['completed_at'] = timezone.now().isoformat()
