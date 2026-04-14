@@ -170,14 +170,48 @@ export default function AdminFlights() {
   };
 
   const handleGenerate = async () => {
-    setGenBusy(true); setGenResult(null);
+    setGenBusy(true); 
+    setGenResult(null);
+    
     try {
+      // Start the generation task
       const res = await API.post("admin/flights/generate_flights/");
-      setGenResult({ ok: true, data: res.data });
-      await reloadFlights();
+      const taskId = res.data.task_id;
+      
+      // Poll for status updates
+      const pollInterval = setInterval(async () => {
+        try {
+          const statusRes = await API.get(`admin/flights/generation_status/${taskId}/`);
+          const taskData = statusRes.data;
+          
+          if (taskData.status === 'completed') {
+            clearInterval(pollInterval);
+            setGenResult({ ok: true, data: taskData.result });
+            setGenBusy(false);
+            await reloadFlights();
+          } else if (taskData.status === 'failed') {
+            clearInterval(pollInterval);
+            setGenResult({ ok: false, message: taskData.error || "Generation failed" });
+            setGenBusy(false);
+          } else if (taskData.status === 'running') {
+            // Update progress
+            setGenResult({ 
+              ok: null, 
+              message: `Generating flights... (${taskData.progress} flights created)`,
+              progress: taskData.progress 
+            });
+          }
+        } catch (err) {
+          clearInterval(pollInterval);
+          setGenResult({ ok: false, message: "Failed to check task status" });
+          setGenBusy(false);
+        }
+      }, 1000); // Poll every second
+      
     } catch (e) {
       setGenResult({ ok: false, message: e.response?.data?.detail || e.normalizedMessage || "Generation failed" });
-    } finally { setGenBusy(false); }
+      setGenBusy(false);
+    }
   };
 
   const filtered = flights; // server already returns only matching results
@@ -583,12 +617,12 @@ export default function AdminFlights() {
             {/* Result */}
             {genResult && (
               <div style={{
-                background: genResult.ok ? "#d4edda" : "#f8d7da",
-                color: genResult.ok ? "#155724" : "#721c24",
-                border: `1px solid ${genResult.ok ? "#c3e6cb" : "#f5c6cb"}`,
+                background: genResult.ok === true ? "#d4edda" : genResult.ok === false ? "#f8d7da" : "#cce5ff",
+                color: genResult.ok === true ? "#155724" : genResult.ok === false ? "#721c24" : "#004085",
+                border: `1px solid ${genResult.ok === true ? "#c3e6cb" : genResult.ok === false ? "#f5c6cb" : "#b8daff"}`,
                 borderRadius: "8px", padding: "14px", marginBottom: "16px", fontSize: "13px",
               }}>
-                {genResult.ok ? (
+                {genResult.ok === true ? (
                   <>
                     <div style={{ fontWeight: "800", fontSize: "15px", marginBottom: "8px" }}>✓ {genResult.data.created} flights generated!</div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px", fontSize: "12px" }}>
@@ -598,8 +632,25 @@ export default function AdminFlights() {
                       <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> {genResult.data.skipped} skipped (capacity)</span>
                     </div>
                   </>
-                ) : (
+                ) : genResult.ok === false ? (
                   <>✗ {genResult.message}</>
+                ) : (
+                  <>
+                    <div style={{ fontWeight: "700", marginBottom: "8px" }}>⏳ {genResult.message}</div>
+                    <div style={{ 
+                      background: "rgba(255,255,255,0.5)", 
+                      borderRadius: "4px", 
+                      height: "8px", 
+                      overflow: "hidden" 
+                    }}>
+                      <div style={{ 
+                        background: "#007bff", 
+                        height: "100%", 
+                        width: `${Math.min((genResult.progress || 0) / 50, 100)}%`,
+                        transition: "width 0.3s ease"
+                      }} />
+                    </div>
+                  </>
                 )}
               </div>
             )}
