@@ -1285,13 +1285,17 @@ function MyBookings() {
     
     // Subscribe to real-time booking updates (silent)
     const unsubscribe = subscribeToAll((updatedBooking, changedFields) => {
-      // Update the booking in our list silently
+      // Update the booking in our list silently by merging fields
       setItems(prevItems => {
         const index = prevItems.findIndex(b => b.id === updatedBooking.id);
         if (index === -1) return prevItems; // Not our booking
         
         const newItems = [...prevItems];
-        newItems[index] = updatedBooking;
+        // Merge the updated fields with existing booking data
+        newItems[index] = {
+          ...newItems[index],  // Keep all existing fields (flight, passengers, seats, etc.)
+          ...updatedBooking,   // Override with updated fields (booking_status, etc.)
+        };
         return newItems;
       });
       // No visual feedback - silent update, boarding pass button will auto-update based on status
