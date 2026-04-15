@@ -26,31 +26,6 @@ def auto_confirm_booking_on_payment_success(sender, instance, **kwargs):
             
             logger.info(f"Booking {booking.id} set to CONFIRMED")
             
-            # Broadcast booking status change via WebSocket
-            try:
-                from asgiref.sync import async_to_sync
-                from channels.layers import get_channel_layer
-                channel_layer = get_channel_layer()
-                
-                booking_data = {
-                    'id': booking.id,
-                    'booking_status': 'CONFIRMED',
-                    'confirmation_code': booking.confirmation_code,
-                }
-                
-                # Send to user
-                if booking.user_id:
-                    async_to_sync(channel_layer.group_send)(
-                        f"user_{booking.user_id}",
-                        {
-                            'type': 'booking_updated',
-                            'booking': booking_data,
-                        }
-                    )
-                    logger.info(f"📢 Sent booking status update to user {booking.user_id}")
-            except Exception as e:
-                logger.error(f"Failed to broadcast booking update: {str(e)}")
-            
             # Send boarding pass email only if status just changed to CONFIRMED
             if old_status != 'CONFIRMED':
                 logger.info(f"Sending boarding pass email for booking {booking.id} (was {old_status})")
@@ -143,7 +118,7 @@ def broadcast_payment_update(sender, instance, created, update_fields, **kwargs)
     """
     Broadcast real-time payment status updates via WebSocket.
     Notifies:
-    - Customer: About their payment status changes
+    - Customer: About their payment status changes (includes booking status)
     - Agents: About all payment changes (for dashboard visibility)
     
     IMPORTANT: This signal is triggered by BOTH:
@@ -177,7 +152,7 @@ def broadcast_payment_update(sender, instance, created, update_fields, **kwargs)
     except Exception as e:
         logger.error(f"Failed to serialize payment {instance.id}: {str(e)}")
         payment_data = {
-            'id': instance.id,
+            'id': str(instance.id),
             'status': instance.status,
             'amount': str(instance.amount),
         }
@@ -188,7 +163,7 @@ def broadcast_payment_update(sender, instance, created, update_fields, **kwargs)
     update_data = {
         'type': 'payment_update',  # Must match the handler method name in websocket.py
         'payment': payment_data,
-        'booking_id': instance.booking.id if instance.booking else None,
+        'booking_id': str(instance.booking.id) if instance.booking else None,
         'booking_status': booking_status,  # Include booking status for frontend
         'changed_fields': list(update_fields) if update_fields else None,
     }
@@ -200,7 +175,7 @@ def broadcast_payment_update(sender, instance, created, update_fields, **kwargs)
     
     # Notify the customer who owns this booking/payment
     if booking.user_id:
-        logger.info(f"💰 Sent payment update to user {booking.user_id}")
+        logger.info(f"💰 Sent payment update to user {booking.user_id} (Payment: {instance.status}, Booking: {booking_status})")
         async_to_sync(channel_layer.group_send)(
             f"user_{booking.user_id}",
             {'type': 'payment_update', **update_data}
@@ -237,7 +212,7 @@ def broadcast_booking_update(sender, instance, created, update_fields, **kwargs)
     except Exception as e:
         logger.error(f"Failed to serialize booking {instance.id}: {str(e)}")
         booking_data = {
-            'id': instance.id,
+            'id': str(instance.id),
             'booking_status': instance.booking_status,
             'confirmation_code': instance.confirmation_code,
         }

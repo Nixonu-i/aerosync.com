@@ -156,6 +156,11 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=["post"], url_path="create_booking")
     def create_booking(self, request):
         ser = CreateBookingSerializer(data=request.data)
+        if not ser.is_valid():
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"CreateBooking validation errors: {ser.errors}")
+            logger.error(f"Request data: {request.data}")
         ser.is_valid(raise_exception=True)
         data = ser.validated_data
 
@@ -512,7 +517,14 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
         booking = self.get_object()
         
         latest_payment = booking.payments.order_by('-created_at').first()
+        
+        # Debug logging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Boarding pass check - Booking {booking.id}: status={booking.booking_status}, payment_exists={latest_payment is not None}, payment_status={latest_payment.status if latest_payment else 'N/A'}")
+        
         if booking.booking_status not in ('CONFIRMED', 'ONBOARD') or not latest_payment or latest_payment.status != 'SUCCESS':
+            logger.warning(f"Boarding pass denied - Booking status: {booking.booking_status}, Has payment: {latest_payment is not None}, Payment status: {latest_payment.status if latest_payment else 'No payment'}")
             return Response({"detail": "Payment required. Complete payment to download boarding passes."}, status=402)
         
         boarding_passes = booking.boarding_passes.all()
@@ -886,7 +898,10 @@ class PesapalIPNView(APIView):
                 try:
                     parts = merchant_reference.split('-')
                     if len(parts) >= 2:
-                        booking_id = int(parts[1])
+                        # booking_id is at index 1, but UUID has hyphens so we need to handle that
+                        # Format: AEROSYNC-{uuid}-{timestamp}
+                        # UUID has 5 parts separated by hyphens, so we need indices 1-5
+                        booking_id = '-'.join(parts[1:-1])  # Join all parts except first (AEROSYNC) and last (timestamp)
                 except (ValueError, IndexError):
                     pass
             
@@ -927,7 +942,7 @@ class PesapalIPNView(APIView):
                     payment.save()
                 print(f"[{timestamp}] {ip_address} Using payment {payment.id}")
             
-            if payment_status in ['COMPLETED', 'COMPLETE'] or str(status_code) == '1':
+            if payment_status.upper() in ['COMPLETED', 'COMPLETE'] or str(status_code) == '1':
                 payment.status = 'SUCCESS'
                 payment.payment_detail = f"Status: {payment_status} | Code: {status_code}"
                 
@@ -939,19 +954,19 @@ class PesapalIPNView(APIView):
                 
                 print(f"[{timestamp}] {ip_address} ✅ SUCCESS - Booking {payment.booking.id} confirmed via signal")
                 
-            elif payment_status == 'FAILED' or str(status_code) == '2':
+            elif payment_status.upper() == 'FAILED' or str(status_code) == '2':
                 payment.status = 'FAILED'
                 payment.payment_detail = f"Status: {payment_status}"
                 payment.save()
                 print(f"[{timestamp}] {ip_address} ❌ FAILED - Booking {payment.booking.id}")
                 
-            elif payment_status in ['INVALID', 'CANCELLED'] or str(status_code) == '0':
+            elif payment_status.upper() in ['INVALID', 'CANCELLED'] or str(status_code) == '0':
                 payment.status = 'CANCELLED'
                 payment.payment_detail = f"Invalid transaction - {status_result.get('description', '')}"
                 payment.save()
                 print(f"⛔ Payment INVALID/CANCELLED for booking {payment.booking.id}")
                 
-            elif payment_status == 'REVERSED' or str(status_code) == '3':
+            elif payment_status.upper() == 'REVERSED' or str(status_code) == '3':
                 payment.status = 'REVERSED'
                 payment.payment_detail = f"Reversed - {status_result.get('description', '')}"
                 payment.save()
@@ -1034,15 +1049,15 @@ class PesapalStatusCheckView(APIView):
             new_payment_status = payment.status
             needs_update = False
             
-            if status_result['status'] in ['COMPLETED', 'COMPLETE'] and payment.status != 'SUCCESS':
+            if status_result['status'].upper() in ['COMPLETED', 'COMPLETE'] and payment.status != 'SUCCESS':
                 new_payment_status = 'SUCCESS'
                 needs_update = True
                 logger.info(f"Payment {payment.id} marked as SUCCESS via polling")
-            elif status_result['status'] == 'FAILED' and payment.status != 'FAILED':
+            elif status_result['status'].upper() == 'FAILED' and payment.status != 'FAILED':
                 # Don't auto-update to FAILED during polling - wait for IPN
                 # This prevents premature modal closure
                 logger.debug(f"Payment {payment.id} shows FAILED but waiting for IPN confirmation")
-            elif status_result['status'] in ['INVALID', 'CANCELLED'] and payment.status not in ['CANCELLED', 'INVALID']:
+            elif status_result['status'].upper() in ['INVALID', 'CANCELLED'] and payment.status not in ['CANCELLED', 'INVALID']:
                 # Don't auto-update to CANCELLED during polling - wait for IPN
                 # Pesapal sandbox often returns CANCELLED prematurely
                 logger.debug(f"Payment {payment.id} shows {status_result['status']} but waiting for IPN confirmation")
@@ -1625,25 +1640,40 @@ class BookingAdminViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="confirm_payment")
     def confirm_payment(self, request, pk=None):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         booking = self.get_object()
         payment = booking.payments.order_by("-created_at").first()
         if not payment:
             return Response({"detail": "No payment found for this booking."}, status=404)
+        
+        logger.info(f"Admin confirming payment for booking {booking.id}")
         payment.status = "SUCCESS"
-        payment.save(update_fields=["status"])
+        payment.save(update_fields=["status"])  # This triggers broadcast_payment_update signal
+        
         booking.booking_status = "CONFIRMED"
-        booking.save(update_fields=["booking_status"])
+        booking.save(update_fields=["booking_status"])  # This triggers broadcast_booking_update signal
+        
+        logger.info(f"Payment confirmed and booking updated. WebSocket signals should have been triggered.")
         return Response({"detail": "Payment confirmed. Booking is now CONFIRMED."})
 
     @action(detail=True, methods=["post"], url_path="update_status")
     def update_status(self, request, pk=None):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         booking = self.get_object()
         new_status = request.data.get("booking_status")
         valid = ["PENDING", "CONFIRMED", "CANCELLED", "FAILED"]
         if new_status not in valid:
             return Response({"detail": f"Invalid status. Choose from: {valid}"}, status=400)
+        
+        logger.info(f"Admin updating booking {booking.id} status from {booking.booking_status} to {new_status}")
         booking.booking_status = new_status
-        booking.save(update_fields=["booking_status"])
+        booking.save(update_fields=["booking_status"])  # This triggers broadcast_booking_update signal
+        
+        logger.info(f"Booking status updated. WebSocket signal should have been triggered.")
         return Response({"detail": f"Status updated to {new_status}."})
 
 

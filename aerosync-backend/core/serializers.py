@@ -4,18 +4,25 @@ from accounts.models import User as UserAccount
 
 
 class AirlineSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(read_only=True)
+    
     class Meta:
         model = Airline
         fields = ["id", "name", "iata_code", "country", "is_active"]
 
 
 class AirportSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(read_only=True)
+    
     class Meta:
         model = Airport
         fields = ["id", "name", "city", "country", "code"]
 
 
 class PassengerSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(read_only=True)
+    booking = serializers.PrimaryKeyRelatedField(read_only=True)
+    
     class Meta:
         model = Passenger
         fields = [
@@ -26,6 +33,11 @@ class PassengerSerializer(serializers.ModelSerializer):
 
 
 class BoardingPassSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(read_only=True)
+    booking = serializers.PrimaryKeyRelatedField(read_only=True)
+    passenger = serializers.PrimaryKeyRelatedField(read_only=True)
+    seat = serializers.PrimaryKeyRelatedField(read_only=True)
+    
     class Meta:
         model = BoardingPass
         fields = [
@@ -35,12 +47,19 @@ class BoardingPassSerializer(serializers.ModelSerializer):
 
 
 class SeatSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(read_only=True)
+    aircraft = serializers.PrimaryKeyRelatedField(read_only=True)
+    
     class Meta:
         model = Seat
         fields = ["id", "aircraft", "seat_number", "flight_class", "is_available", "price_multiplier"]
 
 
 class FlightSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(read_only=True)
+    aircraft = serializers.PrimaryKeyRelatedField(read_only=True)
+    departure_airport = serializers.PrimaryKeyRelatedField(read_only=True)
+    arrival_airport = serializers.PrimaryKeyRelatedField(read_only=True)
     departure_airport_name = serializers.CharField(source="departure_airport.name", read_only=True)
     arrival_airport_name = serializers.CharField(source="arrival_airport.name", read_only=True)
     departure_airport_city = serializers.CharField(source="departure_airport.city", read_only=True)
@@ -51,7 +70,7 @@ class FlightSerializer(serializers.ModelSerializer):
     class Meta:
         model = Flight
         fields = [
-            "id", "airline", "flight_number", "departure_airport", "arrival_airport",
+            "id", "aircraft", "airline", "flight_number", "departure_airport", "arrival_airport",
             "departure_time", "arrival_time", "price", "trip_type", "stops", "status",
             "departure_airport_name", "arrival_airport_name", 
             "departure_airport_city", "arrival_airport_city",
@@ -60,6 +79,12 @@ class FlightSerializer(serializers.ModelSerializer):
 
 
 class PaymentSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(read_only=True)
+    booking = serializers.SerializerMethodField()
+    
+    def get_booking(self, obj):
+        return str(obj.booking.id) if obj.booking else None
+    
     class Meta:
         model = Payment
         fields = [
@@ -69,6 +94,8 @@ class PaymentSerializer(serializers.ModelSerializer):
 
 
 class BookingSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(read_only=True)
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
     passengers = PassengerSerializer(many=True, read_only=True)
     boarding_passes = BoardingPassSerializer(many=True, read_only=True)
     flight = FlightSerializer(read_only=True)

@@ -773,7 +773,27 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
       
       onBookingComplete(res.data);
     } catch (err) {
-      setError(err.response?.data?.detail || err.response?.data?.non_field_errors?.[0] || "Failed to create booking");
+      console.error('Booking creation error:', err);
+      console.error('Error response:', err.response?.data);
+      console.error('Error status:', err.response?.status);
+      
+      // Extract detailed error messages
+      const errorData = err.response?.data;
+      let errorMessage = "Failed to create booking";
+      
+      if (errorData) {
+        if (errorData.detail) {
+          errorMessage = errorData.detail;
+        } else if (typeof errorData === 'object') {
+          // Format validation errors
+          const messages = Object.entries(errorData)
+            .map(([field, errors]) => `${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`)
+            .join('\n');
+          errorMessage = messages || errorMessage;
+        }
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
