@@ -207,8 +207,15 @@ def broadcast_booking_update(sender, instance, created, update_fields, **kwargs)
     # Prepare update payload
     from .serializers import BookingSerializer
     try:
-        serializer = BookingSerializer(instance)
-        booking_data = serializer.data
+        # For WebSocket, we only need essential fields to avoid deep nesting issues
+        booking_data = {
+            'id': str(instance.id),
+            'user': str(instance.user_id),
+            'booking_status': instance.booking_status,
+            'confirmation_code': instance.confirmation_code,
+            'booking_date': instance.booking_date.isoformat() if instance.booking_date else None,
+            'total_amount': str(instance.total_amount),
+        }
     except Exception as e:
         logger.error(f"Failed to serialize booking {instance.id}: {str(e)}")
         booking_data = {

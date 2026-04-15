@@ -1067,13 +1067,12 @@ class PesapalStatusCheckView(APIView):
                 payment.status = new_payment_status
                 payment.payment_detail = f"Status: {status_result['status']}"
                 
-                # Only update booking status if payment is now SUCCESS
-                if new_payment_status == 'SUCCESS' and payment.booking.booking_status != 'CONFIRMED':
-                    payment.booking.booking_status = 'CONFIRMED'
-                    payment.booking.save(update_fields=['booking_status'])
+                # DO NOT manually update booking status here!
+                # Let the auto_confirm_booking_on_payment_success signal handle it
+                # so it can send boarding pass emails properly
                 
-                payment.save()
-                logger.info(f"Payment {payment.id} status updated to {new_payment_status}")
+                payment.save()  # This will trigger the signal which will update booking and send emails
+                logger.info(f"Payment {payment.id} status updated to {new_payment_status}. Signal will handle booking confirmation.")
             else:
                 logger.debug(f"Payment {payment.id} status unchanged ({payment.status})")
             
