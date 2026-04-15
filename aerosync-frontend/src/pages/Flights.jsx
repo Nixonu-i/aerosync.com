@@ -703,6 +703,11 @@ export default function Flights() {
               <div
                 key={`${f.id}-${index}`}  // Combine ID with index for uniqueness
                 onClick={() => {
+                  if (!f.id) {
+                    console.error('Flight has no ID:', f);
+                    return;
+                  }
+                  
                   if (isAuthenticated) {
                     navigate(`/bookings?flight=${f.id}&seat=choice`);
                   } else {

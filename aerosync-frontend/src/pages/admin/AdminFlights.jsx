@@ -152,13 +152,45 @@ export default function AdminFlights() {
     setBusy(true); setFormErr("");
     try {
       const { _id, ...rest } = form;
-      const payload = { ...rest, aircraft: Number(form.aircraft), departure_airport: Number(form.departure_airport), arrival_airport: Number(form.arrival_airport), stops: Number(form.stops), price: form.price };
+      
+      // Validate required fields before sending
+      if (!form.aircraft || !form.departure_airport || !form.arrival_airport) {
+        setFormErr("Please select Aircraft, Departure Airport, and Arrival Airport.");
+        setBusy(false);
+        return;
+      }
+      
+      const payload = { 
+        ...rest, 
+        aircraft: form.aircraft,  // UUID, keep as string
+        departure_airport: form.departure_airport,  // UUID, keep as string
+        arrival_airport: form.arrival_airport,  // UUID, keep as string
+        stops: Number(form.stops), 
+        price: form.price 
+      };
+      
+      // Remove empty values that shouldn't be sent
+      if (!payload.flight_number) {
+        delete payload.flight_number;
+      }
+      
       if (modal === "add") await API.post("admin/flights/", payload);
       else await API.patch(`admin/flights/${form._id}/`, payload);
       setModal(null);
       await reloadFlights();
       notify(modal === "add" ? "Flight created." : "Flight updated.", "success");
-    } catch (e) { setFormErr(e.normalizedMessage || "Save failed"); }
+    } catch (e) { 
+      // Extract detailed error messages from the response
+      const errorData = e.response?.data;
+      if (errorData && typeof errorData === 'object') {
+        const messages = Object.entries(errorData)
+          .map(([field, errors]) => `${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`)
+          .join('\n');
+        setFormErr(messages || e.normalizedMessage || "Save failed");
+      } else {
+        setFormErr(e.normalizedMessage || "Save failed"); 
+      }
+    }
     finally { setBusy(false); }
   };
 

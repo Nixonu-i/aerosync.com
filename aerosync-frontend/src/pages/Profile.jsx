@@ -207,7 +207,7 @@ export default function Profile() {
       // Redirect to booking page if user came from flights
       if (flightId) {
         setTimeout(() => {
-          navigate(`/bookings?flight=flightId}&seat=choice`, {
+          navigate(`/bookings?flight=${flightId}&seat=choice`, {
             state: { message: 'Profile completed! Continue with your booking.' }
           });
         }, 1000); // Wait 1 second so user sees success message

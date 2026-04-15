@@ -108,7 +108,7 @@ class BookingSerializer(serializers.ModelSerializer):
 
 
 class CreateBookingSerializer(serializers.Serializer):
-    flight_id = serializers.IntegerField()
+    flight_id = serializers.UUIDField()
     seat_assignments = serializers.ListField(
         child=serializers.DictField(
             child=serializers.CharField()

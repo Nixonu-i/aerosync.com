@@ -129,11 +129,16 @@ class Booking(models.Model):
     confirmation_code = models.CharField(max_length=20, unique=True)
     
     def save(self, *args, **kwargs):
+        # Generate confirmation code if not set
         if not self.confirmation_code:
-            # Generate a unique confirmation code
             import random
             import string
             self.confirmation_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+        
+        # Auto-calculate total_amount from flight price if not provided
+        if not self.total_amount and self.flight:
+            self.total_amount = self.flight.price
+        
         super().save(*args, **kwargs)
     
     def __str__(self):

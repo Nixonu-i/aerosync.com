@@ -27,6 +27,11 @@ export default function Booking() {
   }, [isCreateMode, flightId]);
 
   const loadFlight = async () => {
+    if (!flightId || flightId === 'NaN' || flightId === 'undefined') {
+      console.error('Invalid flight ID:', flightId);
+      return;
+    }
+    
     try {
       const res = await API.get(`flights/${flightId}/`);
       setFlight(res.data);
@@ -92,7 +97,21 @@ export default function Booking() {
           </Link>
         </div>
       ) : isCreateMode ? (
-        <CreateBookingMultiPassenger flightId={Number(flightId)} />
+        flightId && flightId !== 'NaN' && flightId !== 'undefined' && flightId !== 'null' ? (
+          <CreateBookingMultiPassenger flightId={flightId} />
+        ) : (
+          <div style={{ 
+            background: "#e2e3e5", 
+            padding: "15px", 
+            borderRadius: "5px", 
+            marginBottom: "20px",
+            border: "1px solid #d6d8db",
+            color: "#383d41",
+            textAlign: "center"
+          }}>
+            Invalid flight ID. Please go back and select a flight.
+          </div>
+        )
       ) : (
         <MyBookings />
       )}
@@ -113,6 +132,13 @@ function CreateBookingMultiPassenger({ flightId }) {
   }, [flightId]);
 
   const loadFlight = async () => {
+    if (!flightId || flightId === 'NaN' || flightId === 'undefined' || flightId === 'null') {
+      console.error('Invalid flight ID in CreateBookingMultiPassenger:', flightId);
+      setError("Invalid flight ID");
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true);
       const res = await API.get(`flights/${flightId}/`);

@@ -673,7 +673,7 @@ export default function AgentCreateBooking() {
       }).filter(Boolean);
 
       const res = await API.post("agent/bookings/create_for_customer/", {
-        flight_id: Number(flightId),
+        flight_id: flightId,  // UUID, keep as string
         passengers: passengers.map(p => ({ ...p })),
         seat_ids,
       });
