@@ -198,6 +198,13 @@ img, video { max-width: 100%; height: auto; }
 .as-hamburger.open span:nth-child(2) { opacity: 0; }
 .as-hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
+/* Admin navbar hamburger - use white/light color for visibility on dark background */
+.as-admin-navbar .as-hamburger span {
+  background-color: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+.as-admin-navbar .as-hamburger:hover { background: rgba(255, 255, 255, 0.1) !important; }
+
 /* Mobile drawer */
 .as-navbar-mobile {
   display: none;

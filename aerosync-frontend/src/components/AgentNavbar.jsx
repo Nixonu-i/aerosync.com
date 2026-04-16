@@ -21,6 +21,18 @@ export default function AgentNavbar() {
 
   if (!user) return null;
 
+  // Style function for mobile nav links
+  const getMobileLinkStyle = (isActive) => ({
+    color: isActive ? '#20c997' : 'var(--text-primary)',
+    textDecoration: 'none',
+    fontWeight: isActive ? 700 : 500,
+    backgroundColor: isActive ? 'rgba(32,201,151,0.15)' : 'transparent',
+    display: 'block',
+    padding: '12px 24px',
+    fontSize: '15px',
+    borderBottom: '1px solid var(--border)',
+  });
+
   return (
     <nav className="as-agent-navbar">
       <div className="as-agent-navbar-inner">
@@ -71,6 +83,7 @@ export default function AgentNavbar() {
             end={l.end}
             className={({ isActive }) => `as-agent-mobile-link${isActive ? " active" : ""}`}
             onClick={() => setOpen(false)}
+            style={({ isActive }) => getMobileLinkStyle(isActive)}
           >
             {l.label}
           </NavLink>
