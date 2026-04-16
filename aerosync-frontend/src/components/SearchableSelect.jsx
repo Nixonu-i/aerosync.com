@@ -59,18 +59,18 @@ export default function SearchableSelect({
   const triggerStyle = {
     width: "100%",
     padding: "10px 12px",
-    border: "1px solid #ced4da",
+    border: "1px solid var(--border)",
     borderRadius: "6px",
     fontSize: "14px",
     boxSizing: "border-box",
-    backgroundColor: disabled ? "#f8f9fa" : "white",
+    backgroundColor: disabled ? "var(--background)" : "var(--surface)",
     cursor: disabled ? "not-allowed" : "pointer",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
     gap: "8px",
     textAlign: "left",
-    color: selected ? "#212529" : "#6c757d",
+    color: selected ? "var(--text-primary)" : "var(--text-secondary)",
     ...style,
   };
 
@@ -86,7 +86,7 @@ export default function SearchableSelect({
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
           {selected ? selected.label : placeholder}
         </span>
-        <span style={{ fontSize: "10px", color: "#6c757d", flexShrink: 0 }}>
+        <span style={{ fontSize: "10px", color: "var(--text-secondary)", flexShrink: 0 }}>
           {open ? "▲" : "▼"}
         </span>
       </button>
@@ -99,16 +99,15 @@ export default function SearchableSelect({
           left: 0,
           right: 0,
           zIndex: 1000,
-          backgroundColor: "white",
-          border: "1px solid #ced4da",
+          backgroundColor: "var(--surface)",
+          border: "1px solid var(--border)",
           borderRadius: "8px",
-          boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+          boxShadow: "0 8px 24px var(--shadow-md)",
           overflow: "hidden",
-          /* anchor all child text so global dark-theme color inheritance never bleeds in */
-          color: "#212529",
+          color: "var(--text-primary)",
         }}>
           {/* Search input */}
-          <div style={{ padding: "8px 10px", borderBottom: "1px solid #f0f0f0", backgroundColor: "white" }}>
+          <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--border)", backgroundColor: "var(--surface)" }}>
             <input
               ref={inputRef}
               value={query}
@@ -117,19 +116,19 @@ export default function SearchableSelect({
               style={{
                 width: "100%",
                 padding: "7px 10px",
-                border: "1px solid #dee2e6",
+                border: "1px solid var(--border)",
                 borderRadius: "5px",
                 fontSize: "13px",
                 boxSizing: "border-box",
                 outline: "none",
-                backgroundColor: "white",
-                color: "#212529",
+                backgroundColor: "var(--background)",
+                color: "var(--text-primary)",
               }}
             />
           </div>
 
           {/* Options list */}
-          <div style={{ maxHeight: "220px", overflowY: "auto", backgroundColor: "white" }}>
+          <div style={{ maxHeight: "220px", overflowY: "auto", backgroundColor: "var(--surface)" }}>
             {/* Clear / None option */}
             <div
               onClick={() => handleSelect({ value: "", label: "" })}
@@ -137,19 +136,19 @@ export default function SearchableSelect({
                 padding: "9px 14px",
                 cursor: "pointer",
                 fontSize: "13px",
-                color: "#6c757d",
+                color: "var(--text-secondary)",
                 fontStyle: "italic",
-                borderBottom: "1px solid #f0f0f0",
-                backgroundColor: "white",
+                borderBottom: "1px solid var(--border)",
+                backgroundColor: "var(--surface)",
               }}
-              onMouseEnter={e => e.currentTarget.style.backgroundColor = "#f8f9fa"}
-              onMouseLeave={e => e.currentTarget.style.backgroundColor = "white"}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--background)"}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = "var(--surface)"}
             >
               — None —
             </div>
 
             {filtered.length === 0 ? (
-              <div style={{ padding: "14px", textAlign: "center", color: "#6c757d", fontSize: "13px", backgroundColor: "white" }}>
+              <div style={{ padding: "14px", textAlign: "center", color: "var(--text-secondary)", fontSize: "13px", backgroundColor: "var(--surface)" }}>
                 No results for &ldquo;{query}&rdquo;
               </div>
             ) : (
@@ -160,20 +159,20 @@ export default function SearchableSelect({
                   style={{
                     padding: "9px 14px",
                     cursor: "pointer",
-                    backgroundColor: String(opt.value) === String(value) ? "#e8f0fe" : "white",
-                    borderLeft: String(opt.value) === String(value) ? "3px solid #0b1220" : "3px solid transparent",
+                    backgroundColor: String(opt.value) === String(value) ? "var(--background)" : "var(--surface)",
+                    borderLeft: String(opt.value) === String(value) ? "3px solid var(--accent)" : "3px solid transparent",
                     display: "flex",
                     flexDirection: "column",
                     gap: "2px",
                   }}
-                  onMouseEnter={e => { if (String(opt.value) !== String(value)) e.currentTarget.style.backgroundColor = "#f8f9fa"; }}
-                  onMouseLeave={e => { if (String(opt.value) !== String(value)) e.currentTarget.style.backgroundColor = String(opt.value) === String(value) ? "#e8f0fe" : "white"; }}
+                  onMouseEnter={e => { if (String(opt.value) !== String(value)) e.currentTarget.style.backgroundColor = "var(--background)"; }}
+                  onMouseLeave={e => { if (String(opt.value) !== String(value)) e.currentTarget.style.backgroundColor = String(opt.value) === String(value) ? "var(--background)" : "var(--surface)"; }}
                 >
-                  <span style={{ fontSize: "14px", fontWeight: String(opt.value) === String(value) ? "700" : "400", color: "#212529", lineHeight: "1.3" }}>
+                  <span style={{ fontSize: "14px", fontWeight: String(opt.value) === String(value) ? "700" : "400", color: "var(--text-primary)", lineHeight: "1.3" }}>
                     {opt.label}
                   </span>
                   {opt.sublabel && (
-                    <span style={{ fontSize: "11px", color: "#6c757d", lineHeight: "1.2" }}>
+                    <span style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: "1.2" }}>
                       {opt.sublabel}
                     </span>
                   )}

@@ -89,6 +89,10 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem(`profile_completed_${updatedUser.id}`, "true");
   }, [fetchMe]);
 
+  const updateUserTheme = useCallback((newTheme) => {
+    setUser(prev => prev ? { ...prev, theme_preference: newTheme } : null);
+  }, []);
+
   const register = useCallback(async (payload) => {
     await API.post("auth/register/", payload);
   }, []);
@@ -115,8 +119,8 @@ export const AuthProvider = ({ children }) => {
   const value = useMemo(
     // FIX: token is now the reactive state variable, not getToken()
     // useMemo will re-run when token changes, giving useBookingUpdates the fresh value
-    () => ({ user, loading, login, register, logout, profileComplete, updateUserProfile, token }),
-    [user, loading, login, register, logout, profileComplete, updateUserProfile, token]
+    () => ({ user, loading, login, register, logout, profileComplete, updateUserProfile, token, updateUserTheme }),
+    [user, loading, login, register, logout, profileComplete, updateUserProfile, token, updateUserTheme]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

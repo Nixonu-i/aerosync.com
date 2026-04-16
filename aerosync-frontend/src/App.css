@@ -2,12 +2,13 @@
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* background handled by index.css sky */
+  background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 50%, #f0f9ff 100%);
+  background-attachment: fixed;
 }
 
 #root {
@@ -21,19 +22,18 @@ body {
 /* General Styles */
 h1, h2, h3, h4, h5, h6 {
   margin-top: 0;
-  /* White by default for dark background; components inside white cards
-     override this with their own inline color styles. */
-  color: rgba(255, 255, 255, 0.95);
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 a {
   font-weight: 500;
-  color: var(--primary-dark);
+  color: var(--primary);
   text-decoration: none;
 }
 
 a:hover {
-  color: var(--primary-gold);
+  color: var(--primary-dark);
   text-decoration: underline;
 }
 
@@ -115,15 +115,21 @@ a:hover {
 
 /* Card Component */
 .as-card {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px var(--shadow), 0 2px 4px -2px var(--shadow);
+  border: 1px solid var(--border);
   overflow: hidden;
+  transition: box-shadow 0.2s ease;
+}
+
+.as-card:hover {
+  box-shadow: 0 10px 15px -3px var(--shadow-md), 0 4px 6px -4px var(--shadow-md);
 }
 
 .as-card-header {
   padding: 20px 24px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border);
 }
 
 .as-card-body {

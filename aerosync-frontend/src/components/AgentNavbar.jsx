@@ -1,6 +1,7 @@
 import { useContext, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import ThemeToggle from './ThemeToggle';
 
 const LINKS = [
   { to: "/agent",               label: "Dashboard",      end: true },
@@ -45,6 +46,7 @@ export default function AgentNavbar() {
 
         {/* Desktop user area */}
         <div className="as-agent-user-desktop">
+          <ThemeToggle />
           <span className="as-agent-badge">{user.staff_id || "AGENT"}</span>
           <span className="as-agent-username">{user.username}</span>
           <button className="as-btn-logout" onClick={doLogout}>Logout</button>
@@ -78,11 +80,12 @@ export default function AgentNavbar() {
           display: "flex",
           alignItems: "center",
           gap: "10px",
-          borderTop: "1px solid rgba(255,255,255,0.08)",
+          borderTop: "1px solid var(--border)",
           marginTop: "4px",
         }}>
+          <ThemeToggle />
           <span className="as-agent-badge">{user.staff_id || "AGENT"}</span>
-          <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "13px", flex: 1 }}>
+          <span style={{ color: "var(--text-secondary)", fontSize: "13px", flex: 1 }}>
             {user.username}
           </span>
           <button

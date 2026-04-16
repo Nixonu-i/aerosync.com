@@ -379,10 +379,10 @@ export default function AgentProfile() {
             disabled={locked}
             style={{ ...inputSt, appearance: "none" }}
           >
-            <option value="" style={{ background: "#0b1220" }}>Select Gender</option>
-            <option value="MALE" style={{ background: "#0b1220" }}>Male</option>
-            <option value="FEMALE" style={{ background: "#0b1220" }}>Female</option>
-            <option value="OTHER" style={{ background: "#0b1220" }}>Other</option>
+            <option value="" style={{ background: "var(--surface)" }}>Select Gender</option>
+            <option value="MALE" style={{ background: "var(--surface)" }}>Male</option>
+            <option value="FEMALE" style={{ background: "var(--surface)" }}>Female</option>
+            <option value="OTHER" style={{ background: "var(--surface)" }}>Other</option>
           </select>
         </div>
 
@@ -397,31 +397,31 @@ export default function AgentProfile() {
             disabled={locked}
             style={{ ...inputSt, appearance: "none" }}
           >
-            <option value="" style={{ background: "#0b1220" }}>Select Nationality</option>
-            <option value="Kenyan" style={{ background: "#0b1220" }}>Kenyan</option>
-            <option value="Tanzanian" style={{ background: "#0b1220" }}>Tanzanian</option>
-            <option value="Ugandan" style={{ background: "#0b1220" }}>Ugandan</option>
-            <option value="Rwandan" style={{ background: "#0b1220" }}>Rwandan</option>
-            <option value="Burundian" style={{ background: "#0b1220" }}>Burundian</option>
-            <option value="Ethiopian" style={{ background: "#0b1220" }}>Ethiopian</option>
-            <option value="Somali" style={{ background: "#0b1220" }}>Somali</option>
-            <option value="Djiboutian" style={{ background: "#0b1220" }}>Djiboutian</option>
-            <option value="South African" style={{ background: "#0b1220" }}>South African</option>
-            <option value="Nigerian" style={{ background: "#0b1220" }}>Nigerian</option>
-            <option value="Ghanaian" style={{ background: "#0b1220" }}>Ghanaian</option>
-            <option value="Egyptian" style={{ background: "#0b1220" }}>Egyptian</option>
-            <option value="Moroccan" style={{ background: "#0b1220" }}>Moroccan</option>
-            <option value="Tunisian" style={{ background: "#0b1220" }}>Tunisian</option>
-            <option value="Algerian" style={{ background: "#0b1220" }}>Algerian</option>
-            <option value="Libyan" style={{ background: "#0b1220" }}>Libyan</option>
-            <option value="Sudanese" style={{ background: "#0b1220" }}>Sudanese</option>
-            <option value="American" style={{ background: "#0b1220" }}>American</option>
-            <option value="British" style={{ background: "#0b1220" }}>British</option>
-            <option value="Canadian" style={{ background: "#0b1220" }}>Canadian</option>
-            <option value="Australian" style={{ background: "#0b1220" }}>Australian</option>
-            <option value="Indian" style={{ background: "#0b1220" }}>Indian</option>
-            <option value="Chinese" style={{ background: "#0b1220" }}>Chinese</option>
-            <option value="Japanese" style={{ background: "#0b1220" }}>Japanese</option>
+            <option value="" style={{ background: "var(--surface)" }}>Select Nationality</option>
+            <option value="Kenyan" style={{ background: "var(--surface)" }}>Kenyan</option>
+            <option value="Tanzanian" style={{ background: "var(--surface)" }}>Tanzanian</option>
+            <option value="Ugandan" style={{ background: "var(--surface)" }}>Ugandan</option>
+            <option value="Rwandan" style={{ background: "var(--surface)" }}>Rwandan</option>
+            <option value="Burundian" style={{ background: "var(--surface)" }}>Burundian</option>
+            <option value="Ethiopian" style={{ background: "var(--surface)" }}>Ethiopian</option>
+            <option value="Somali" style={{ background: "var(--surface)" }}>Somali</option>
+            <option value="Djiboutian" style={{ background: "var(--surface)" }}>Djiboutian</option>
+            <option value="South African" style={{ background: "var(--surface)" }}>South African</option>
+            <option value="Nigerian" style={{ background: "var(--surface)" }}>Nigerian</option>
+            <option value="Ghanaian" style={{ background: "var(--surface)" }}>Ghanaian</option>
+            <option value="Egyptian" style={{ background: "var(--surface)" }}>Egyptian</option>
+            <option value="Moroccan" style={{ background: "var(--surface)" }}>Moroccan</option>
+            <option value="Tunisian" style={{ background: "var(--surface)" }}>Tunisian</option>
+            <option value="Algerian" style={{ background: "var(--surface)" }}>Algerian</option>
+            <option value="Libyan" style={{ background: "var(--surface)" }}>Libyan</option>
+            <option value="Sudanese" style={{ background: "var(--surface)" }}>Sudanese</option>
+            <option value="American" style={{ background: "var(--surface)" }}>American</option>
+            <option value="British" style={{ background: "var(--surface)" }}>British</option>
+            <option value="Canadian" style={{ background: "var(--surface)" }}>Canadian</option>
+            <option value="Australian" style={{ background: "var(--surface)" }}>Australian</option>
+            <option value="Indian" style={{ background: "var(--surface)" }}>Indian</option>
+            <option value="Chinese" style={{ background: "var(--surface)" }}>Chinese</option>
+            <option value="Japanese" style={{ background: "var(--surface)" }}>Japanese</option>
           </select>
         </div>
 
@@ -437,18 +437,18 @@ export default function AgentProfile() {
               disabled={false}  // Always editable
               style={{ ...editableInputSt, width: "auto", minWidth: "110px", flex: "0 0 auto", appearance: "none" }}
             >
-              <option value="+254" style={{ background: "#0b1220" }}>+254 (KE)</option>
-              <option value="+255" style={{ background: "#0b1220" }}>+255 (TZ)</option>
-              <option value="+256" style={{ background: "#0b1220" }}>+256 (UG)</option>
-              <option value="+250" style={{ background: "#0b1220" }}>+250 (RW)</option>
-              <option value="+257" style={{ background: "#0b1220" }}>+257 (BI)</option>
-              <option value="+251" style={{ background: "#0b1220" }}>+251 (ET)</option>
-              <option value="+252" style={{ background: "#0b1220" }}>+252 (SO)</option>
-              <option value="+253" style={{ background: "#0b1220" }}>+253 (DJ)</option>
-              <option value="+27"  style={{ background: "#0b1220" }}>+27 (ZA)</option>
-              <option value="+234" style={{ background: "#0b1220" }}>+234 (NG)</option>
-              <option value="+233" style={{ background: "#0b1220" }}>+233 (GH)</option>
-              <option value="+20"  style={{ background: "#0b1220" }}>+20 (EG)</option>
+              <option value="+254" style={{ background: "var(--surface)" }}>+254 (KE)</option>
+              <option value="+255" style={{ background: "var(--surface)" }}>+255 (TZ)</option>
+              <option value="+256" style={{ background: "var(--surface)" }}>+256 (UG)</option>
+              <option value="+250" style={{ background: "var(--surface)" }}>+250 (RW)</option>
+              <option value="+257" style={{ background: "var(--surface)" }}>+257 (BI)</option>
+              <option value="+251" style={{ background: "var(--surface)" }}>+251 (ET)</option>
+              <option value="+252" style={{ background: "var(--surface)" }}>+252 (SO)</option>
+              <option value="+253" style={{ background: "var(--surface)" }}>+253 (DJ)</option>
+              <option value="+27"  style={{ background: "var(--surface)" }}>+27 (ZA)</option>
+              <option value="+234" style={{ background: "var(--surface)" }}>+234 (NG)</option>
+              <option value="+233" style={{ background: "var(--surface)" }}>+233 (GH)</option>
+              <option value="+20"  style={{ background: "var(--surface)" }}>+20 (EG)</option>
             </select>
             <input
               type="tel"

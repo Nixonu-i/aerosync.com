@@ -111,11 +111,11 @@ function BookingCard({ booking, onStatusUpdate }) {
               </span>
               <StatusBadge status={booking.booking_status} />
             </div>
-            <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "12px", marginTop: "4px" }}>
+            <div style={{ color: "var(--text-secondary)", fontSize: "12px", marginTop: "4px" }}>
               {booking.flight_number ? `${booking.flight_number} ·` : ''} &nbsp;{booking.route || 'Route not specified'} &nbsp;·&nbsp; {fmt(booking.departure_time)}
             </div>
-            <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "12px", marginTop: "2px" }}>
-              Customer: <span style={{ color: "rgba(255,255,255,0.65)" }}>{booking.username}</span>
+            <div style={{ color: "var(--text-secondary)", fontSize: "12px", marginTop: "2px" }}>
+              Customer: <span style={{ color: "var(--text-primary)" }}>{booking.username}</span>
               &nbsp;·&nbsp; {booking.passengers?.length || 1} passenger(s)
               &nbsp;·&nbsp; KES {Number(booking.total_amount || 0).toLocaleString()}
             </div>
@@ -164,9 +164,9 @@ function BookingCard({ booking, onStatusUpdate }) {
             <button
               onClick={() => setExpanded(e => !e)}
               style={{
-                background: "rgba(255,255,255,0.07)",
-                color: "rgba(255,255,255,0.7)",
-                border: "1px solid rgba(255,255,255,0.15)",
+                background: "var(--background)",
+                color: "var(--text-secondary)",
+                border: "1px solid var(--border)",
                 borderRadius: "7px",
                 padding: "6px 14px",
                 cursor: "pointer",
@@ -197,7 +197,7 @@ function BookingCard({ booking, onStatusUpdate }) {
                 borderRadius: "8px",
                 padding: "10px 14px",
                 fontSize: "13px",
-                color: "rgba(255,255,255,0.7)",
+                color: "var(--text-secondary)",
                 marginBottom: "12px",
               }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> Boarding pass available only after payment is confirmed (CONFIRMED or ONBOARD status).
@@ -205,7 +205,7 @@ function BookingCard({ booking, onStatusUpdate }) {
             )}
 
             {(booking.passengers || []).length === 0 ? (
-              <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "13px" }}>No passenger data available.</div>
+              <div style={{ color: "var(--text-secondary)", fontSize: "13px" }}>No passenger data available.</div>
             ) : (
               (booking.passengers || []).map(p => (
                 <div key={p.id} style={{
@@ -220,8 +220,8 @@ function BookingCard({ booking, onStatusUpdate }) {
                   gap: "8px",
                 }}>
                   <div>
-                    <div style={{ color: "#fff", fontWeight: 600, fontSize: "14px" }}>{p.full_name}</div>
-                    <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "12px", textTransform: "capitalize" }}>
+                    <div style={{ color: "var(--text-primary)", fontWeight: 600, fontSize: "14px" }}>{p.full_name}</div>
+                    <div style={{ color: "var(--text-secondary)", fontSize: "12px", textTransform: "capitalize" }}>
                       {(p.passenger_type || "ADULT").toLowerCase()}
                     </div>
                   </div>
@@ -245,7 +245,7 @@ function BookingCard({ booking, onStatusUpdate }) {
                       {downloading[p.id] ? "Downloading…" : "⬇ Download Pass"}
                     </button>
                   ) : (
-                    <span style={{ color: "rgba(255,255,255,0.25)", fontSize: "12px" }}>Unavailable</span>
+                    <span style={{ color: "var(--text-secondary)", fontSize: "12px", opacity: 0.5 }}>Unavailable</span>
                   )}
                 </div>
               ))
@@ -321,8 +321,8 @@ export default function AgentBookings() {
     <div>
       {/* Header */}
       <div style={{ marginBottom: "24px" }}>
-        <h2 style={{ color: "#fff", fontWeight: 800, margin: "0 0 6px" }}>Bookings History</h2>
-        <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "14px", margin: 0 }}>
+        <h2 style={{ color: "var(--text-primary)", fontWeight: 800, margin: "0 0 6px" }}>Bookings History</h2>
+        <p style={{ color: "var(--text-secondary)", fontSize: "14px", margin: 0 }}>
           Recent and upcoming bookings — download boarding passes for confirmed passengers.
         </p>
       </div>
@@ -337,8 +337,8 @@ export default function AgentBookings() {
           style={{
             flex: 1, minWidth: "200px",
             padding: "9px 14px", borderRadius: "8px",
-            border: "1px solid rgba(255,255,255,0.15)",
-            background: "rgba(255,255,255,0.06)", color: "#fff",
+            border: "1px solid var(--border)",
+            background: "var(--surface)", color: "var(--text-primary)",
             fontSize: "14px", outline: "none",
           }}
         />
@@ -347,8 +347,8 @@ export default function AgentBookings() {
           onChange={e => setStatusFilter(e.target.value)}
           style={{
             padding: "9px 14px", borderRadius: "8px",
-            border: "1px solid rgba(255,255,255,0.15)",
-            background: "rgba(5,19,30,0.9)", color: "#fff",
+            border: "1px solid var(--border)",
+            background: "var(--surface)", color: "var(--text-primary)",
             fontSize: "14px", outline: "none", cursor: "pointer",
           }}
         >
@@ -362,7 +362,7 @@ export default function AgentBookings() {
 
       {/* Content */}
       {loading ? (
-        <div style={{ textAlign: "center", padding: "60px 0", color: "rgba(255,255,255,0.45)" }}>
+        <div style={{ textAlign: "center", padding: "60px 0", color: "var(--text-secondary)" }}>
           Loading bookings…
         </div>
       ) : error ? (
@@ -372,13 +372,13 @@ export default function AgentBookings() {
       ) : filtered.length === 0 ? (
         <div style={{ ...CARD, textAlign: "center", padding: "50px 20px" }}>
           <div style={{ fontSize: "40px", marginBottom: "10px" }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h.01M18 12h.01"/></svg></div>
-          <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "14px" }}>
+          <div style={{ color: "var(--text-secondary)", fontSize: "14px" }}>
             {bookings.length === 0 ? "No bookings found." : "No bookings match your filters."}
           </div>
         </div>
       ) : (
         <>
-          <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "12px", marginBottom: "14px" }}>
+          <div style={{ color: "var(--text-secondary)", fontSize: "12px", marginBottom: "14px" }}>
             Showing {filtered.length} of {bookings.length} booking(s)
           </div>
           {filtered.map(b => <BookingCard key={b.id} booking={b} onStatusUpdate={handleStatusUpdate} />)}

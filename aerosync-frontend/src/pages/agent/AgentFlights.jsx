@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import API from "../../api/api";
 
 const teal = "#20c997";
-const DARK = "rgba(5, 19, 30, 0.85)";
 
 export default function AgentFlights() {
   const [items, setItems]       = useState([]);
@@ -59,12 +58,12 @@ export default function AgentFlights() {
 
   return (
     <div>
-      <h2 style={{ color: "#fff", marginBottom: "20px" }}>Available Flights</h2>
+      <h2 style={{ color: "var(--text-primary)", marginBottom: "20px" }}>Available Flights</h2>
 
       {/* Search bar */}
       <div style={{
-        background: DARK,
-        border: "1px solid rgba(255,255,255,0.1)",
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
         borderRadius: "12px",
         padding: "16px 20px",
         marginBottom: "24px",
@@ -88,9 +87,9 @@ export default function AgentFlights() {
               flex: "1 1 150px",
               padding: "9px 14px",
               borderRadius: "7px",
-              border: "1px solid rgba(255,255,255,0.15)",
-              background: "rgba(255,255,255,0.08)",
-              color: "#fff",
+              border: "1px solid var(--border)",
+              background: "var(--background)",
+              color: "var(--text-primary)",
               fontSize: "14px",
               outline: "none",
             }}
@@ -134,12 +133,12 @@ export default function AgentFlights() {
       )}
 
       {busy ? (
-        <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", padding: "40px" }}>Loading flights…</div>
+        <div style={{ textAlign: "center", color: "var(--text-secondary)", padding: "40px" }}>Loading flights…</div>
       ) : items.length === 0 ? (
-        <div style={{ textAlign: "center", color: "rgba(255,255,255,0.4)", padding: "40px" }}>No flights found.</div>
+        <div style={{ textAlign: "center", color: "var(--text-secondary)", padding: "40px" }}>No flights found.</div>
       ) : (
         <>
-          <div style={{ overflowX: "auto", borderRadius: "12px", background: DARK }}>
+          <div style={{ overflowX: "auto", borderRadius: "12px", background: "var(--surface)", border: "1px solid var(--border)" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px" }}>
               <thead>
                 <tr style={{ background: "rgba(32,201,151,0.1)", borderBottom: "1px solid rgba(32,201,151,0.3)" }}>
@@ -152,17 +151,17 @@ export default function AgentFlights() {
                 {items.map((f, i) => (
                   <tr
                     key={`${f.id}-${i}`}
-                    style={{ background: i % 2 === 0 ? "rgba(255,255,255,0.03)" : "transparent", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+                    style={{ background: i % 2 === 0 ? "var(--background)" : "transparent", borderBottom: "1px solid var(--border)" }}
                   >
-                    <td style={{ padding: "10px 14px", color: "#fff", fontFamily: "monospace", fontWeight: 700 }}>{f.flight_number}</td>
-                    <td style={{ padding: "10px 14px", color: "#fff", whiteSpace: "nowrap" }}>
+                    <td style={{ padding: "10px 14px", color: "var(--text-primary)", fontFamily: "monospace", fontWeight: 700 }}>{f.flight_number}</td>
+                    <td style={{ padding: "10px 14px", color: "var(--text-primary)", whiteSpace: "nowrap" }}>
                       {f.departure_airport_code || f.departure_airport?.code || "—"}
                       <span style={{ color: teal, margin: "0 6px" }}>→</span>
                       {f.arrival_airport_code || f.arrival_airport?.code || "—"}
                     </td>
-                    <td style={{ padding: "10px 14px", color: "rgba(255,255,255,0.8)", whiteSpace: "nowrap" }}>{fmt(f.departure_time)}</td>
-                    <td style={{ padding: "10px 14px", color: "rgba(255,255,255,0.8)" }}>{f.airline || "—"}</td>
-                    <td style={{ padding: "10px 14px", color: "rgba(255,255,255,0.8)" }}>{f.duration_minutes ? `${f.duration_minutes}m` : "—"}</td>
+                    <td style={{ padding: "10px 14px", color: "var(--text-secondary)", whiteSpace: "nowrap" }}>{fmt(f.departure_time)}</td>
+                    <td style={{ padding: "10px 14px", color: "var(--text-secondary)" }}>{f.airline || "—"}</td>
+                    <td style={{ padding: "10px 14px", color: "var(--text-secondary)" }}>{f.duration_minutes ? `${f.duration_minutes}m` : "—"}</td>
                     <td style={{ padding: "10px 14px", color: teal, fontWeight: 700 }}>
                       {f.price != null ? `KES ${Number(f.price).toLocaleString()}` : "—"}
                     </td>
@@ -184,8 +183,8 @@ export default function AgentFlights() {
           </div>
 
           {/* Footer */}
-          <div style={{ textAlign: "center", marginTop: "24px", color: "rgba(255,255,255,0.5)", fontSize: "13px" }}>
-            Showing <strong style={{ color: "#fff" }}>{items.length}</strong> of <strong style={{ color: "#fff" }}>{totalCount}</strong> flights
+          <div style={{ textAlign: "center", marginTop: "24px", color: "var(--text-secondary)", fontSize: "13px" }}>
+            Showing <strong style={{ color: "var(--text-primary)" }}>{items.length}</strong> of <strong style={{ color: "var(--text-primary)" }}>{totalCount}</strong> flights
             {nextUrl && (
               <button
                 onClick={loadMore}

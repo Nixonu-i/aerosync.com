@@ -35,8 +35,15 @@ class User(AbstractUser):
         ADMIN = "ADMIN", "ADMIN"
         AGENT = "AGENT", "AGENT"
         CUST  = "CUST",  "CUST"
+    
+    THEME_CHOICES = [
+        ('LIGHT', 'Light'),
+        ('DARK', 'Dark'),
+        ('SYSTEM', 'System Default'),
+    ]
 
     role = models.CharField(max_length=10, choices=Role.choices, default=Role.CUST)
+    theme_preference = models.CharField(max_length=10, choices=THEME_CHOICES, default='LIGHT')
     staff_id = models.CharField(max_length=20, unique=True, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     

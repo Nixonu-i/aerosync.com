@@ -57,12 +57,11 @@ export default function Booking() {
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
       <h2 style={{
-        color: "white",
+        color: "var(--text-primary)",
         marginBottom: "20px",
         fontSize: "32px",
         fontWeight: "700",
-        textAlign: "center",
-        textShadow: "0 2px 10px rgba(0,0,0,0.7)"
+        textAlign: "center"
       }}>
         {isCreateMode ? "Create Booking" : "My Bookings"}
       </h2>
@@ -231,18 +230,18 @@ function CreateBookingMultiPassenger({ flightId }) {
   if (showBookingChoice) {
     return (
       <div style={{
-        background: "white",
+        background: "var(--surface)",
         padding: "30px",
-        borderRadius: "10px",
-        boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+        borderRadius: "12px",
+        boxShadow: "0 4px 6px -1px var(--shadow), 0 2px 4px -2px var(--shadow)",
         marginBottom: "30px",
-        border: "1px solid #e0e0e0",
+        border: "1px solid var(--border)",
         maxWidth: "600px",
         margin: "0 auto",
         textAlign: "center"
       }}>
         <h3 style={{
-          color: "#0b1220",
+          color: "var(--text-primary)",
           marginBottom: "25px",
           fontSize: "24px",
           fontWeight: "600"
@@ -291,7 +290,7 @@ function CreateBookingMultiPassenger({ flightId }) {
               setShowMultiPassenger(true);
             }}
             style={{
-              backgroundColor: "#0b1220",
+              backgroundColor: "var(--primary)",
               color: "white",
               border: "none",
               padding: "15px 30px",
@@ -321,17 +320,17 @@ function CreateBookingMultiPassenger({ flightId }) {
   
   return (
     <div style={{
-      background: "white",
+      background: "var(--surface)",
       padding: "30px",
       borderRadius: "10px",
       boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
       marginBottom: "30px",
-      border: "1px solid #e0e0e0",
+      border: "1px solid var(--border)",
       maxWidth: "800px",
       margin: "0 auto"
     }}>
       <h3 style={{
-        color: "#0b1220",
+        color: "var(--text-primary)",
         marginBottom: "20px",
         fontSize: "24px",
         fontWeight: "600",
@@ -348,50 +347,50 @@ function CreateBookingMultiPassenger({ flightId }) {
       }}>
         <div>
           <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "5px" }}>Flight ID</div>
-          <div style={{ fontSize: "18px", fontWeight: "600", color: "#0b1220" }}>{flightId}</div>
+          <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>{flightId}</div>
         </div>
         
         <div>
           <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "5px" }}>Route</div>
-          <div style={{ fontSize: "18px", fontWeight: "600", color: "#0b1220" }}>
+          <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>
             {flight?.departure_airport_code} → {flight?.arrival_airport_code}
           </div>
         </div>
         
         <div>
           <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "5px" }}>Date</div>
-          <div style={{ fontSize: "18px", fontWeight: "600", color: "#0b1220" }}>
+          <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>
             {flight ? new Date(flight.departure_time).toLocaleDateString() : "Loading..."}
           </div>
         </div>
         
         <div>
           <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "5px" }}>Price</div>
-          <div style={{ fontSize: "18px", fontWeight: "600", color: "#0b1220" }}>KES {flight?.price || "Loading..."}</div>
+          <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>KES {flight?.price || "Loading..."}</div>
         </div>
         
         <div>
           <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "5px" }}>Airline</div>
-          <div style={{ fontSize: "18px", fontWeight: "600", color: "#0b1220" }}>{flight?.airline || "Loading..."}</div>
+          <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>{flight?.airline || "Loading..."}</div>
         </div>
         
         <div>
           <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "5px" }}>Stops</div>
-          <div style={{ fontSize: "18px", fontWeight: "600", color: "#0b1220" }}>
+          <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>
             {flight?.stops === 0 ? "Direct" : `${flight?.stops} stop${flight?.stops > 1 ? "s" : ""}`}
           </div>
         </div>
       </div>
       
       <div style={{
-        backgroundColor: "#f8f9fa",
+        backgroundColor: "var(--background)",
         padding: "20px",
         borderRadius: "8px",
         marginBottom: "25px",
         textAlign: "center"
       }}>
         <h4 style={{
-          color: "#0b1220",
+          color: "var(--text-primary)",
           marginBottom: "15px",
           fontSize: "18px",
           fontWeight: "600"
@@ -410,7 +409,7 @@ function CreateBookingMultiPassenger({ flightId }) {
         <button
           onClick={() => setShowMultiPassenger(true)}
           style={{
-            backgroundColor: "#0b1220",
+            backgroundColor: "var(--primary)",
             color: "white",
             border: "none",
             padding: "12px 30px",
@@ -420,8 +419,8 @@ function CreateBookingMultiPassenger({ flightId }) {
             cursor: "pointer",
             transition: "background-color 0.2s"
           }}
-          onMouseEnter={(e) => e.target.style.backgroundColor = "#1a2439"}
-          onMouseLeave={(e) => e.target.style.backgroundColor = "#0b1220"}
+          onMouseEnter={(e) => e.target.style.backgroundColor = "var(--primary-dark)"}
+          onMouseLeave={(e) => e.target.style.backgroundColor = "var(--primary)"}
         >
           Start Multi-Passenger Booking
         </button>
@@ -801,18 +800,18 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
   
   return (
     <div className="light-card" style={{
-      background: "white",
+      background: "var(--surface)",
       padding: "30px",
-      borderRadius: "10px",
-      boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+      borderRadius: "12px",
+      boxShadow: "0 4px 6px -1px var(--shadow), 0 2px 4px -2px var(--shadow)",
       marginBottom: "30px",
-      border: "1px solid #e0e0e0",
+      border: "1px solid var(--border)",
       maxWidth: "800px",
       margin: "0 auto",
-      color: "#212529"
+      color: "var(--text-primary)"
     }}>
       <h3 style={{
-        color: "#0b1220",
+        color: "var(--text-primary)",
         marginBottom: "20px",
         fontSize: "24px",
         fontWeight: "600",
@@ -827,35 +826,35 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
         gap: "20px",
         marginBottom: "25px",
         padding: "15px",
-        backgroundColor: "#f8f9fa",
+        backgroundColor: "var(--background)",
         borderRadius: "8px"
       }}>
         <div>
           <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "5px" }}>From</div>
-          <div style={{ fontSize: "18px", fontWeight: "600", color: "#0b1220" }}>{flight.departure_airport_code}</div>
+          <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>{flight.departure_airport_code}</div>
         </div>
         
         <div>
           <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "5px" }}>To</div>
-          <div style={{ fontSize: "18px", fontWeight: "600", color: "#0b1220" }}>{flight.arrival_airport_code}</div>
+          <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>{flight.arrival_airport_code}</div>
         </div>
         
         <div>
           <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "5px" }}>Date</div>
-          <div style={{ fontSize: "18px", fontWeight: "600", color: "#0b1220" }}>
+          <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>
             {new Date(flight.departure_time).toLocaleDateString()}
           </div>
         </div>
         
         <div>
           <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "5px" }}>Price</div>
-          <div style={{ fontSize: "18px", fontWeight: "600", color: "#0b1220" }}>KES {flight.price}</div>
+          <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>KES {flight.price}</div>
         </div>
       </div>
       
       <div style={{ marginBottom: "25px" }}>
         <h4 style={{
-          color: "#0b1220",
+          color: "var(--text-primary)",
           marginBottom: "15px",
           fontSize: "20px",
           fontWeight: "600"
@@ -884,12 +883,12 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
                 borderRadius: "4px",
                 fontSize: "14px",
                 textTransform: "uppercase",
-                backgroundColor: user && (user.full_name === passenger.full_name || user.username === passenger.full_name) ? "#f8f9fa" : "white",
+                backgroundColor: user && (user.full_name === passenger.full_name || user.username === passenger.full_name) ? "var(--background)" : "var(--surface)",
                 cursor: user && (user.full_name === passenger.full_name || user.username === passenger.full_name) ? "not-allowed" : "auto"
               }}
             />
             {user && (user.full_name === passenger.full_name || user.username === passenger.full_name) && (
-              <small style={{ color: "#6c757d", fontSize: "12px" }}>
+              <small style={{ color: "var(--text-secondary)", fontSize: "12px" }}>
                 Retrieved from your profile (cannot be edited)
               </small>
             )}
@@ -922,7 +921,7 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
                 border: "1px solid #ced4da",
                 borderRadius: "4px",
                 fontSize: "14px",
-                backgroundColor: profileLocked ? "#f8f9fa" : "white",
+                backgroundColor: profileLocked ? "var(--background)" : "var(--surface)",
                 cursor: profileLocked ? "not-allowed" : "pointer"
               }}
             >
@@ -992,7 +991,7 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
                     border: "1px solid #ced4da",
                     borderRadius: "4px",
                     fontSize: "14px",
-                    backgroundColor: profileLocked ? "#f8f9fa" : "white",
+                    backgroundColor: profileLocked ? "var(--background)" : "var(--surface)",
                     cursor: profileLocked ? "not-allowed" : "pointer"
                   }}
                 >
@@ -1065,7 +1064,7 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
                   borderRadius: "4px",
                   fontSize: "14px",
                   minWidth: "100px",
-                  backgroundColor: profileLocked ? "#f8f9fa" : "white",
+                  backgroundColor: profileLocked ? "var(--background)" : "var(--surface)",
                   cursor: profileLocked ? "not-allowed" : "pointer"
                 }}
               >
@@ -1108,7 +1107,7 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
                   border: "1px solid #ced4da",
                   borderRadius: "4px",
                   fontSize: "14px",
-                  backgroundColor: profileLocked ? "#f8f9fa" : "white",
+                  backgroundColor: profileLocked ? "var(--background)" : "var(--surface)",
                   cursor: profileLocked ? "not-allowed" : "auto"
                 }}
               />
@@ -1124,7 +1123,7 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
       
       <div style={{ marginBottom: "25px" }}>
         <h4 style={{
-          color: "#0b1220",
+          color: "var(--text-primary)",
           marginBottom: "15px",
           fontSize: "20px",
           fontWeight: "600"
@@ -1139,12 +1138,12 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
           padding: "10px",
           border: "2px solid #dee2e6",
           borderRadius: "8px",
-          backgroundColor: "#f8f9fa",
+          backgroundColor: "var(--background)",
           position: "relative",
           maxWidth: "100%",
           overflowX: "auto"
         }}>
-          <div style={{ marginBottom: "20px", fontWeight: "bold", fontSize: "18px", color: "#0b1220" }}>Aircraft Cabin Layout</div>
+          <div style={{ marginBottom: "20px", fontWeight: "bold", fontSize: "18px", color: "var(--text-primary)" }}>Aircraft Cabin Layout</div>
           
           {/* Front of plane indicator */}
           <div style={{ 
@@ -1234,7 +1233,7 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
           onClick={handleSubmit}
           disabled={loading}
           style={{
-            backgroundColor: loading ? "#6c757d" : "#0b1220",
+            backgroundColor: loading ? "var(--text-secondary)" : "var(--primary)",
             color: "white",
             border: "none",
             padding: "12px 30px",
@@ -1244,8 +1243,8 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
             cursor: loading ? "not-allowed" : "pointer",
             transition: "background-color 0.2s"
           }}
-          onMouseEnter={(e) => !loading && (e.target.style.backgroundColor = "#1a2439")}
-          onMouseLeave={(e) => !loading && (e.target.style.backgroundColor = "#0b1220")}
+          onMouseEnter={(e) => !loading && (e.target.style.backgroundColor = "var(--primary-dark)")}
+          onMouseLeave={(e) => !loading && (e.target.style.backgroundColor = "var(--primary)")}
         >
           {loading ? "Creating Booking..." : "Create Booking"}
         </button>

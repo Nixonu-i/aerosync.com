@@ -6,16 +6,15 @@ import PesapalPaymentModal from "../../components/PesapalPaymentModal";
 
 /* ─── Theme ──────────────────────────────────────────────── */
 const teal  = "#20c997";
-const DARK  = "rgba(5, 19, 30, 0.90)";
-const CARD  = { background: DARK, border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", padding: "20px", marginBottom: "20px" };
+const CARD  = { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px", padding: "20px", marginBottom: "20px" };
 
 const inputStyle = {
   width: "100%", padding: "9px 14px", borderRadius: "7px",
-  border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.07)",
-  color: "#fff", fontSize: "14px", outline: "none", boxSizing: "border-box",
+  border: "1px solid var(--border)", background: "var(--background)",
+  color: "var(--text-primary)", fontSize: "14px", outline: "none", boxSizing: "border-box",
 };
 const labelStyle = {
-  display: "block", color: "rgba(255,255,255,0.55)", fontSize: "11px",
+  display: "block", color: "var(--text-secondary)", fontSize: "11px",
   marginBottom: "5px", textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 700,
 };
 
@@ -64,7 +63,7 @@ function PassengerForm({ index, data, onChange, onRemove, showRemove }) {
   const isAdult = data.passenger_type === "ADULT";
 
   return (
-    <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px", padding: "16px", marginBottom: "12px" }}>
+    <div style={{ background: "var(--background)", border: "1px solid var(--border)", borderRadius: "10px", padding: "16px", marginBottom: "12px" }}>
 
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
@@ -85,9 +84,9 @@ function PassengerForm({ index, data, onChange, onRemove, showRemove }) {
             <button key={val} type="button" onClick={() => set("passenger_type", val)}
               style={{
                 flex: 1, padding: "9px 6px", borderRadius: "7px", cursor: "pointer",
-                border: `1px solid ${data.passenger_type === val ? teal : "rgba(255,255,255,0.15)"}`,
-                background: data.passenger_type === val ? "rgba(32,201,151,0.15)" : "rgba(255,255,255,0.03)",
-                color: data.passenger_type === val ? teal : "rgba(255,255,255,0.45)",
+                border: `1px solid ${data.passenger_type === val ? teal : "var(--border)"}`,
+                background: data.passenger_type === val ? "rgba(32,201,151,0.15)" : "var(--background)",
+                color: data.passenger_type === val ? teal : "var(--text-secondary)",
                 textAlign: "center", transition: "all 0.15s",
               }}>
               <div style={{ fontWeight: 700, fontSize: "12px" }}>{label}</div>
@@ -117,8 +116,8 @@ function PassengerForm({ index, data, onChange, onRemove, showRemove }) {
         <div>
           <label style={labelStyle}>Nationality *</label>
           <select value={data.nationality} style={inputStyle} onChange={e => set("nationality", e.target.value)}>
-            <option value="" style={{ background: "#0b1220" }}>— Select —</option>
-            {NATIONALITIES.map(n => <option key={n} value={n} style={{ background: "#0b1220" }}>{n}</option>)}
+            <option value="" style={{ background: "var(--surface)" }}>— Select —</option>
+            {NATIONALITIES.map(n => <option key={n} value={n} style={{ background: "var(--surface)" }}>{n}</option>)}
           </select>
         </div>
 
@@ -128,10 +127,10 @@ function PassengerForm({ index, data, onChange, onRemove, showRemove }) {
             <div>
               <label style={labelStyle}>Gender *</label>
               <select value={data.gender} style={inputStyle} onChange={e => set("gender", e.target.value)}>
-                <option value="" style={{ background: "#0b1220" }}>— Select —</option>
-                <option value="MALE"   style={{ background: "#0b1220" }}>Male</option>
-                <option value="FEMALE" style={{ background: "#0b1220" }}>Female</option>
-                <option value="OTHER"  style={{ background: "#0b1220" }}>Other</option>
+                <option value="" style={{ background: "var(--surface)" }}>— Select —</option>
+                <option value="MALE"   style={{ background: "var(--surface)" }}>Male</option>
+                <option value="FEMALE" style={{ background: "var(--surface)" }}>Female</option>
+                <option value="OTHER"  style={{ background: "var(--surface)" }}>Other</option>
               </select>
             </div>
             <div style={{ gridColumn: "1 / -1" }}>
@@ -142,7 +141,7 @@ function PassengerForm({ index, data, onChange, onRemove, showRemove }) {
                   style={{ ...inputStyle, width: "160px", flexShrink: 0 }}
                   onChange={e => set("phone_area_code", e.target.value)}>
                   {AREA_CODES.map(ac => (
-                    <option key={ac.value} value={ac.value} style={{ background: "#0b1220" }}>{ac.label}</option>
+                    <option key={ac.value} value={ac.value} style={{ background: "var(--surface)" }}>{ac.label}</option>
                   ))}
                 </select>
                 <input
@@ -197,9 +196,9 @@ function renderSeatBtn(seat, assignments, onSeatClick, onSeatUnclick) {
       title={assigned ? `Unassign P${asgn.passenger_index + 1}` : avail ? seat.seat_number : "Taken"}
       style={{
         width: "36px", height: "34px", margin: "0 2px", borderRadius: "5px",
-        border: assigned ? `2px solid ${teal}` : avail ? "1px solid rgba(255,255,255,0.28)" : "1px solid rgba(255,255,255,0.08)",
-        background: assigned ? teal : avail ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.02)",
-        color: assigned ? "#fff" : avail ? "rgba(255,255,255,0.75)" : "rgba(255,255,255,0.18)",
+        border: assigned ? `2px solid ${teal}` : avail ? "1px solid var(--border)" : "1px solid rgba(128,128,128,0.15)",
+        background: assigned ? teal : avail ? "var(--surface)" : "rgba(128,128,128,0.05)",
+        color: assigned ? "#fff" : avail ? "var(--text-primary)" : "rgba(128,128,128,0.3)",
         cursor: taken ? "not-allowed" : "pointer",
         fontSize: "11px", fontWeight: 700, padding: 0,
         display: "flex", alignItems: "center", justifyContent: "center",
@@ -227,12 +226,12 @@ function AirplaneLayout({ seats, assignments, onSeatClick, onSeatUnclick }) {
       {/* Header labels */}
       <div style={{ display: "flex", marginBottom: "6px", paddingLeft: "28px" }}>
         {["A","B","","D","E","F"].map((l, i) => (
-          <div key={i} style={{ width: l === "" ? "20px" : "40px", textAlign: "center", color: "rgba(255,255,255,0.35)", fontSize: "11px", fontWeight: 700 }}>{l}</div>
+          <div key={i} style={{ width: l === "" ? "20px" : "40px", textAlign: "center", color: "var(--text-secondary)", fontSize: "11px", fontWeight: 700, opacity: 0.6 }}>{l}</div>
         ))}
       </div>
       {Object.entries(rows).sort(([a], [b]) => parseInt(a) - parseInt(b)).map(([rowNum, rowSeats]) => (
         <div key={rowNum} style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
-          <div style={{ width: "24px", textAlign: "right", fontSize: "10px", color: "rgba(255,255,255,0.3)", marginRight: "4px", flexShrink: 0 }}>{rowNum}</div>
+          <div style={{ width: "24px", textAlign: "right", fontSize: "10px", color: "var(--text-secondary)", marginRight: "4px", flexShrink: 0, opacity: 0.5 }}>{rowNum}</div>
           {renderSeatBtn(rowSeats[0], assignments, onSeatClick, onSeatUnclick)}
           {renderSeatBtn(rowSeats[1], assignments, onSeatClick, onSeatUnclick)}
           <div style={{ width: "20px", flexShrink: 0 }} />
@@ -253,24 +252,24 @@ function SeatAssignModal({ seat, passengers, assignments, onAssign, onClose }) {
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-      <div style={{ background: "#0b1220", border: `1px solid ${teal}`, borderRadius: "14px", padding: "24px", width: "90%", maxWidth: "380px" }}>
-        <div style={{ color: "#fff", fontWeight: 800, fontSize: "16px", marginBottom: "4px" }}>Assign Seat {seat.seat_number}</div>
-        <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "13px", marginBottom: "18px" }}>Select a passenger for this seat:</div>
+      <div style={{ background: "var(--surface)", border: `1px solid ${teal}`, borderRadius: "14px", padding: "24px", width: "90%", maxWidth: "380px" }}>
+        <div style={{ color: "var(--text-primary)", fontWeight: 800, fontSize: "16px", marginBottom: "4px" }}>Assign Seat {seat.seat_number}</div>
+        <div style={{ color: "var(--text-secondary)", fontSize: "13px", marginBottom: "18px" }}>Select a passenger for this seat:</div>
         {unassigned.length === 0 ? (
-          <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "14px", textAlign: "center", marginBottom: "16px" }}>All passengers already have seats.</div>
+          <div style={{ color: "var(--text-secondary)", fontSize: "14px", textAlign: "center", marginBottom: "16px" }}>All passengers already have seats.</div>
         ) : (
           unassigned.map(({ p, i }) => (
             <button key={i} type="button" onClick={() => onAssign(seat.seat_id, i)}
-              style={{ width: "100%", background: "rgba(32,201,151,0.08)", border: "1px solid rgba(32,201,151,0.25)", borderRadius: "8px", padding: "12px 16px", marginBottom: "8px", cursor: "pointer", textAlign: "left", color: "#fff" }}>
+              style={{ width: "100%", background: "rgba(32,201,151,0.08)", border: "1px solid rgba(32,201,151,0.25)", borderRadius: "8px", padding: "12px 16px", marginBottom: "8px", cursor: "pointer", textAlign: "left", color: "var(--text-primary)" }}>
               <div style={{ fontWeight: 700, fontSize: "14px" }}>
                 Passenger {i + 1}{p.full_name ? ` — ${p.full_name}` : ""}
               </div>
-              <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.45)", marginTop: "2px" }}>{p.passenger_type}</div>
+              <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "2px" }}>{p.passenger_type}</div>
             </button>
           ))
         )}
         <button type="button" onClick={onClose}
-          style={{ width: "100%", marginTop: "4px", background: "rgba(255,255,255,0.07)", color: "#fff", border: "1px solid rgba(255,255,255,0.18)", borderRadius: "8px", padding: "10px", cursor: "pointer", fontWeight: 600 }}>
+          style={{ width: "100%", marginTop: "4px", background: "var(--background)", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: "8px", padding: "10px", cursor: "pointer", fontWeight: 600 }}>
           Cancel
         </button>
       </div>
@@ -326,10 +325,10 @@ function PaymentModal({ booking, providers, onClose, onPaid }) {
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-      <div style={{ background: "#0b1220", border: `1px solid ${teal}`, borderRadius: "14px", padding: "28px", width: "90%", maxWidth: "440px", maxHeight: "90vh", overflowY: "auto" }}>
-        <div style={{ color: "#fff", fontWeight: 800, fontSize: "18px", marginBottom: "2px" }}>Payment Details</div>
-        <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "13px", marginBottom: "20px" }}>
-          Ref: <strong style={{ color: "#fff" }}>{booking.confirmation_code}</strong>
+      <div style={{ background: "var(--surface)", border: `1px solid ${teal}`, borderRadius: "14px", padding: "28px", width: "90%", maxWidth: "440px", maxHeight: "90vh", overflowY: "auto" }}>
+        <div style={{ color: "var(--text-primary)", fontWeight: 800, fontSize: "18px", marginBottom: "2px" }}>Payment Details</div>
+        <div style={{ color: "var(--text-secondary)", fontSize: "13px", marginBottom: "20px" }}>
+          Ref: <strong style={{ color: "var(--text-primary)" }}>{booking.confirmation_code}</strong>
         </div>
 
         {errMsg && (
@@ -344,8 +343,8 @@ function PaymentModal({ booking, providers, onClose, onPaid }) {
             onChange={e => { setProvider(e.target.value); setDetails({}); setErrMsg(""); }}
             style={inputStyle}
           >
-            <option value="" style={{ background: "#0b1220" }}>— Select Provider —</option>
-            {providers.map(p => <option key={p.id} value={p.id} style={{ background: "#0b1220" }}>{p.name}</option>)}
+            <option value="" style={{ background: "var(--surface)" }}>— Select Provider —</option>
+            {providers.map(p => <option key={p.id} value={p.id} style={{ background: "var(--surface)" }}>{p.name}</option>)}
           </select>
         </div>
 
@@ -360,7 +359,7 @@ function PaymentModal({ booking, providers, onClose, onPaid }) {
               placeholder="254712345678"
               style={inputStyle}
             />
-            <small style={{ color: "rgba(255,255,255,0.35)", fontSize: "11px" }}>Enter number in international format (254…)</small>
+            <small style={{ color: "var(--text-secondary)", fontSize: "11px" }}>Enter number in international format (254…)</small>
           </div>
         )}
 
@@ -418,7 +417,7 @@ function PaymentModal({ booking, providers, onClose, onPaid }) {
           <div style={{ marginBottom: "16px" }}>
             {bd ? (
               <div style={{ background: "rgba(32,201,151,0.07)", border: "1px solid rgba(32,201,151,0.25)", borderRadius: "8px", padding: "16px" }}>
-                <div style={{ color: "#fff", fontWeight: 700, fontSize: "13px", marginBottom: "12px" }}>Transfer to the following account:</div>
+                <div style={{ color: "var(--text-primary)", fontWeight: 700, fontSize: "13px", marginBottom: "12px" }}>Transfer to the following account:</div>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                   <tbody>
                     {[
@@ -429,18 +428,18 @@ function PaymentModal({ booking, providers, onClose, onPaid }) {
                       ["Payment Reference", booking.confirmation_code],
                     ].map(([label, value]) => (
                       <tr key={label}>
-                        <td style={{ padding: "5px 0", color: "rgba(255,255,255,0.5)", width: "45%" }}>{label}</td>
-                        <td style={{ padding: "5px 0", color: label === "Payment Reference" ? teal : "#fff", fontWeight: label === "Payment Reference" ? 700 : 400 }}>{value || "—"}</td>
+                        <td style={{ padding: "5px 0", color: "var(--text-secondary)", width: "45%" }}>{label}</td>
+                        <td style={{ padding: "5px 0", color: label === "Payment Reference" ? teal : "var(--text-primary)", fontWeight: label === "Payment Reference" ? 700 : 400 }}>{value || "—"}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                <p style={{ margin: "12px 0 0", fontSize: "11px", color: "rgba(255,255,255,0.4)" }}>
+                <p style={{ margin: "12px 0 0", fontSize: "11px", color: "var(--text-secondary)" }}>
                   Use booking reference <strong style={{ color: teal }}>{booking.confirmation_code}</strong> as the payment reference. Click “Process Payment” once the transfer is made.
                 </p>
               </div>
             ) : (
-              <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "13px" }}>Loading bank details…</div>
+              <div style={{ color: "var(--text-secondary)", fontSize: "13px" }}>Loading bank details…</div>
             )}
           </div>
         )}
@@ -453,7 +452,7 @@ function PaymentModal({ booking, providers, onClose, onPaid }) {
 
         <div style={{ display: "flex", gap: "10px" }}>
           <button type="button" onClick={onClose}
-            style={{ flex: 1, background: "rgba(255,255,255,0.07)", color: "#fff", border: "1px solid rgba(255,255,255,0.18)", borderRadius: "8px", padding: "11px", cursor: "pointer", fontWeight: 600 }}>
+            style={{ flex: 1, background: "var(--surface)", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: "8px", padding: "11px", cursor: "pointer", fontWeight: 600 }}>
             Cancel
           </button>
           <button type="button" onClick={submit} disabled={busy}
@@ -479,18 +478,24 @@ function StepBar({ step }) {
           <div key={n} style={{ display: "flex", alignItems: "center", gap: "6px", flex: "0 0 auto" }}>
             <div style={{
               width: "28px", height: "28px", borderRadius: "50%",
-              background: done ? teal : active ? "#fff" : "rgba(255,255,255,0.12)",
-              color: done ? "#fff" : active ? "#0b1220" : "rgba(255,255,255,0.4)",
+              background: done ? teal : active ? teal : "var(--background)",
+              color: done ? "#fff" : active ? "#fff" : "var(--text-secondary)",
               display: "flex", alignItems: "center", justifyContent: "center",
               fontWeight: 800, fontSize: "13px", flexShrink: 0,
-              border: active ? `2px solid ${teal}` : "none",
+              border: active ? `2px solid ${teal}` : done ? "2px solid transparent" : "1px solid var(--border)",
+              boxShadow: active ? `0 0 12px rgba(32,201,151,0.4)` : "none",
             }}>
               {done ? "✓" : n}
             </div>
-            <span style={{ color: active ? "#fff" : done ? teal : "rgba(255,255,255,0.4)", fontSize: "13px", fontWeight: active ? 700 : 400 }}>
+            <span style={{ 
+              color: active ? "#0f172a" : done ? teal : "var(--text-secondary)", 
+              fontSize: "13px", 
+              fontWeight: active ? 700 : 400,
+              textShadow: active ? "0 0 10px rgba(255,255,255,0.3)" : "none"
+            }}>
               {label}
             </span>
-            {i < 2 && <div style={{ width: "24px", height: "2px", background: done ? teal : "rgba(255,255,255,0.12)", margin: "0 4px" }} />}
+            {i < 2 && <div style={{ width: "24px", height: "2px", background: done ? teal : "var(--border)", margin: "0 4px" }} />}
           </div>
         );
       })}
@@ -707,7 +712,7 @@ export default function AgentCreateBooking() {
             <span style={{ fontSize: "40px" }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
             <div>
               <div style={{ color: "#28a745", fontWeight: 800, fontSize: "20px" }}>Booking Created!</div>
-              <div style={{ color: "rgba(255,255,255,0.6)", fontSize: "14px", marginTop: "3px" }}>Awaiting payment to confirm.</div>
+              <div style={{ color: "rgba(40,167,69,0.8)", fontSize: "14px", marginTop: "3px" }}>Awaiting payment to confirm.</div>
             </div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "10px", marginBottom: "20px" }}>
@@ -720,9 +725,9 @@ export default function AgentCreateBooking() {
               ["Amount", `KES ${Number(booking.total_amount || 0).toLocaleString()}`],
               ["Status", "PENDING"],
             ].map(([lbl, val]) => (
-              <div key={lbl} style={{ background: "rgba(5,19,30,0.7)", borderRadius: "8px", padding: "10px 14px" }}>
-                <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: "3px" }}>{lbl}</div>
-                <div style={{ color: "#fff", fontWeight: 700, fontSize: "14px" }}>{val}</div>
+              <div key={lbl} style={{ background: "var(--background)", borderRadius: "8px", padding: "10px 14px" }}>
+                <div style={{ color: "var(--text-secondary)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: "3px" }}>{lbl}</div>
+                <div style={{ color: "var(--text-primary)", fontWeight: 700, fontSize: "14px" }}>{val}</div>
               </div>
             ))}
           </div>
@@ -733,7 +738,7 @@ export default function AgentCreateBooking() {
           )}
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
             <button type="button" onClick={resetAll}
-              style={{ background: "rgba(255,255,255,0.08)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px", padding: "11px 22px", cursor: "pointer", fontWeight: 600 }}>
+              style={{ background: "var(--surface)", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: "8px", padding: "11px 22px", cursor: "pointer", fontWeight: 600 }}>
               + New Booking
             </button>
             <button type="button" onClick={() => setShowPesapalModal(true)}
@@ -762,8 +767,8 @@ export default function AgentCreateBooking() {
   /* ── Render: Wizard Steps ── */
   return (
     <div style={{ maxWidth: "780px", paddingBottom: "40px" }}>
-      <h2 style={{ color: "#fff", fontWeight: 800, margin: "0 0 6px" }}>Create Booking</h2>
-      <p style={{ color: "rgba(255,255,255,0.45)", fontSize: "14px", marginBottom: "24px" }}>
+      <h2 style={{ color: "var(--text-primary)", fontWeight: 800, margin: "0 0 6px" }}>Create Booking</h2>
+      <p style={{ color: "var(--text-secondary)", fontSize: "14px", marginBottom: "24px" }}>
         Book a flight for a walk-in customer. Payment is required to confirm.
       </p>
 
@@ -781,7 +786,7 @@ export default function AgentCreateBooking() {
         <>
           {/* Flight select */}
           <div style={CARD}>
-            <h3 style={{ color: "#fff", fontSize: "15px", margin: "0 0 16px", fontWeight: 700 }}>Select Flight</h3>
+            <h3 style={{ color: "var(--text-primary)", fontSize: "15px", margin: "0 0 16px", fontWeight: 700 }}>Select Flight</h3>
 
             {/* ── Search by flight number (any status) ── */}
             <div style={{ marginBottom: "16px" }}>
@@ -816,26 +821,26 @@ export default function AgentCreateBooking() {
               {flightSearchErr && (
                 <div style={{ color: "#ff6b78", fontSize: "12px", marginTop: "6px" }}>{flightSearchErr}</div>
               )}
-              <div style={{ color: "rgba(255,255,255,0.3)", fontSize: "11px", marginTop: "5px" }}>
+              <div style={{ color: "var(--text-secondary)", fontSize: "11px", marginTop: "5px" }}>
                 Searches all flights regardless of status. Use the dropdown below for upcoming scheduled flights.
               </div>
             </div>
 
-            <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", marginBottom: "14px" }} />
+            <div style={{ borderTop: "1px solid var(--border)", marginBottom: "14px" }} />
 
             {/* ── Upcoming flights dropdown ── */}
             <label style={labelStyle}>Upcoming Scheduled Flights</label>
             {flightsBusy ? (
-              <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "14px" }}>Loading flights…</div>
+              <div style={{ color: "var(--text-secondary)", fontSize: "14px" }}>Loading flights…</div>
             ) : (
               <select
                 value={flightId}
                 onChange={e => { setFlightId(e.target.value); setSeatAssignments([]); }}
                 style={inputStyle}
               >
-                <option value="" style={{ background: "#0b1220" }}>— Select a flight —</option>
+                <option value="" style={{ background: "var(--surface)" }}>— Select a flight —</option>
                 {flights.map(f => (
-                  <option key={f.id} value={f.id} style={{ background: "#0b1220" }}>
+                  <option key={f.id} value={f.id} style={{ background: "var(--surface)" }}>
                     {f.flight_number} · {f.departure_airport_code || f.departure_airport?.code || "?"} → {f.arrival_airport_code || f.arrival_airport?.code || "?"} · {fmt(f.departure_time)}{f.status !== "SCHEDULED" ? ` [${f.status}]` : ""}
                   </option>
                 ))}
@@ -850,7 +855,7 @@ export default function AgentCreateBooking() {
                   ["Price",    `KES ${Number(selectedFlight.price || 0).toLocaleString()} / person`],
                   ["Airline",  selectedFlight.airline || "—"],
                 ].map(([lbl, val]) => (
-                  <span key={lbl}><strong style={{ color: teal }}>{lbl}:</strong> <span style={{ color: "rgba(255,255,255,0.75)" }}>{val}</span></span>
+                  <span key={lbl}><strong style={{ color: teal }}>{lbl}:</strong> <span style={{ color: "var(--text-primary)" }}>{val}</span></span>
                 ))}
               </div>
             )}
@@ -859,7 +864,7 @@ export default function AgentCreateBooking() {
           {/* Passengers */}
           <div style={CARD}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-              <h3 style={{ color: "#fff", fontSize: "15px", margin: 0, fontWeight: 700 }}>Passengers ({passengers.length})</h3>
+              <h3 style={{ color: "var(--text-primary)", fontSize: "15px", margin: 0, fontWeight: 700 }}>Passengers ({passengers.length})</h3>
               <button type="button" onClick={addPassenger}
                 style={{ background: "rgba(32,201,151,0.12)", color: teal, border: `1px solid rgba(32,201,151,0.35)`, borderRadius: "6px", padding: "6px 14px", cursor: "pointer", fontSize: "13px", fontWeight: 700 }}>
                 + Add
@@ -874,7 +879,7 @@ export default function AgentCreateBooking() {
           {/* Total */}
           {selectedFlight && (
             <div style={{ background: "rgba(32,201,151,0.07)", border: "1px solid rgba(32,201,151,0.2)", borderRadius: "10px", padding: "14px 18px", marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
-              <span style={{ color: "rgba(255,255,255,0.65)", fontSize: "14px" }}>
+              <span style={{ color: "var(--text-secondary)", fontSize: "14px" }}>
                 {passengers.length} × KES {Number(selectedFlight.price || 0).toLocaleString()}
               </span>
               <span style={{ color: teal, fontWeight: 800, fontSize: "20px" }}>
@@ -894,7 +899,7 @@ export default function AgentCreateBooking() {
       {step === 2 && (
         <>
           <div style={CARD}>
-            <h3 style={{ color: "#fff", fontSize: "15px", margin: "0 0 16px", fontWeight: 700 }}>Select Seats</h3>
+            <h3 style={{ color: "var(--text-primary)", fontSize: "15px", margin: "0 0 16px", fontWeight: 700 }}>Select Seats</h3>
 
             {/* Passenger assignment summary */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "18px" }}>
@@ -903,12 +908,12 @@ export default function AgentCreateBooking() {
                 const seat = asgn ? seats.find(s => s.seat_id === asgn.seat_id) : null;
                 return (
                   <div key={i} style={{
-                    background: seat ? "rgba(32,201,151,0.12)" : "rgba(255,255,255,0.05)",
-                    border: `1px solid ${seat ? "rgba(32,201,151,0.35)" : "rgba(255,255,255,0.12)"}`,
+                    background: seat ? "rgba(32,201,151,0.12)" : "var(--background)",
+                    border: `1px solid ${seat ? "rgba(32,201,151,0.35)" : "var(--border)"}`,
                     borderRadius: "8px", padding: "8px 14px", fontSize: "13px",
                   }}>
-                    <div style={{ color: "#fff", fontWeight: 600 }}>P{i + 1} {p.full_name || "(unnamed)"}</div>
-                    <div style={{ color: seat ? teal : "rgba(255,255,255,0.4)", fontSize: "12px", marginTop: "2px" }}>
+                    <div style={{ color: "var(--text-primary)", fontWeight: 600 }}>P{i + 1} {p.full_name || "(unnamed)"}</div>
+                    <div style={{ color: seat ? teal : "var(--text-secondary)", fontSize: "12px", marginTop: "2px" }}>
                       {seat ? `Seat ${seat.seat_number}` : "No seat yet"}
                     </div>
                   </div>
@@ -956,7 +961,7 @@ export default function AgentCreateBooking() {
 
           <div style={{ display: "flex", gap: "12px" }}>
             <button type="button" onClick={() => { setStep(1); setErr(""); }}
-              style={{ background: "rgba(255,255,255,0.08)", color: "#fff", border: "1px solid rgba(255,255,255,0.18)", borderRadius: "8px", padding: "12px 24px", cursor: "pointer", fontWeight: 600 }}>
+              style={{ background: "var(--surface)", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: "8px", padding: "12px 24px", cursor: "pointer", fontWeight: 600 }}>
               ← Back
             </button>
             <button type="button" onClick={goToStep3}
@@ -971,13 +976,13 @@ export default function AgentCreateBooking() {
       {step === 3 && selectedFlight && (
         <>
           <div style={CARD}>
-            <h3 style={{ color: "#fff", fontSize: "15px", margin: "0 0 16px", fontWeight: 700 }}>Review Booking</h3>
+            <h3 style={{ color: "var(--text-primary)", fontSize: "15px", margin: "0 0 16px", fontWeight: 700 }}>Review Booking</h3>
 
             {/* Flight */}
             <div style={{ background: "rgba(32,201,151,0.07)", border: "1px solid rgba(32,201,151,0.18)", borderRadius: "8px", padding: "14px 16px", marginBottom: "16px" }}>
-              <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>Flight</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", fontSize: "14px", color: "rgba(255,255,255,0.8)" }}>
-                <span><strong style={{ color: "#fff" }}>{selectedFlight.flight_number}</strong></span>
+              <div style={{ color: "var(--text-secondary)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>Flight</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", fontSize: "14px", color: "var(--text-primary)" }}>
+                <span><strong style={{ color: "var(--text-primary)" }}>{selectedFlight.flight_number}</strong></span>
                 <span>{selectedFlight.departure_airport?.code || selectedFlight.departure_airport_code || "?"} → {selectedFlight.arrival_airport?.code || selectedFlight.arrival_airport_code || "?"}</span>
                 <span>{fmt(selectedFlight.departure_time)}</span>
                 <span>{selectedFlight.airline}</span>
@@ -986,18 +991,18 @@ export default function AgentCreateBooking() {
 
             {/* Passengers + Seats */}
             <div style={{ marginBottom: "16px" }}>
-              <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>Passengers & Seats</div>
+              <div style={{ color: "var(--text-secondary)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>Passengers & Seats</div>
               {passengers.map((p, i) => {
                 const asgn = seatAssignments.find(a => a.passenger_index === i);
                 const seat = asgn ? seats.find(s => s.seat_id === asgn.seat_id) : null;
                 return (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "rgba(255,255,255,0.04)", borderRadius: "8px", marginBottom: "6px" }}>
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "var(--background)", borderRadius: "8px", marginBottom: "6px" }}>
                     <div>
-                      <div style={{ color: "#fff", fontWeight: 600, fontSize: "14px" }}>
+                      <div style={{ color: "var(--text-primary)", fontWeight: 600, fontSize: "14px" }}>
                         {p.full_name || `Passenger ${i + 1}`}
-                        <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 400, fontSize: "12px", marginLeft: "8px" }}>{p.passenger_type}</span>
+                        <span style={{ color: "var(--text-secondary)", fontWeight: 400, fontSize: "12px", marginLeft: "8px" }}>{p.passenger_type}</span>
                       </div>
-                      <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "12px", marginTop: "2px" }}>{p.nationality}</div>
+                      <div style={{ color: "var(--text-secondary)", fontSize: "12px", marginTop: "2px" }}>{p.nationality}</div>
                     </div>
                     <div style={{ color: teal, fontWeight: 700, fontSize: "15px" }}>
                       {seat ? `Seat ${seat.seat_number}` : "—"}
@@ -1008,19 +1013,19 @@ export default function AgentCreateBooking() {
             </div>
 
             {/* Total */}
-            <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: "14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ color: "rgba(255,255,255,0.55)", fontSize: "14px" }}>{passengers.length} passenger(s) × KES {Number(selectedFlight.price || 0).toLocaleString()}</span>
+            <div style={{ borderTop: "1px solid var(--border)", paddingTop: "14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ color: "var(--text-secondary)", fontSize: "14px" }}>{passengers.length} passenger(s) × KES {Number(selectedFlight.price || 0).toLocaleString()}</span>
               <span style={{ color: teal, fontWeight: 800, fontSize: "20px" }}>KES {(Number(selectedFlight.price || 0) * passengers.length).toLocaleString()}</span>
             </div>
           </div>
 
-          <div style={{ background: "rgba(253,126,20,0.08)", border: "1px solid rgba(253,126,20,0.25)", borderRadius: "8px", padding: "12px 16px", marginBottom: "20px", fontSize: "13px", color: "rgba(255,255,255,0.7)" }}>
+          <div style={{ background: "rgba(253,126,20,0.08)", border: "1px solid rgba(253,126,20,0.25)", borderRadius: "8px", padding: "12px 16px", marginBottom: "20px", fontSize: "13px", color: "var(--text-primary)" }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> Booking will be created as <strong style={{ color: "#fd7e14" }}>PENDING</strong>. Payment is required to confirm and generate the boarding pass.
           </div>
 
           <div style={{ display: "flex", gap: "12px" }}>
             <button type="button" onClick={() => { setStep(2); setErr(""); }}
-              style={{ background: "rgba(255,255,255,0.08)", color: "#fff", border: "1px solid rgba(255,255,255,0.18)", borderRadius: "8px", padding: "12px 24px", cursor: "pointer", fontWeight: 600 }}>
+              style={{ background: "var(--surface)", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: "8px", padding: "12px 24px", cursor: "pointer", fontWeight: 600 }}>
               ← Back
             </button>
             <button type="button" onClick={handleConfirm} disabled={submitting}

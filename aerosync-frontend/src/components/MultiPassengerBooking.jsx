@@ -279,7 +279,7 @@ export default function MultiPassengerBooking({ flight, onBookingComplete }) {
           <h4 style={{ marginBottom: "15px", color: "#0b1220" }}>Passengers</h4>
           {passengers.map((passenger, index) => (
             <div key={passenger.id} style={{
-              border: "1px solid #e0e0e0",
+              border: "1px solid var(--border)",
               borderRadius: "8px",
               padding: "15px",
               marginBottom: "15px",
@@ -499,7 +499,7 @@ export default function MultiPassengerBooking({ flight, onBookingComplete }) {
           </h4>
           
           <div style={{
-            border: "1px solid #e0e0e0",
+            border: "1px solid var(--border)",
             borderRadius: "8px",
             padding: "15px",
             backgroundColor: "white",
@@ -559,7 +559,7 @@ export default function MultiPassengerBooking({ flight, onBookingComplete }) {
       {/* Summary and Submit */}
       <div style={{
         backgroundColor: "white",
-        border: "1px solid #e0e0e0",
+        border: "1px solid var(--border)",
         borderRadius: "8px",
         padding: "20px",
         marginTop: "20px"

@@ -1,6 +1,7 @@
 import { useState, useContext } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import ThemeToggle from './ThemeToggle';
 
 export default function Navbar() {
   const { user, logout, loading } = useContext(AuthContext);
@@ -17,7 +18,7 @@ export default function Navbar() {
       <div className="as-navbar-inner">
         {/* Brand */}
         <Link to="/" className="as-navbar-brand">
-          <span style={{ color: "#d4af37" }}>AERO</span>SYNC
+          <span style={{ color: "var(--accent)" }}>AERO</span>SYNC
         </Link>
 
         {/* Centre nav links — hidden on mobile */}
@@ -50,9 +51,10 @@ export default function Navbar() {
         {/* Right user section — hidden on mobile */}
         <div className="as-navbar-user">
           {loading ? (
-            <span style={{ color: "white", fontSize: "14px" }}>Loading...</span>
+            <span style={{ color: "var(--text-primary)", fontSize: "14px" }}>Loading...</span>
           ) : (
             <>
+              <ThemeToggle />
               <button className="as-btn-logout" onClick={doLogout}>Logout</button>
             </>
           )}
@@ -96,6 +98,7 @@ export default function Navbar() {
         </NavLink>
         <div className="as-mobile-user-row">
           <span className="as-navbar-username">{user.username}</span>
+          <ThemeToggle />
           <button className="as-btn-logout" onClick={doLogout}>Logout</button>
         </div>
       </div>

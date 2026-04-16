@@ -170,8 +170,8 @@ export default function AgentVerifyQR() {
 
       {/* ── Page Header ── */}
       <div style={{ marginBottom: "24px" }}>
-        <h2 style={{ color: "#fff", fontWeight: 800, margin: "0 0 6px" }}>Verify Boarding Pass</h2>
-        <p style={{ color: "rgba(255,255,255,0.55)", fontSize: "14px", margin: 0, lineHeight: 1.6 }}>
+        <h2 style={{ color: "var(--text-primary)", fontWeight: 800, margin: "0 0 6px" }}>Verify Boarding Pass</h2>
+        <p style={{ color: "var(--text-secondary)", fontSize: "14px", margin: 0, lineHeight: 1.6 }}>
           Scan the passenger's QR code or paste it manually.&nbsp;
           <strong style={{ color: "#17a2b8" }}>CONFIRMED</strong> bookings are marked&nbsp;
           <strong style={{ color: green }}>ON BOARD</strong> automatically.
@@ -195,17 +195,17 @@ export default function AgentVerifyQR() {
             <div style={{ color: amber, fontWeight: 800, fontSize: "18px", marginBottom: "4px" }}>
               DUPLICATE SCAN — Passenger Already On Board!
             </div>
-            <div style={{ color: "rgba(255,255,255,0.85)", fontSize: "14px", lineHeight: 1.5 }}>
-              <strong style={{ color: "#fff" }}>{result.passenger_name}</strong> was previously scanned
+            <div style={{ color: "var(--text-primary)", fontSize: "14px", lineHeight: 1.5 }}>
+              <strong style={{ color: "var(--text-primary)" }}>{result.passenger_name}</strong> was previously scanned
               and is already marked as <strong style={{ color: amber }}>ON BOARD</strong>.
               Do not allow re-boarding without supervisor approval.
             </div>
-            <div style={{ marginTop: "10px", display: "flex", gap: "8px", flexWrap: "wrap", fontSize: "13px", color: "rgba(255,255,255,0.7)" }}>
-              <span>Ref: <strong style={{ color: "#fff" }}>{result.booking_reference}</strong></span>
+            <div style={{ marginTop: "10px", display: "flex", gap: "8px", flexWrap: "wrap", fontSize: "13px", color: "var(--text-secondary)" }}>
+              <span>Ref: <strong style={{ color: "var(--text-primary)" }}>{result.booking_reference}</strong></span>
               <span>·</span>
-              <span>Flight: <strong style={{ color: "#fff" }}>{result.flight_number}</strong></span>
+              <span>Flight: <strong style={{ color: "var(--text-primary)" }}>{result.flight_number}</strong></span>
               <span>·</span>
-              <span>Seat: <strong style={{ color: "#fff" }}>{result.seat_number || "—"}</strong></span>
+              <span>Seat: <strong style={{ color: "var(--text-primary)" }}>{result.seat_number || "—"}</strong></span>
             </div>
           </div>
         </div>
@@ -216,8 +216,8 @@ export default function AgentVerifyQR() {
         <div style={{ ...CARD, marginBottom: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <div>
-              <div style={{ color: "#fff", fontWeight: 700, fontSize: "15px" }}>Scan History</div>
-              <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "12px", marginTop: "2px" }}>
+              <div style={{ color: "var(--text-primary)", fontWeight: 700, fontSize: "15px" }}>Scan History</div>
+              <div style={{ color: "var(--text-secondary)", fontSize: "12px", marginTop: "2px" }}>
                 {historyLoading ? "Loading…" : `${scanHistory.length} passenger(s) scanned`}
               </div>
             </div>
@@ -226,9 +226,9 @@ export default function AgentVerifyQR() {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.12)" }}>
-                  {["Time", "Passenger", "Ref", "Flight", "Seat", "Status"].map(h => (
-                    <th key={h} style={{ textAlign: "left", padding: "8px 10px", color: "rgba(255,255,255,0.45)", fontWeight: 700, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", whiteSpace: "nowrap" }}>{h}</th>
+                <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                  { ["Time", "Passenger", "Ref", "Flight", "Seat", "Status"].map(h => (
+                    <th key={h} style={{ textAlign: "left", padding: "8px 10px", color: "var(--text-secondary)", fontWeight: 700, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -237,15 +237,15 @@ export default function AgentVerifyQR() {
                   const isOb = entry.already_onboard;
                   const s = STATUS_BADGE[entry.status] || { color: "#aaa" };
                   return (
-                    <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", background: isOb ? "rgba(253,126,20,0.06)" : "transparent" }}>
-                      <td style={{ padding: "9px 10px", color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>{entry.scannedAtFmt}</td>
-                      <td style={{ padding: "9px 10px", color: "#fff", fontWeight: 600, whiteSpace: "nowrap" }}>
+                    <tr key={i} style={{ borderBottom: "1px solid var(--border)", background: isOb ? "rgba(253,126,20,0.06)" : "transparent" }}>
+                      <td style={{ padding: "9px 10px", color: "var(--text-secondary)", whiteSpace: "nowrap" }}>{entry.scannedAtFmt}</td>
+                      <td style={{ padding: "9px 10px", color: "var(--text-primary)", fontWeight: 600, whiteSpace: "nowrap" }}>
                         {entry.passenger_name || "—"}
                         {isOb && <span style={{ marginLeft: "6px", display: "inline-flex", verticalAlign: "middle" }}><Icons.Warning size={13} color={amber} /></span>}
                       </td>
-                      <td style={{ padding: "9px 10px", color: "rgba(255,255,255,0.7)", fontFamily: "monospace", fontSize: "12px" }}>{entry.booking_reference}</td>
-                      <td style={{ padding: "9px 10px", color: "rgba(255,255,255,0.7)" }}>{entry.flight_number || "—"}</td>
-                      <td style={{ padding: "9px 10px", color: "rgba(255,255,255,0.7)" }}>{entry.seat_number || "—"}</td>
+                      <td style={{ padding: "9px 10px", color: "var(--text-secondary)", fontFamily: "monospace", fontSize: "12px" }}>{entry.booking_reference}</td>
+                      <td style={{ padding: "9px 10px", color: "var(--text-secondary)" }}>{entry.flight_number || "—"}</td>
+                      <td style={{ padding: "9px 10px", color: "var(--text-secondary)" }}>{entry.seat_number || "—"}</td>
                       <td style={{ padding: "9px 10px" }}>
                         <span style={{ color: s.color, fontWeight: 700, fontSize: "12px" }}>{entry.status}</span>
                       </td>
@@ -270,7 +270,7 @@ export default function AgentVerifyQR() {
             style={{ width: "100%", padding: "9px 14px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.2)", background: "rgba(5,19,30,0.9)", color: "#fff", fontSize: "14px", outline: "none" }}
           >
             {cameras.map(c => (
-              <option key={c.id} value={c.id} style={{ background: "#0b1220" }}>{c.label || c.id}</option>
+              <option key={c.id} value={c.id} style={{ background: "var(--surface)" }}>{c.label || c.id}</option>
             ))}
           </select>
         </div>

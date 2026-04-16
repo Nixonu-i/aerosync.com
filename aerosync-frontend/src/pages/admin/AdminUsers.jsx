@@ -118,7 +118,7 @@ export default function AdminUsers() {
       <div style={{ padding: "28px", maxWidth: "1200px", margin: "0 auto" }}>
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
-          <h2 style={{ color: "white", fontWeight: "800", fontSize: "26px", margin: 0, textShadow: "0 2px 8px rgba(0,0,0,0.6)" }}>
+          <h2 style={{ color: "var(--text-primary)", fontWeight: "800", fontSize: "26px", margin: 0 }}>
             User Management
           </h2>
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
@@ -131,16 +131,16 @@ export default function AdminUsers() {
             </select>
           </div>
         </div>
-        <div style={{ color: "rgba(255,255,255,0.6)", fontSize: "13px", marginBottom: "14px" }}>
+        <div style={{ color: "var(--text-secondary)", fontSize: "13px", marginBottom: "14px" }}>
           {filtered.length} user{filtered.length !== 1 ? "s" : ""} found
         </div>
 
         {error && <div style={{ background: "#f8d7da", color: "#721c24", padding: "12px", borderRadius: "6px", marginBottom: "16px" }}>{error}</div>}
 
         {loading ? (
-          <div style={{ color: "rgba(255,255,255,0.7)", textAlign: "center", padding: "60px" }}>Loading...</div>
+          <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "60px" }}>Loading...</div>
         ) : (
-          <div style={{ backgroundColor: "white", borderRadius: "12px", boxShadow: "0 4px 12px rgba(0,0,0,0.12)", overflow: "hidden" }}>
+          <div style={{ backgroundColor: "var(--surface)", borderRadius: "12px", boxShadow: "0 4px 12px rgba(0,0,0,0.12)", overflow: "hidden" }}>
             <div style={{ overflowX: "auto" }}>
               <table className="as-admin-table" style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
@@ -158,7 +158,7 @@ export default function AdminUsers() {
                         onMouseEnter={e => e.currentTarget.style.backgroundColor = "#f8f9fa"}
                         onMouseLeave={e => e.currentTarget.style.backgroundColor = "white"}>
                         <td style={{ padding: "12px 16px", color: "#6c757d", fontSize: "13px" }}>{i + 1}</td>
-                        <td style={{ padding: "12px 16px", fontWeight: "700", color: "#0b1220", fontSize: "14px", display: "flex", alignItems: "center", gap: "10px" }}>
+                        <td style={{ padding: "12px 16px", fontWeight: "700", color: "var(--text-primary)", fontSize: "14px", display: "flex", alignItems: "center", gap: "10px" }}>
                           <div style={{ width: "32px", height: "32px", borderRadius: "50%", overflow: "hidden", backgroundColor: "rgba(0,0,0,0.05)" }}>
                             {u.profile_photo_url ? (
                               <ProtectedImage 
@@ -202,7 +202,7 @@ export default function AdminUsers() {
                         <td style={{ padding: "12px 16px" }}>
                           <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                             <button onClick={() => openEdit(u)}
-                              style={{ backgroundColor: "#0b1220", color: "white", border: "none", padding: "5px 12px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontWeight: "600" }}>
+                              style={{ backgroundColor: "#d4af37", color: "#0b1220", border: "none", padding: "5px 12px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontWeight: "600" }}>
                               Edit
                             </button>
                             <button onClick={() => openPassword(u)}
@@ -230,9 +230,9 @@ export default function AdminUsers() {
         {/* ── Edit User Modal ── */}
         {modal === "edit" && (
           <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: "20px" }}>
-            <div style={{ backgroundColor: "white", borderRadius: "12px", padding: "28px", width: "100%", maxWidth: "500px", boxShadow: "0 20px 60px rgba(0,0,0,0.4)" }}>
+            <div style={{ backgroundColor: "var(--surface)", borderRadius: "12px", padding: "28px", width: "100%", maxWidth: "500px", boxShadow: "0 20px 60px rgba(0,0,0,0.4)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-                <h3 style={{ margin: 0, color: "#0b1220", fontSize: "20px", fontWeight: "700" }}>Edit User</h3>
+                <h3 style={{ margin: 0, color: "var(--text-primary)", fontSize: "20px", fontWeight: "700" }}>Edit User</h3>
                 <button onClick={() => setModal(null)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#6c757d" }}>✕</button>
               </div>
 
@@ -287,9 +287,9 @@ export default function AdminUsers() {
         {/* ── Set Password Modal ── */}
         {modal === "password" && (
           <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: "20px" }}>
-            <div style={{ backgroundColor: "white", borderRadius: "12px", padding: "28px", width: "100%", maxWidth: "420px", boxShadow: "0 20px 60px rgba(0,0,0,0.4)" }}>
+            <div style={{ backgroundColor: "var(--surface)", borderRadius: "12px", padding: "28px", width: "100%", maxWidth: "420px", boxShadow: "0 20px 60px rgba(0,0,0,0.4)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                <h3 style={{ margin: 0, color: "#0b1220", fontSize: "20px", fontWeight: "700" }}>Set Password</h3>
+                <h3 style={{ margin: 0, color: "var(--text-primary)", fontSize: "20px", fontWeight: "700" }}>Set Password</h3>
                 <button onClick={() => setModal(null)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#6c757d" }}>✕</button>
               </div>
               <p style={{ color: "#6c757d", fontSize: "13px", marginBottom: "20px" }}>Changing password for <strong>{form.username}</strong></p>

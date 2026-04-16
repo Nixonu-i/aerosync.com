@@ -102,13 +102,12 @@ function StatusBadge({ status }) {
   );
 }
 
-/* ─── Glassy card ─────────────────────────────────────────────────────────── */
+/* ─── Modern card ─────────────────────────────────────────────────────────── */
 const card = {
-  background: "rgba(11, 18, 32, 0.82)",
-  border: "1px solid rgba(212,175,55,0.18)",
+  background: "var(--surface)",
+  border: "1px solid var(--border)",
   borderRadius: "14px",
-  backdropFilter: "blur(12px)",
-  boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+  boxShadow: "0 8px 24px var(--shadow-md)",
 };
 
 /* ─── Main Dashboard ──────────────────────────────────────────────────────── */
@@ -166,10 +165,10 @@ export default function Dashboard() {
           </svg>
         </div>
 
-        <h1 style={{ color: "white", fontSize: "32px", fontWeight: 700, margin: "0 0 6px", letterSpacing: "-0.02em" }}>
-          Welcome back, <span style={{ color: "#d4af37" }}>{user?.full_name || user?.username}</span>
+        <h1 style={{ color: "var(--text-primary)", fontSize: "32px", fontWeight: 700, margin: "0 0 6px", letterSpacing: "-0.02em" }}>
+          Welcome back, <span style={{ color: "var(--accent)" }}>{user?.full_name || user?.username}</span>
         </h1>
-        <p style={{ color: "rgba(255,255,255,0.45)", fontSize: "14px", margin: 0 }}>{dateStr}</p>
+        <p style={{ color: "var(--text-secondary)", fontSize: "14px", margin: 0 }}>{dateStr}</p>
       </div>
 
       {/* ── Stats row ──────────────────────────────────────────────────────── */}
@@ -197,10 +196,10 @@ export default function Dashboard() {
               {stat.icon}
             </div>
             <div>
-              <div style={{ fontSize: "28px", fontWeight: 700, color: "white", lineHeight: 1 }}>
-                {loading ? <span style={{ fontSize: "18px", color: "rgba(255,255,255,0.3)" }}>—</span> : stat.value}
+              <div style={{ fontSize: "28px", fontWeight: 700, color: "var(--text-primary)", lineHeight: 1 }}>
+                {loading ? <span style={{ fontSize: "18px", color: "var(--text-secondary)" }}>—</span> : stat.value}
               </div>
-              <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)", marginTop: "4px", fontWeight: 500 }}>
+              <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px", fontWeight: 500 }}>
                 {stat.label}
               </div>
             </div>
@@ -214,18 +213,18 @@ export default function Dashboard() {
         {/* ── Recent Bookings ───────────────────────────────────────────── */}
         <div style={{ ...card, padding: "24px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-            <h2 style={{ color: "white", fontSize: "17px", fontWeight: 700, margin: 0, letterSpacing: "-0.01em" }}>
+            <h2 style={{ color: "var(--text-primary)", fontSize: "17px", fontWeight: 700, margin: 0, letterSpacing: "-0.01em" }}>
               Recent Bookings
             </h2>
             <button
               onClick={() => navigate("/bookings")}
               style={{
-                background: "transparent", border: "1px solid rgba(212,175,55,0.3)",
-                color: "#d4af37", padding: "6px 14px", borderRadius: "8px", cursor: "pointer",
+                background: "transparent", border: "1px solid var(--border)",
+                color: "var(--primary)", padding: "6px 14px", borderRadius: "8px", cursor: "pointer",
                 fontSize: "12px", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px",
                 transition: "all 0.2s"
               }}
-              onMouseEnter={e => { e.currentTarget.style.background = "rgba(212,175,55,0.1)"; }}
+              onMouseEnter={e => { e.currentTarget.style.background = "var(--background)"; }}
               onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
             >
               View All <Icon.ArrowRight />
@@ -233,21 +232,21 @@ export default function Dashboard() {
           </div>
 
           {loading ? (
-            <div style={{ color: "rgba(255,255,255,0.3)", fontSize: "14px", textAlign: "center", padding: "40px 0" }}>
+            <div style={{ color: "var(--text-secondary)", fontSize: "14px", textAlign: "center", padding: "40px 0" }}>
               Loading bookings...
             </div>
           ) : recent.length === 0 ? (
             <div style={{ textAlign: "center", padding: "40px 0" }}>
-              <div style={{ color: "rgba(255,255,255,0.15)", marginBottom: "12px" }}>
+              <div style={{ color: "var(--border)", marginBottom: "12px" }}>
                 <Icon.Ticket />
               </div>
-              <p style={{ color: "rgba(255,255,255,0.35)", fontSize: "14px", margin: "0 0 16px" }}>
+              <p style={{ color: "var(--text-secondary)", fontSize: "14px", margin: "0 0 16px" }}>
                 No bookings yet
               </p>
               <button
                 onClick={() => navigate("/flights")}
                 style={{
-                  background: "#d4af37", border: "none", color: "#0b1220",
+                  background: "var(--primary)", border: "none", color: "var(--text-primary)",
                   padding: "10px 22px", borderRadius: "8px", cursor: "pointer",
                   fontSize: "13px", fontWeight: 700
                 }}
@@ -278,23 +277,23 @@ export default function Dashboard() {
                     borderRadius: "8px", padding: "8px 12px", flexShrink: 0, minWidth: "110px",
                     textAlign: "center"
                   }}>
-                    <div style={{ fontSize: "13px", fontWeight: 700, color: "white", letterSpacing: "0.05em" }}>
+                    <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "0.05em" }}>
                       {b.flight?.departure_airport_code || "???"} → {b.flight?.arrival_airport_code || "???"}
                     </div>
-                    <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", marginTop: "2px" }}>
+                    <div style={{ fontSize: "10px", color: "var(--text-secondary)", marginTop: "2px" }}>
                       {b.flight?.airline || "—"}
                     </div>
                   </div>
 
                   {/* Info */}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.85)", fontWeight: 600, display: "flex", alignItems: "center", gap: "5px" }}>
-                      <span style={{ color: "rgba(255,255,255,0.35)", flexShrink: 0 }}><Icon.MapPin /></span>
+                    <div style={{ fontSize: "13px", color: "var(--text-primary)", fontWeight: 600, display: "flex", alignItems: "center", gap: "5px" }}>
+                      <span style={{ color: "var(--text-secondary)", flexShrink: 0 }}><Icon.MapPin /></span>
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {b.flight?.departure_airport_city || b.confirmation_code}
                       </span>
                     </div>
-                    <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginTop: "3px" }}>
+                    <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "3px" }}>
                       {b.flight?.departure_time
                         ? new Date(b.flight.departure_time).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })
                         : "—"
@@ -316,7 +315,7 @@ export default function Dashboard() {
 
         {/* ── Quick Actions ─────────────────────────────────────────────── */}
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-          <h2 style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", margin: "0 0 2px 4px" }}>
+          <h2 style={{ color: "var(--text-secondary)", fontSize: "12px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", margin: "0 0 2px 4px" }}>
             Quick Actions
           </h2>
 
@@ -349,37 +348,37 @@ export default function Dashboard() {
               style={{
                 ...card,
                 width: "100%", padding: "16px 18px", cursor: "pointer",
-                border: action.gold ? "1px solid rgba(212,175,55,0.45)" : "1px solid rgba(255,255,255,0.08)",
+                border: "2px solid #d4af37",
                 display: "flex", alignItems: "center", gap: "14px",
                 textAlign: "left", transition: "all 0.2s",
-                background: action.gold ? "rgba(212,175,55,0.08)" : "rgba(11,18,32,0.82)",
+                background: "var(--surface)",
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.background = action.gold ? "rgba(212,175,55,0.16)" : "rgba(255,255,255,0.06)";
+                e.currentTarget.style.background = action.gold ? "rgba(212,175,55,0.16)" : "var(--background)";
                 e.currentTarget.style.transform = "translateY(-2px)";
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.background = action.gold ? "rgba(212,175,55,0.08)" : "rgba(11,18,32,0.82)";
+                e.currentTarget.style.background = action.gold ? "rgba(212,175,55,0.08)" : "var(--surface)";
                 e.currentTarget.style.transform = "translateY(0)";
               }}
             >
               <div style={{
                 width: 40, height: 40, borderRadius: "10px", flexShrink: 0,
-                background: action.gold ? "rgba(212,175,55,0.2)" : "rgba(255,255,255,0.07)",
+                background: action.gold ? "rgba(212,175,55,0.2)" : "rgba(212,175,55,0.1)",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                color: action.gold ? "#d4af37" : "rgba(255,255,255,0.6)",
+                color: action.gold ? "#d4af37" : "var(--text-secondary)",
               }}>
                 {action.icon}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: "14px", fontWeight: 700, color: action.gold ? "#d4af37" : "rgba(255,255,255,0.9)" }}>
+                <div style={{ fontSize: "14px", fontWeight: 700, color: action.gold ? "#d4af37" : "var(--text-primary)" }}>
                   {action.label}
                 </div>
-                <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.35)", marginTop: "2px" }}>
+                <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "2px" }}>
                   {action.sub}
                 </div>
               </div>
-              <div style={{ color: "rgba(255,255,255,0.25)", flexShrink: 0 }}>
+              <div style={{ color: "var(--text-secondary)", flexShrink: 0 }}>
                 <Icon.ArrowRight />
               </div>
             </button>
@@ -399,7 +398,7 @@ export default function Dashboard() {
                   {stats.upcoming} Upcoming {stats.upcoming === 1 ? "Flight" : "Flights"}
                 </span>
               </div>
-              <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.45)", margin: "0 0 10px" }}>
+              <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: "0 0 10px" }}>
                 You have confirmed flights coming up.
               </p>
               <button

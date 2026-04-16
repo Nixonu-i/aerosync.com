@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q
 
 from .models import Profile
-from .serializers import RegisterSerializer, MeSerializer, ProfileSerializer, ProfileDetailSerializer
+from .serializers import RegisterSerializer, MeSerializer, ProfileSerializer, ProfileDetailSerializer, ThemePreferenceSerializer
 
 # media serving helpers
 from django.conf import settings
@@ -509,6 +509,23 @@ class ResetPasswordView(APIView):
             return Response({
                 'detail': str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['PATCH'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def update_theme_preference(request):
+    """Update user's theme preference."""
+    user = request.user
+    theme = request.data.get('theme_preference')
+    
+    if theme not in ['LIGHT', 'DARK', 'SYSTEM']:
+        return Response({'error': 'Invalid theme preference'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    user.theme_preference = theme
+    user.save()
+    
+    return Response({'theme_preference': theme})
 
 
 @api_view(['GET'])

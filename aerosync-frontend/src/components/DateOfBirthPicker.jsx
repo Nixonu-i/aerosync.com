@@ -107,11 +107,11 @@ export default function DateOfBirthPicker({
   const base = isLight
     ? {
         padding: "10px 6px",
-        border: "1px solid #ced4da",
+        border: "1px solid var(--border)",
         borderRadius: "6px",
         fontSize: "14px",
-        backgroundColor: disabled ? "#f8f9fa" : "white",
-        color: "#212529",
+        backgroundColor: disabled ? "var(--background)" : "var(--surface)",
+        color: "var(--text-primary)",
         cursor: disabled ? "not-allowed" : "pointer",
         outline: "none",
         minWidth: 0,
@@ -119,16 +119,16 @@ export default function DateOfBirthPicker({
     : {
         padding: "9px 6px",
         borderRadius: "7px",
-        border: "1px solid rgba(255,255,255,0.15)",
-        background: disabled ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.07)",
-        color: disabled ? "rgba(255,255,255,0.35)" : "#fff",
+        border: "1px solid var(--border)",
+        background: disabled ? "var(--background)" : "var(--surface)",
+        color: disabled ? "var(--text-secondary)" : "var(--text-primary)",
         fontSize: "14px",
         outline: "none",
         cursor: disabled ? "not-allowed" : "pointer",
         minWidth: 0,
       };
 
-  const optBg = isLight ? {} : { background: "#0b1a2e" };
+  const optBg = isLight ? {} : { background: "var(--background)" };
 
   return (
     <div style={{ display: "flex", gap: "8px", ...wrapperStyle }}>

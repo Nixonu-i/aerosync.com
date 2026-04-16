@@ -1,6 +1,6 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from .views import RegisterView, MeView, profile_view, protected_media, VerifyEmailView, ResendVerificationView, oauth_callback, CustomTokenObtainPairView, RequestPasswordResetView, VerifyPasswordResetCodeView, ResetPasswordView
+from .views import RegisterView, MeView, profile_view, protected_media, VerifyEmailView, ResendVerificationView, oauth_callback, CustomTokenObtainPairView, RequestPasswordResetView, VerifyPasswordResetCodeView, ResetPasswordView, update_theme_preference
 
 urlpatterns = [
     path("register/", RegisterView.as_view()),
@@ -17,4 +17,7 @@ urlpatterns = [
     path("request-password-reset/", RequestPasswordResetView.as_view(), name="request-password-reset"),
     path("verify-password-reset-code/", VerifyPasswordResetCodeView.as_view(), name="verify-password-reset-code"),
     path("reset-password/", ResetPasswordView.as_view(), name="reset-password"),
+    
+    # Theme preference endpoint
+    path("update-theme/", update_theme_preference, name="update-theme"),
 ]

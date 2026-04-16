@@ -27,7 +27,7 @@ export default function AdminNavbar() {
       <div className="as-admin-navbar-inner">
         {/* Brand */}
         <div className="as-admin-brand">
-          <span className="as-admin-brand-text" style={{ color: "#d4af37" }}>AERO</span>
+          <span className="as-admin-brand-text" style={{ color: "var(--accent)" }}>AERO</span>
           <span className="as-admin-brand-text" style={{ color: "white" }}>SYNC</span>
           <span className="as-admin-badge">ADMIN</span>
         </div>

@@ -14,7 +14,6 @@ const AdminActivityLogs = () => {
     search: ''
   });
   const [showDetails, setShowDetails] = useState(null);
-  const darkMode = true;
 
   useEffect(() => {
     fetchActivities();
@@ -139,15 +138,15 @@ const AdminActivityLogs = () => {
   };
 
   return (
-    <div className="as-admin-container" style={{ background: darkMode ? '#0f172a' : '#f1f5f9' }}>
+    <div className="as-admin-container" style={{ background: 'var(--background)' }}>
       <div className="as-admin-content">
-        <div className="as-card" style={{ background: darkMode ? '#1e293b' : '#ffffff' }}>
+        <div className="as-card" style={{ background: 'var(--surface)' }}>
           {/* Header */}
-          <div className="as-card-header" style={{ background: 'linear-gradient(135deg, #0b1220 0%, #1a2332 100%)', borderBottom: '2px solid #d4af37' }}>
+          <div className="as-card-header" style={{ background: '#0b1220', borderBottom: '2px solid #d4af37' }}>
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-semibold" style={{ color: '#d4af37', fontWeight: '800', letterSpacing: '0.04em' }}>USER ACTIVITY LOGS</h2>
-                <p className="text-sm mt-1" style={{ color: '#94a3b8' }}>Monitor user activities and system interactions</p>
+                <h2 className="text-xl font-semibold" style={{ color: 'white', fontWeight: '800', letterSpacing: '0.04em' }}>USER ACTIVITY LOGS</h2>
+                <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.85)' }}>Monitor user activities and system interactions</p>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <button 
@@ -169,7 +168,7 @@ const AdminActivityLogs = () => {
             <form onSubmit={handleSearch}>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-4">
               <div>
-                <label className="as-label" style={{ color: darkMode ? '#e2e8f0' : '#374151' }}>Search</label>
+                <label className="as-label" style={{ color: 'var(--text-primary)', fontWeight: '600' }}>Search</label>
                 <input
                   type="text"
                   name="search"
@@ -178,14 +177,14 @@ const AdminActivityLogs = () => {
                   placeholder="Search users, IPs..."
                   className="as-input"
                   style={{
-                    background: darkMode ? '#334155' : '#ffffff',
-                    color: darkMode ? '#f1f5f9' : '#0f172a',
-                    border: `1px solid ${darkMode ? '#475569' : '#d1d5db'}`
+                    background: '#ffffff',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border)'
                   }}
                 />
               </div>
               <div>
-                <label className="as-label" style={{ color: darkMode ? '#e2e8f0' : '#374151' }}>User ID</label>
+                <label className="as-label" style={{ color: 'var(--text-primary)', fontWeight: '600' }}>User ID</label>
                 <input
                   type="text"
                   name="user_id"
@@ -194,23 +193,23 @@ const AdminActivityLogs = () => {
                   placeholder="User ID"
                   className="as-input"
                   style={{
-                    background: darkMode ? '#334155' : '#ffffff',
-                    color: darkMode ? '#f1f5f9' : '#0f172a',
-                    border: `1px solid ${darkMode ? '#475569' : '#d1d5db'}`
+                    background: '#ffffff',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border)'
                   }}
                 />
               </div>
               <div>
-                <label className="as-label" style={{ color: darkMode ? '#e2e8f0' : '#374151' }}>Action</label>
+                <label className="as-label" style={{ color: 'var(--text-primary)', fontWeight: '600' }}>Action</label>
                 <select
                   name="action"
                   value={filters.action}
                   onChange={handleFilterChange}
                   className="as-select"
                   style={{
-                    background: darkMode ? '#334155' : '#ffffff',
-                    color: darkMode ? '#f1f5f9' : '#0f172a',
-                    border: `1px solid ${darkMode ? '#475569' : '#d1d5db'}`
+                    background: '#ffffff',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border)'
                   }}
                 >
                   <option value="">All Actions</option>
@@ -228,7 +227,7 @@ const AdminActivityLogs = () => {
                 </select>
               </div>
               <div>
-                <label className="as-label" style={{ color: darkMode ? '#e2e8f0' : '#374151' }}>IP Address</label>
+                <label className="as-label" style={{ color: 'var(--text-primary)', fontWeight: '600' }}>IP Address</label>
                 <input
                   type="text"
                   name="ip_address"
@@ -237,9 +236,9 @@ const AdminActivityLogs = () => {
                   placeholder="IP Address"
                   className="as-input"
                   style={{
-                    background: darkMode ? '#334155' : '#ffffff',
-                    color: darkMode ? '#f1f5f9' : '#0f172a',
-                    border: `1px solid ${darkMode ? '#475569' : '#d1d5db'}`
+                    background: '#ffffff',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border)'
                   }}
                 />
               </div>
@@ -276,7 +275,7 @@ const AdminActivityLogs = () => {
 
           {/* Activity Table */}
           <div className="overflow-x-auto" style={{ 
-            background: darkMode ? '#1e293b' : '#ffffff',
+            background: 'var(--surface)',
             overflowX: 'auto',
             WebkitOverflowScrolling: 'touch',
             msOverflowStyle: '-ms-autohiding-scrollbar'
@@ -284,21 +283,21 @@ const AdminActivityLogs = () => {
             <div style={{ minWidth: '1200px' }}>
             <table className="as-table" style={{ width: '100%' }}>
               <thead>
-                <tr style={{ background: 'linear-gradient(135deg, #0b1220 0%, #1a2332 100%)' }}>
-                  <th style={{ color: '#d4af37', borderBottom: '2px solid #d4af37', fontSize: '12px' }}>User</th>
-                  <th style={{ color: '#d4af37', borderBottom: '2px solid #d4af37', fontSize: '12px' }}>Action</th>
-                  <th style={{ color: '#d4af37', borderBottom: '2px solid #d4af37', fontSize: '12px' }}>IP Address</th>
-                  <th style={{ color: '#d4af37', borderBottom: '2px solid #d4af37', fontSize: '12px' }}>Method</th>
-                  <th style={{ color: '#d4af37', borderBottom: '2px solid #d4af37', fontSize: '12px' }}>Path</th>
-                  <th style={{ color: '#d4af37', borderBottom: '2px solid #d4af37', fontSize: '12px' }}>Status</th>
-                  <th style={{ color: '#d4af37', borderBottom: '2px solid #d4af37', fontSize: '12px' }}>Time</th>
-                  <th style={{ color: '#d4af37', borderBottom: '2px solid #d4af37', fontSize: '12px' }}>Details</th>
+                <tr style={{ background: '#0b1220' }}>
+                  <th style={{ color: 'white', borderBottom: '2px solid var(--accent)', fontSize: '12px' }}>User</th>
+                  <th style={{ color: 'white', borderBottom: '2px solid var(--accent)', fontSize: '12px' }}>Action</th>
+                  <th style={{ color: 'white', borderBottom: '2px solid var(--accent)', fontSize: '12px' }}>IP Address</th>
+                  <th style={{ color: 'white', borderBottom: '2px solid var(--accent)', fontSize: '12px' }}>Method</th>
+                  <th style={{ color: 'white', borderBottom: '2px solid var(--accent)', fontSize: '12px' }}>Path</th>
+                  <th style={{ color: 'white', borderBottom: '2px solid var(--accent)', fontSize: '12px' }}>Status</th>
+                  <th style={{ color: 'white', borderBottom: '2px solid var(--accent)', fontSize: '12px' }}>Time</th>
+                  <th style={{ color: 'white', borderBottom: '2px solid var(--accent)', fontSize: '12px' }}>Details</th>
                 </tr>
               </thead>
               <tbody>
                 {activities.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="px-6 py-12 text-center" style={{ color: darkMode ? '#94a3b8' : '#64748b', fontSize: '14px' }}>
+                    <td colSpan="8" className="px-6 py-12 text-center" style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
                       <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'center' }}>
                         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
                           <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
@@ -314,17 +313,15 @@ const AdminActivityLogs = () => {
                 ) : (
                   activities.map((activity, index) => (
                     <tr key={activity.id} className="as-table-row" style={{ 
-                      background: darkMode ? 
-                        (index % 2 === 0 ? '#1e293b' : '#0f172a') : 
-                        (index % 2 === 0 ? '#ffffff' : '#f8fafc'),
-                      borderBottom: darkMode ? '1px solid #334155' : '1px solid #e2e8f0'
+                      background: index % 2 === 0 ? 'var(--surface)' : 'var(--background)',
+                      borderBottom: '1px solid var(--border)'
                     }}>
                       <td className="as-table-cell">
-                        <div className="font-medium" style={{ color: darkMode ? '#f1f5f9' : '#0f172a', fontWeight: '700' }} title={activity.username || 'Anonymous'}>
+                        <div className="font-medium" style={{ color: 'var(--text-primary)', fontWeight: '700' }} title={activity.username || 'Anonymous'}>
                           {activity.username || 'Anonymous'}
                         </div>
                         {activity.user_id && (
-                          <div style={{ fontSize: '11px', color: darkMode ? '#94a3b8' : '#64748b', marginTop: '2px' }} title={`ID: ${activity.user_id}`}>
+                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }} title={`ID: ${activity.user_id}`}>
                             ID: {String(activity.user_id).substring(0, 8)}...
                           </div>
                         )}
@@ -364,9 +361,12 @@ const AdminActivityLogs = () => {
                       <td className="as-table-cell">
                         <span style={{ 
                           fontFamily: 'monospace', 
-                          fontSize: '12px',
+                          fontSize: '13px',
                           fontWeight: '700',
-                          color: darkMode ? '#cbd5e1' : '#334155'
+                          color: 'var(--text-primary)',
+                          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                          padding: '4px 8px',
+                          borderRadius: '4px'
                         }}>
                           {activity.ip_address}
                         </span>
@@ -396,12 +396,17 @@ const AdminActivityLogs = () => {
                       </td>
                       <td className="as-table-cell">
                         <div style={{ 
-                          maxWidth: '250px', 
+                          maxWidth: '300px', 
                           overflow: 'hidden', 
                           textOverflow: 'ellipsis', 
                           whiteSpace: 'nowrap',
-                          color: darkMode ? '#cbd5e1' : '#475569',
-                          fontSize: '13px'
+                          color: 'var(--text-primary)',
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          fontFamily: 'monospace',
+                          backgroundColor: 'rgba(139, 92, 246, 0.08)',
+                          padding: '4px 8px',
+                          borderRadius: '4px'
                         }} title={activity.path}>
                           {activity.path}
                         </div>
@@ -419,12 +424,12 @@ const AdminActivityLogs = () => {
                         </span>
                       </td>
                       <td className="as-table-cell">
-                        <div style={{ fontSize: '12px', color: darkMode ? '#cbd5e1' : '#475569' }}>
-                          <strong style={{ fontWeight: '700', color: darkMode ? '#e2e8f0' : '#1e293b' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                          <strong style={{ fontWeight: '700', color: 'var(--text-primary)' }}>
                             {new Date(activity.timestamp).toLocaleDateString()}
                           </strong>
                           <br />
-                          <span style={{ color: darkMode ? '#64748b' : '#94a3b8', fontSize: '11px' }}>
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
                             {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>

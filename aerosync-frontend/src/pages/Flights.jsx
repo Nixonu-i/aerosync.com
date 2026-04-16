@@ -37,7 +37,7 @@ function SearchableSelect({ value, onChange, options, placeholder }) {
     width: "100%", padding: "9px 32px 9px 10px",
     border: `1px solid ${open ? "#0b1220" : "#ced4da"}`,
     borderRadius: "4px", fontSize: "14px",
-    boxSizing: "border-box", backgroundColor: "white",
+    boxSizing: "border-box", backgroundColor: "var(--surface)",
     color: value ? "#212529" : "#6c757d",
     cursor: "pointer", outline: "none",
     transition: "border-color 0.15s",
@@ -76,7 +76,7 @@ function SearchableSelect({ value, onChange, options, placeholder }) {
       {open && (
         <div style={{
           position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0,
-          background: "white", border: "1px solid #ced4da", borderRadius: "6px",
+          background: "var(--surface)", border: "1px solid #ced4da", borderRadius: "6px",
           boxShadow: "0 6px 20px rgba(0,0,0,0.12)", zIndex: 1000,
           maxHeight: "220px", overflow: "hidden",
           display: "flex", flexDirection: "column", flexWrap: "nowrap",
@@ -150,6 +150,20 @@ export default function Flights() {
     all_cities: []
   });
 
+  // Force light theme for public flights page (when not authenticated)
+  useEffect(() => {
+    if (!user) {
+      document.documentElement.setAttribute('data-theme', 'light');
+      return () => {
+        // Restore user preference on unmount
+        const saved = localStorage.getItem('theme') || 'LIGHT';
+        if (saved === 'DARK') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      };
+    }
+  }, [user]);
+
   // Use auth context instead of localStorage check
   const isAuthenticated = !!user && !loading;
 
@@ -164,6 +178,7 @@ export default function Flights() {
     from_city: "",
     to_city: ""
   });
+  const [showFilters, setShowFilters] = useState(false);
 
   // Build query param object from filters (strips empty strings)
   const buildParams = (overrides = {}) => {
@@ -247,10 +262,10 @@ export default function Flights() {
       {/* Hero Header with Logo - Only show when NOT authenticated */}
       {!isAuthenticated && (
         <div style={{
-          background: "linear-gradient(135deg, #0b1220 0%, #1a2744 100%)",
+          background: "linear-gradient(135deg, var(--surface) 0%, var(--background) 100%)",
           padding: "30px 20px",
-          borderBottom: "2px solid rgba(212,175,55,0.3)",
-          boxShadow: "0 4px 20px rgba(0,0,0,0.4)"
+          borderBottom: "2px solid var(--accent)",
+          boxShadow: "0 4px 20px var(--shadow-md)"
         }}>
           <div style={{
             maxWidth: "1200px",
@@ -313,7 +328,7 @@ export default function Flights() {
               </h1>
               <p style={{
                 fontSize: "13px",
-                color: "rgba(255,255,255,0.6)",
+                color: "var(--text-secondary)",
                 margin: "4px 0 0 0",
                 letterSpacing: "0.1em",
                 textTransform: "uppercase"
@@ -361,7 +376,7 @@ export default function Flights() {
                   style={{
                     background: "linear-gradient(135deg, #d4af37 0%, #f4d03f 100%)",
                     border: "none",
-                    color: "#0b1220",
+                    color: "var(--text-primary)",
                     padding: "10px 24px",
                     borderRadius: "8px",
                     fontSize: "14px",
@@ -418,26 +433,77 @@ export default function Flights() {
       `}</style>
       
       <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
-        {/* Filter Section */}
+        {/* Filter Section - Collapsible */}
         <div style={{
-          background: "rgba(11,18,32,0.82)",
-          border: "1px solid rgba(212,175,55,0.2)",
+          background: "var(--surface)",
+          border: "2px solid #d4af37",
           borderRadius: "14px",
-          backdropFilter: "blur(12px)",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
-          padding: "22px 24px",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
           marginBottom: "28px",
+          overflow: "hidden",
         }}>
-          <h3 style={{
-            color: "white",
-            marginBottom: "18px",
-            fontSize: "16px",
-            fontWeight: "700",
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            borderBottom: "1px solid rgba(212,175,55,0.15)",
-            paddingBottom: "12px",
-          }}>Filter Flights</h3>
+          {/* Filter Toggle Button */}
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            style={{
+              width: "100%",
+              padding: "16px 24px",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = "rgba(212,175,55,0.05)"}
+            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="#d4af37" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+              </svg>
+              <span style={{
+                color: "var(--text-primary)",
+                fontSize: "15px",
+                fontWeight: "700",
+                letterSpacing: "0.02em",
+              }}>Filter Flights</span>
+              {Object.values(filters).some(v => v !== "") && (
+                <span style={{
+                  background: "#d4af37",
+                  color: "#0b1220",
+                  padding: "2px 8px",
+                  borderRadius: "10px",
+                  fontSize: "11px",
+                  fontWeight: "700",
+                }}>Active</span>
+              )}
+            </div>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="var(--text-secondary)"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              width="20"
+              height="20"
+              style={{
+                transition: "transform 0.3s",
+                transform: showFilters ? "rotate(180deg)" : "rotate(0deg)",
+              }}
+            >
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+
+          {/* Filter Content - Collapsible */}
+          {showFilters && (
+            <div style={{
+              padding: "0 24px 22px",
+              borderTop: "1px solid var(--border)",
+            }}>
           
           <div style={{
             display: "grid",
@@ -451,10 +517,9 @@ export default function Flights() {
                 display: "block",
                 marginBottom: "6px",
                 fontWeight: "600",
-                color: "rgba(212,175,55,0.85)",
-                fontSize: "11px",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
+                color: "var(--text-primary)",
+                fontSize: "12px",
+                letterSpacing: "0.02em",
               }}>
                 Departure Date
               </label>
@@ -465,13 +530,12 @@ export default function Flights() {
                 style={{
                   width: "100%",
                   padding: "10px",
-                  border: "1px solid rgba(255,255,255,0.12)",
+                  border: "1px solid var(--border)",
                   borderRadius: "6px",
                   fontSize: "14px",
                   boxSizing: "border-box",
-                  backgroundColor: "rgba(255,255,255,0.07)",
-                  color: "white",
-                  colorScheme: "dark",
+                  backgroundColor: "var(--surface)",
+                  color: "var(--text-primary)",
                   cursor: "pointer"
                 }}
               />
@@ -480,8 +544,8 @@ export default function Flights() {
             <div>
               <label style={{
                 display: "block", marginBottom: "6px", fontWeight: "600",
-                color: "rgba(212,175,55,0.85)", fontSize: "11px",
-                letterSpacing: "0.08em", textTransform: "uppercase",
+                color: "var(--text-primary)", fontSize: "12px",
+                letterSpacing: "0.02em",
               }}>
                 From City
               </label>
@@ -496,8 +560,8 @@ export default function Flights() {
             <div>
               <label style={{
                 display: "block", marginBottom: "6px", fontWeight: "600",
-                color: "rgba(212,175,55,0.85)", fontSize: "11px",
-                letterSpacing: "0.08em", textTransform: "uppercase",
+                color: "var(--text-primary)", fontSize: "12px",
+                letterSpacing: "0.02em",
               }}>
                 To City
               </label>
@@ -512,8 +576,8 @@ export default function Flights() {
             <div>
               <label style={{
                 display: "block", marginBottom: "6px", fontWeight: "600",
-                color: "rgba(212,175,55,0.85)", fontSize: "11px",
-                letterSpacing: "0.08em", textTransform: "uppercase",
+                color: "var(--text-primary)", fontSize: "12px",
+                letterSpacing: "0.02em",
               }}>
                 Min Price (KES)
               </label>
@@ -524,11 +588,11 @@ export default function Flights() {
                 placeholder="0"
                 style={{
                   width: "100%", padding: "10px",
-                  border: "1px solid rgba(255,255,255,0.12)",
+                  border: "1px solid var(--border)",
                   borderRadius: "6px", fontSize: "14px",
                   boxSizing: "border-box",
-                  backgroundColor: "rgba(255,255,255,0.07)",
-                  color: "white",
+                  backgroundColor: "var(--surface)",
+                  color: "var(--text-primary)",
                 }}
               />
             </div>
@@ -536,8 +600,8 @@ export default function Flights() {
             <div>
               <label style={{
                 display: "block", marginBottom: "6px", fontWeight: "600",
-                color: "rgba(212,175,55,0.85)", fontSize: "11px",
-                letterSpacing: "0.08em", textTransform: "uppercase",
+                color: "var(--text-primary)", fontSize: "12px",
+                letterSpacing: "0.02em",
               }}>
                 Max Price (KES)
               </label>
@@ -548,11 +612,11 @@ export default function Flights() {
                 placeholder="100000"
                 style={{
                   width: "100%", padding: "10px",
-                  border: "1px solid rgba(255,255,255,0.12)",
+                  border: "1px solid var(--border)",
                   borderRadius: "6px", fontSize: "14px",
                   boxSizing: "border-box",
-                  backgroundColor: "rgba(255,255,255,0.07)",
-                  color: "white",
+                  backgroundColor: "var(--surface)",
+                  color: "var(--text-primary)",
                 }}
               />
             </div>
@@ -560,8 +624,8 @@ export default function Flights() {
             <div>
               <label style={{
                 display: "block", marginBottom: "6px", fontWeight: "600",
-                color: "rgba(212,175,55,0.85)", fontSize: "11px",
-                letterSpacing: "0.08em", textTransform: "uppercase",
+                color: "var(--text-primary)", fontSize: "12px",
+                letterSpacing: "0.02em",
               }}>
                 Airline
               </label>
@@ -576,8 +640,8 @@ export default function Flights() {
             <div>
               <label style={{
                 display: "block", marginBottom: "6px", fontWeight: "600",
-                color: "rgba(212,175,55,0.85)", fontSize: "11px",
-                letterSpacing: "0.08em", textTransform: "uppercase",
+                color: "var(--text-primary)", fontSize: "12px",
+                letterSpacing: "0.02em",
               }}>
                 Trip Type
               </label>
@@ -586,11 +650,11 @@ export default function Flights() {
                 onChange={(e) => handleFilterChange("trip_type", e.target.value)}
                 style={{
                   width: "100%", padding: "10px",
-                  border: "1px solid rgba(255,255,255,0.12)",
+                  border: "1px solid var(--border)",
                   borderRadius: "6px", fontSize: "14px",
                   boxSizing: "border-box",
-                  backgroundColor: "rgba(11,18,32,0.95)",
-                  color: "white",
+                  backgroundColor: "var(--surface)",
+                  color: "var(--text-primary)",
                 }}
               >
                 <option value="">All Types</option>
@@ -602,8 +666,8 @@ export default function Flights() {
             <div>
               <label style={{
                 display: "block", marginBottom: "6px", fontWeight: "600",
-                color: "rgba(212,175,55,0.85)", fontSize: "11px",
-                letterSpacing: "0.08em", textTransform: "uppercase",
+                color: "var(--text-primary)", fontSize: "12px",
+                letterSpacing: "0.02em",
               }}>
                 Max Stops
               </label>
@@ -612,11 +676,11 @@ export default function Flights() {
                 onChange={(e) => handleFilterChange("max_stops", e.target.value)}
                 style={{
                   width: "100%", padding: "10px",
-                  border: "1px solid rgba(255,255,255,0.12)",
+                  border: "1px solid var(--border)",
                   borderRadius: "6px", fontSize: "14px",
                   boxSizing: "border-box",
-                  backgroundColor: "rgba(11,18,32,0.95)",
-                  color: "white",
+                  backgroundColor: "var(--surface)",
+                  color: "var(--text-primary)",
                 }}
               >
                 <option value="">Any</option>
@@ -632,15 +696,15 @@ export default function Flights() {
             <button
               onClick={clearFilters}
               style={{
-                background: "rgba(255,255,255,0.08)",
-                color: "rgba(255,255,255,0.75)",
-                border: "1px solid rgba(255,255,255,0.15)",
+                background: "var(--background)",
+                color: "var(--text-secondary)",
+                border: "1px solid var(--border)",
                 padding: "10px 22px", borderRadius: "7px",
                 fontSize: "14px", fontWeight: "600", cursor: "pointer",
                 transition: "all 0.2s"
               }}
-              onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.14)"}
-              onMouseLeave={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.08)"}
+              onMouseEnter={(e) => e.currentTarget.style.background = "var(--surface)"}
+              onMouseLeave={(e) => e.currentTarget.style.background = "var(--background)"}
             >
               Clear Filters
             </button>
@@ -648,8 +712,8 @@ export default function Flights() {
               onClick={applyFilters}
               disabled={busy}
               style={{
-                background: busy ? "rgba(255,255,255,0.08)" : "#d4af37",
-                color: busy ? "rgba(255,255,255,0.4)" : "#0b1220",
+                background: busy ? "var(--background)" : "#d4af37",
+                color: busy ? "var(--text-secondary)" : "#0b1220",
                 border: "none", padding: "10px 22px", borderRadius: "7px",
                 fontSize: "14px", fontWeight: "700",
                 cursor: busy ? "not-allowed" : "pointer",
@@ -662,6 +726,8 @@ export default function Flights() {
               {busy ? "Searching..." : "Apply Filters"}
             </button>
           </div>
+          </div>
+        )}
         </div>
         
         {err ? (
@@ -722,11 +788,10 @@ export default function Flights() {
                   }
                 }}
                 style={{
-                  background: "rgba(11,18,32,0.82)",
-                  border: "1px solid rgba(212,175,55,0.18)",
+                  background: "var(--surface)",
+                  border: "2px solid #d4af37",
                   borderRadius: "14px",
-                  backdropFilter: "blur(12px)",
-                  boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
                   padding: "20px",
                   cursor: "pointer",
                   transition: "transform 0.2s, box-shadow 0.2s, border-color 0.2s",
@@ -734,13 +799,13 @@ export default function Flights() {
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = "translateY(-4px)";
-                  e.currentTarget.style.boxShadow = "0 16px 40px rgba(0,0,0,0.4)";
-                  e.currentTarget.style.borderColor = "rgba(212,175,55,0.45)";
+                  e.currentTarget.style.boxShadow = "0 16px 40px rgba(0,0,0,0.2)";
+                  e.currentTarget.style.borderColor = "#c9a227";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = "translateY(0)";
-                  e.currentTarget.style.boxShadow = "0 8px 32px rgba(0,0,0,0.3)";
-                  e.currentTarget.style.borderColor = "rgba(212,175,55,0.18)";
+                  e.currentTarget.style.boxShadow = "0 8px 32px rgba(0,0,0,0.12)";
+                  e.currentTarget.style.borderColor = "#d4af37";
                 }}
               >
                 {/* Route row */}
@@ -765,22 +830,22 @@ export default function Flights() {
                 {/* Airport names */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px" }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginBottom: "2px", textTransform: "uppercase", letterSpacing: "0.06em" }}>From</div>
-                    <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.85)", fontWeight: 600 }}>{f.departure_airport_name || f.departure_airport_code}</div>
-                    <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)" }}>{f.departure_airport_city}</div>
+                    <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "2px", textTransform: "uppercase", letterSpacing: "0.06em" }}>From</div>
+                    <div style={{ fontSize: "13px", color: "var(--text-primary)", fontWeight: 600 }}>{f.departure_airport_name || f.departure_airport_code}</div>
+                    <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: 500 }}>{f.departure_airport_city}</div>
                   </div>
-                  <div style={{ color: "rgba(212,175,55,0.3)", paddingTop: "14px" }}>
+                  <div style={{ color: "rgba(212,175,55,0.4)", paddingTop: "14px" }}>
                     <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M21 16v-2l-8-5V3.5A1.5 1.5 0 0 0 11.5 2 1.5 1.5 0 0 0 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>
                   </div>
                   <div style={{ flex: 1, textAlign: "right" }}>
-                    <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginBottom: "2px", textTransform: "uppercase", letterSpacing: "0.06em" }}>To</div>
-                    <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.85)", fontWeight: 600 }}>{f.arrival_airport_name || f.arrival_airport_code}</div>
-                    <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)" }}>{f.arrival_airport_city}</div>
+                    <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "2px", textTransform: "uppercase", letterSpacing: "0.06em" }}>To</div>
+                    <div style={{ fontSize: "13px", color: "var(--text-primary)", fontWeight: 600 }}>{f.arrival_airport_name || f.arrival_airport_code}</div>
+                    <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: 500 }}>{f.arrival_airport_city}</div>
                   </div>
                 </div>
 
                 {/* Divider */}
-                <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }} />
+                <div style={{ borderTop: "1px solid var(--border)" }} />
 
                 {/* Meta row */}
                 <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
@@ -792,8 +857,8 @@ export default function Flights() {
                     { label: "Type",       val: f.trip_type === "ONE_WAY" ? "One Way" : "Round Trip" },
                   ].map(({ label, val }) => (
                     <div key={label}>
-                      <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
-                      <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.75)", fontWeight: 500, marginTop: "1px" }}>{val}</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
+                      <div style={{ fontSize: "12px", color: "var(--text-primary)", fontWeight: 500, marginTop: "1px" }}>{val}</div>
                     </div>
                   ))}
                 </div>
@@ -801,14 +866,14 @@ export default function Flights() {
                 {/* Price + CTA */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "2px" }}>
                   <div>
-                    <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.06em" }}>From</span>
+                    <span style={{ fontSize: "11px", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>From</span>
                     <div style={{ fontSize: "22px", fontWeight: "800", color: "#d4af37", lineHeight: 1.1 }}>
                       KES {parseFloat(f.price).toLocaleString()}
                     </div>
                   </div>
                   <div style={{
-                    background: "rgba(212,175,55,0.15)", border: "1px solid rgba(212,175,55,0.35)",
-                    color: "#d4af37", padding: "8px 16px", borderRadius: "8px",
+                    background: "#d4af37", border: "none",
+                    color: "#0b1220", padding: "8px 16px", borderRadius: "8px",
                     fontSize: "12px", fontWeight: "700", letterSpacing: "0.04em",
                   }}>
                     Book Now
@@ -833,8 +898,8 @@ export default function Flights() {
         {/* Showing count + Load More */}
         {!busy && items.length > 0 && (
           <div style={{ textAlign: "center", marginTop: "28px", marginBottom: "10px" }}>
-            <div style={{ color: "rgba(255,255,255,0.7)", fontSize: "13px", marginBottom: "14px" }}>
-              Showing <strong style={{ color: "white" }}>{items.length}</strong> of <strong style={{ color: "white" }}>{totalCount}</strong> flight{totalCount !== 1 ? "s" : ""}
+            <div style={{ color: "var(--text-primary)", fontSize: "13px", marginBottom: "14px" }}>
+              Showing <strong style={{ color: "#d4af37", fontWeight: "700" }}>{items.length}</strong> of <strong style={{ color: "#d4af37", fontWeight: "700" }}>{totalCount}</strong> flight{totalCount !== 1 ? "s" : ""}
             </div>
             {nextUrl && (
               <button
@@ -859,8 +924,8 @@ export default function Flights() {
               </button>
             )}
             {!nextUrl && items.length > 0 && (
-              <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "13px", fontStyle: "italic" }}>
-                All flights loaded
+              <div style={{ color: "var(--text-secondary)", fontSize: "13px", fontStyle: "italic", fontWeight: "500" }}>
+                ✓ All flights loaded
               </div>
             )}
           </div>

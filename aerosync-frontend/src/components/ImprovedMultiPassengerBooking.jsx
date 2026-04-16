@@ -335,7 +335,7 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
           borderRadius: "10px",
           padding: "30px",
           boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-          border: "1px solid #e0e0e0"
+          border: "1px solid var(--border)"
         }}>
           <h3 style={{ 
             color: "#0b1220", 
@@ -354,11 +354,11 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
 
           {passengers.map((passenger, index) => (
             <div key={passenger.id} style={{
-              border: "1px solid #e0e0e0",
+              border: "1px solid var(--border)",
               borderRadius: "8px",
               padding: "20px",
               marginBottom: "20px",
-              backgroundColor: "#f8f9fa"
+              backgroundColor: "var(--background)"
             }}>
               <div style={{ 
                 display: "flex", 
@@ -734,7 +734,7 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
             borderRadius: "10px",
             padding: "30px",
             boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-            border: "1px solid #e0e0e0"
+            border: "1px solid var(--border)"
           }}>
             <h3 style={{ color: "#0b1220", marginBottom: "20px", fontSize: "22px", fontWeight: "600" }}>
               Seat Selection
@@ -804,10 +804,10 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
 
             {/* Airplane layout */}
             <div style={{
-              border: "1px solid #e0e0e0",
+              border: "1px solid var(--border)",
               borderRadius: "10px",
               padding: "16px",
-              backgroundColor: "#f8f9fa",
+              backgroundColor: "var(--background)",
               overflowY: "auto",
               maxHeight: "420px"
             }}>
@@ -942,7 +942,7 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
           borderRadius: "10px",
           padding: "30px",
           boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-          border: "1px solid #e0e0e0"
+          border: "1px solid var(--border)"
         }}>
           <h3 style={{ 
             color: "#0b1220", 
@@ -969,7 +969,7 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
                 Flight Details
               </h4>
               <div style={{ 
-                backgroundColor: "#f8f9fa",
+                backgroundColor: "var(--background)",
                 padding: "15px",
                 borderRadius: "8px"
               }}>
@@ -1000,7 +1000,7 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
               <div style={{ 
                 maxHeight: "200px", 
                 overflowY: "auto",
-                border: "1px solid #e0e0e0",
+                border: "1px solid var(--border)",
                 borderRadius: "8px"
               }}>
                 {passengers.map((passenger, index) => {
@@ -1009,7 +1009,7 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
                     <div key={passenger.id} style={{
                       padding: "12px",
                       borderBottom: index < passengers.length - 1 ? "1px solid #e0e0e0" : "none",
-                      backgroundColor: "#f8f9fa"
+                      backgroundColor: "var(--background)"
                     }}>
                       <div style={{ 
                         display: "flex", 
@@ -1055,10 +1055,10 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
           </div>
 
           <div style={{
-            backgroundColor: "#f8f9fa",
+            backgroundColor: "var(--background)",
             padding: "20px",
             borderRadius: "8px",
-            border: "1px solid #e0e0e0"
+            border: "1px solid var(--border)"
           }}>
             <div style={{ 
               display: "flex", 
@@ -1226,7 +1226,7 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
                     width: "30px",
                     height: "30px",
                     borderRadius: "50%",
-                    background: "#0b1220",
+                    background: "var(--surface)",
                     color: "white",
                     display: "flex",
                     alignItems: "center",

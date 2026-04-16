@@ -258,13 +258,13 @@ export default function AdminFlights() {
       <div style={{ padding: "28px", maxWidth: "1400px", margin: "0 auto" }}>
       {/* ── Page Header ─────────────────────────────────────────────── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", flexWrap: "wrap", gap: "12px" }}>
-        <h2 style={{ color: "white", fontWeight: "800", fontSize: "26px", margin: 0, textShadow: "0 2px 8px rgba(0,0,0,0.6)" }}>Flight Management</h2>
+        <h2 style={{ color: "var(--text-primary)", fontWeight: "800", fontSize: "26px", margin: 0 }}>Flight Management</h2>
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
           <button onClick={() => { setGenResult(null); setGenModal(true); }}
             style={{ backgroundColor: "#17a2b8", color: "white", border: "none", padding: "10px 18px", borderRadius: "6px", fontWeight: "700", cursor: "pointer", fontSize: "14px" }}>
             ⚡ Auto-Generate Flights
           </button>
-          <button onClick={openAdd} style={{ backgroundColor: "#d4af37", color: "#0b1220", border: "none", padding: "10px 20px", borderRadius: "6px", fontWeight: "700", cursor: "pointer", fontSize: "14px" }}>+ Add Flight</button>
+          <button onClick={openAdd} style={{ backgroundColor: "#d4af37", color: "var(--text-primary)", border: "none", padding: "10px 20px", borderRadius: "6px", fontWeight: "700", cursor: "pointer", fontSize: "14px" }}>+ Add Flight</button>
         </div>
       </div>
 
@@ -364,7 +364,7 @@ export default function AdminFlights() {
                 width: "100%",
                 padding: "9px 18px",
                 background: "#d4af37",
-                color: "#0b1220",
+                color: "var(--text-primary)",
                 border: "none",
                 borderRadius: "6px",
                 fontWeight: "700",
@@ -413,8 +413,8 @@ export default function AdminFlights() {
       </div>
 
       {error && <div style={{ background: "#f8d7da", color: "#721c24", padding: "12px", borderRadius: "6px", marginBottom: "16px" }}>{error}</div>}
-      {loading ? <div style={{ color: "rgba(255,255,255,0.7)", textAlign: "center", padding: "60px" }}>Loading...</div> : (
-        <div style={{ backgroundColor: "white", borderRadius: "12px", boxShadow: "0 4px 12px rgba(0,0,0,0.12)", overflow: "hidden" }}>
+      {loading ? <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "60px" }}>Loading...</div> : (
+        <div style={{ backgroundColor: "var(--surface)", borderRadius: "12px", boxShadow: "0 4px 12px rgba(0,0,0,0.12)", overflow: "hidden" }}>
           <div style={{ overflowX: "auto" }}>
             <table className="as-admin-table" style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
@@ -440,7 +440,7 @@ export default function AdminFlights() {
                     <td style={{ padding: "12px 14px" }}><StatusBadge status={f.status} /></td>
                     <td style={{ padding: "12px 14px" }}>
                       <div style={{ display: "flex", gap: "6px" }}>
-                        <button onClick={() => openEdit(f)} style={{ backgroundColor: "#0b1220", color: "white", border: "none", padding: "5px 12px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontWeight: "600" }}>Edit</button>
+                        <button onClick={() => openEdit(f)} style={{ backgroundColor: "#d4af37", color: "#0b1220", border: "none", padding: "5px 12px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontWeight: "600" }}>Edit</button>
                         <button onClick={() => handleDelete(f.id)} style={{ backgroundColor: "#dc3545", color: "white", border: "none", padding: "5px 12px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontWeight: "600" }}>Delete</button>
                       </div>
                     </td>
@@ -456,9 +456,9 @@ export default function AdminFlights() {
       {/* Modal */}
       {modal && (
         <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: "20px" }}>
-          <div style={{ backgroundColor: "white", borderRadius: "12px", padding: "28px", width: "100%", maxWidth: "680px", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.4)" }}>
+          <div style={{ backgroundColor: "var(--surface)", borderRadius: "12px", padding: "28px", width: "100%", maxWidth: "680px", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.4)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <h3 style={{ margin: 0, color: "#0b1220", fontSize: "20px", fontWeight: "700" }}>{modal === "add" ? "Add New Flight" : "Edit Flight"}</h3>
+              <h3 style={{ margin: 0, color: "var(--text-primary)", fontSize: "20px", fontWeight: "700" }}>{modal === "add" ? "Add New Flight" : "Edit Flight"}</h3>
               <button onClick={() => setModal(null)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#6c757d" }}>✕</button>
             </div>
             {formErr && <div style={{ background: "#f8d7da", color: "#721c24", padding: "10px", borderRadius: "6px", marginBottom: "14px", fontSize: "13px" }}>{formErr}</div>}
@@ -477,12 +477,12 @@ export default function AdminFlights() {
               <div>
                 <label style={labelStyle}>Flight Number</label>
                 {modal === "add" ? (
-                  <div style={{ padding: "10px 12px", border: "1px dashed #ced4da", borderRadius: "6px", fontSize: "14px", color: "#6c757d", backgroundColor: "#f8f9fa", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <div style={{ padding: "10px 12px", border: "1px dashed #ced4da", borderRadius: "6px", fontSize: "14px", color: "#6c757d", backgroundColor: "var(--background)", display: "flex", alignItems: "center", gap: "8px" }}>
                     <span style={{ fontSize: "16px" }}>⚙️</span>
                     <span>Auto-generated <strong style={{ color: "#d4af37" }}>AS####</strong> on save</span>
                   </div>
                 ) : (
-                  <div style={{ padding: "10px 12px", border: "1px solid #ced4da", borderRadius: "6px", fontSize: "14px", fontFamily: "monospace", fontWeight: "800", color: "#0b1220", backgroundColor: "#f8f9fa", letterSpacing: "1px" }}>
+                  <div style={{ padding: "10px 12px", border: "1px solid #ced4da", borderRadius: "6px", fontSize: "14px", fontFamily: "monospace", fontWeight: "800", color: "var(--text-primary)", backgroundColor: "var(--background)", letterSpacing: "1px" }}>
                     {form.flight_number || "—"}
                   </div>
                 )}
@@ -575,9 +575,9 @@ export default function AdminFlights() {
       {/* Load More footer */}
       {!loading && flights.length > 0 && (
         <div style={{ textAlign: "center", marginTop: "20px", paddingBottom: "8px", padding: "0 28px 20px" }}>
-          <div style={{ color: "rgba(255,255,255,0.65)", fontSize: "13px", marginBottom: "12px" }}>
-            Showing <strong style={{ color: "white" }}>{flights.length}</strong> of{" "}
-            <strong style={{ color: "white" }}>{totalCount}</strong> flight{totalCount !== 1 ? "s" : ""}
+          <div style={{ color: "var(--text-secondary)", fontSize: "13px", marginBottom: "12px" }}>
+            Showing <strong style={{ color: "var(--text-primary)", fontWeight: "700" }}>{flights.length}</strong> of{" "}
+            <strong style={{ color: "var(--text-primary)", fontWeight: "700" }}>{totalCount}</strong> flight{totalCount !== 1 ? "s" : ""}
           </div>
           {nextUrl && (
             <button
@@ -609,11 +609,11 @@ export default function AdminFlights() {
       {/* Auto-Generate Flights Modal */}
       {genModal && (
         <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, padding: "20px" }}>
-          <div style={{ backgroundColor: "white", borderRadius: "14px", padding: "32px", width: "100%", maxWidth: "520px", boxShadow: "0 24px 60px rgba(0,0,0,0.45)" }}>
+          <div style={{ backgroundColor: "var(--surface)", borderRadius: "14px", padding: "32px", width: "100%", maxWidth: "520px", boxShadow: "0 24px 60px rgba(0,0,0,0.45)" }}>
             {/* Header */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>
               <div>
-                <h3 style={{ margin: 0, color: "#0b1220", fontSize: "22px", fontWeight: "800", display: "flex", alignItems: "center", gap: "10px" }}>
+                <h3 style={{ margin: 0, color: "var(--text-primary)", fontSize: "22px", fontWeight: "800", display: "flex", alignItems: "center", gap: "10px" }}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                   Auto-Generate Flights
                 </h3>

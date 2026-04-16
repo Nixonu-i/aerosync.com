@@ -5,18 +5,18 @@ import API from "../../api/api";
 
 const teal   = "#20c997";
 const CARD = {
-  background: "rgba(5, 19, 30, 0.82)",
-  border: "1px solid rgba(32,201,151,0.3)",
+  background: "var(--surface)",
+  border: "1px solid var(--border)",
   borderRadius: "12px",
   padding: "20px 24px",
-  color: "#fff",
+  color: "var(--text-primary)",
 };
 
 function StatCard({ label, value, color = teal }) {
   return (
     <div style={{ ...CARD, display: "flex", flexDirection: "column", gap: "6px" }}>
       <div style={{ fontSize: "28px", fontWeight: 800, color }}>{value ?? "…"}</div>
-      <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.75)", fontWeight: 500 }}>{label}</div>
+      <div style={{ fontSize: "13px", color: "var(--text-secondary)", fontWeight: 500 }}>{label}</div>
     </div>
   );
 }
@@ -38,14 +38,14 @@ function QuickLink({ to, icon, label, desc }) {
           e.currentTarget.style.background  = "rgba(32,201,151,0.14)";
         }}
         onMouseLeave={e => {
-          e.currentTarget.style.borderColor = "rgba(32,201,151,0.3)";
-          e.currentTarget.style.background  = "rgba(5, 19, 30, 0.82)";
+          e.currentTarget.style.borderColor = "var(--border)";
+          e.currentTarget.style.background  = "var(--surface)";
         }}
       >
         <div style={{ color: teal, flexShrink: 0, marginTop: "2px" }}>{icon}</div>
         <div>
-          <div style={{ fontWeight: 700, fontSize: "15px", color: "#fff" }}>{label}</div>
-          <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.65)", marginTop: "4px", lineHeight: 1.4 }}>{desc}</div>
+          <div style={{ fontWeight: 700, fontSize: "15px", color: "var(--text-primary)" }}>{label}</div>
+          <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px", lineHeight: 1.4 }}>{desc}</div>
         </div>
       </div>
     </Link>
@@ -113,7 +113,7 @@ export default function AgentDashboard() {
     <div>
       {/* Header */}
       <div style={{ marginBottom: "28px" }}>
-        <div style={{ color: "rgba(255,255,255,0.75)", fontSize: "14px", display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px" }}>
+        <div style={{ color: "var(--text-secondary)", fontSize: "14px", display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px" }}>
           Welcome back, <strong style={{ color: teal }}>{user?.username}</strong>
           {user?.staff_id && (
             <span style={{
@@ -140,7 +140,7 @@ export default function AgentDashboard() {
 
       {/* Quick actions */}
       <h3 style={{
-        color: "rgba(255,255,255,0.85)",
+        color: "var(--text-primary)",
         fontSize: "13px",
         marginBottom: "16px",
         textTransform: "uppercase",
@@ -199,8 +199,8 @@ export default function AgentDashboard() {
           >
             <div style={{ color: teal, flexShrink: 0, marginTop: "2px" }}><Icons.User /></div>
             <div>
-              <div style={{ fontWeight: 700, fontSize: "15px", color: "#fff" }}>My Profile</div>
-              <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.65)", marginTop: "4px", lineHeight: 1.4 }}>Update your personal information</div>
+              <div style={{ fontWeight: 700, fontSize: "15px", color: "var(--text-primary)" }}>My Profile</div>
+              <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px", lineHeight: 1.4 }}>Update your personal information</div>
             </div>
           </div>
         </Link>
@@ -209,12 +209,12 @@ export default function AgentDashboard() {
       {/* Permission note */}
       <div style={{
         marginTop: "32px",
-        background: "rgba(5, 19, 30, 0.75)",
-        border: "1px solid rgba(32,201,151,0.25)",
+        background: "var(--background)",
+        border: "1px solid var(--border)",
         borderRadius: "10px",
         padding: "16px 20px",
         fontSize: "13px",
-        color: "rgba(255,255,255,0.7)",
+        color: "var(--text-secondary)",
         lineHeight: "1.6",
       }}>
         <strong style={{ color: teal }}>Agent Permissions:</strong>&nbsp;

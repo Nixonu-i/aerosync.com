@@ -70,7 +70,7 @@ export default function AdminBookings() {
     <>
       <div style={{ padding: "28px", maxWidth: "1400px", margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
-        <h2 style={{ color: "white", fontWeight: "800", fontSize: "26px", margin: 0, textShadow: "0 2px 8px rgba(0,0,0,0.6)" }}>Booking Management</h2>
+        <h2 style={{ color: "var(--text-primary)", fontWeight: "800", fontSize: "26px", margin: 0 }}>Booking Management</h2>
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search bookings..." style={inputStyle} />
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={inputStyle}>
@@ -82,24 +82,24 @@ export default function AdminBookings() {
           </select>
         </div>
       </div>
-      <div style={{ color: "rgba(255,255,255,0.6)", fontSize: "13px", marginBottom: "14px" }}>
+      <div style={{ color: "var(--text-secondary)", fontSize: "13px", marginBottom: "14px" }}>
         {filtered.length} booking{filtered.length !== 1 ? "s" : ""} shown
       </div>
 
       {error && <div style={{ background: "#f8d7da", color: "#721c24", padding: "12px", borderRadius: "6px", marginBottom: "16px" }}>{error}</div>}
 
-      {loading ? <div style={{ color: "rgba(255,255,255,0.7)", textAlign: "center", padding: "60px" }}>Loading...</div> : (
+      {loading ? <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "60px" }}>Loading...</div> : (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           {filtered.map(b => (
-            <div key={b.id} style={{ backgroundColor: "white", borderRadius: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.1)", overflow: "hidden" }}>
+            <div key={b.id} style={{ backgroundColor: "var(--surface)", borderRadius: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.1)", overflow: "hidden" }}>
               {/* Row header */}
               <div
                 style={{ padding: "14px 20px", display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center", cursor: "pointer", borderLeft: b.booking_status === "CONFIRMED" ? "4px solid #28a745" : b.booking_status === "CANCELLED" ? "4px solid #dc3545" : "4px solid #ffc107" }}
                 onClick={() => setExpanded(expanded === b.id ? null : b.id)}
               >
-                <span style={{ fontFamily: "monospace", fontWeight: "800", fontSize: "14px", color: "#0b1220", minWidth: "120px" }}>{b.confirmation_code}</span>
+                <span style={{ fontFamily: "monospace", fontWeight: "800", fontSize: "14px", color: "var(--text-primary)", minWidth: "120px" }}>{b.confirmation_code}</span>
                 <span style={{ fontSize: "13px", color: "#495057", minWidth: "100px" }}>{b.username}</span>
-                <span style={{ fontSize: "14px", fontWeight: "700", color: "#0b1220", minWidth: "100px" }}>{b.departure_code} → {b.arrival_code}</span>
+                <span style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-primary)", minWidth: "100px" }}>{b.departure_code} → {b.arrival_code}</span>
                 <span style={{ fontSize: "12px", color: "#6c757d", minWidth: "90px" }}>{b.flight_number}</span>
                 <span style={{ fontSize: "12px", color: "#6c757d" }}>{new Date(b.booking_date).toLocaleDateString()}</span>
                 <StatusBadge status={b.booking_status} />
@@ -113,7 +113,7 @@ export default function AdminBookings() {
 
               {/* Expanded details */}
               {expanded === b.id && (
-                <div style={{ padding: "16px 20px", borderTop: "1px solid #f0f0f0", backgroundColor: "#f8f9fa" }}>
+                <div style={{ padding: "16px 20px", borderTop: "1px solid #f0f0f0", backgroundColor: "var(--background)" }}>
                   <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "16px" }}>
                     {/* Actions */}
                     {b.booking_status !== "CONFIRMED" && b.payment_status === "PENDING" && (
@@ -145,11 +145,11 @@ export default function AdminBookings() {
                   {/* Passengers */}
                   {b.passengers?.length > 0 && (
                     <div>
-                      <div style={{ fontWeight: "700", color: "#0b1220", marginBottom: "8px", fontSize: "13px" }}>Passengers ({b.passengers.length})</div>
+                      <div style={{ fontWeight: "700", color: "var(--text-primary)", marginBottom: "8px", fontSize: "13px" }}>Passengers ({b.passengers.length})</div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
                         {b.passengers.map(p => (
-                          <div key={p.id} style={{ backgroundColor: "white", border: "1px solid #dee2e6", borderRadius: "6px", padding: "10px 14px", fontSize: "13px", minWidth: "200px" }}>
-                            <div style={{ fontWeight: "700", color: "#0b1220" }}>{p.full_name}</div>
+                          <div key={p.id} style={{ backgroundColor: "var(--surface)", border: "1px solid #dee2e6", borderRadius: "6px", padding: "10px 14px", fontSize: "13px", minWidth: "200px" }}>
+                            <div style={{ fontWeight: "700", color: "var(--text-primary)" }}>{p.full_name}</div>
                             <div style={{ color: "#6c757d" }}>{p.passenger_type} · {p.nationality}</div>
                             <div style={{ color: "#6c757d" }}>DOB: {p.date_of_birth}</div>
                           </div>
@@ -162,7 +162,7 @@ export default function AdminBookings() {
             </div>
           ))}
           {filtered.length === 0 && (
-            <div style={{ backgroundColor: "white", borderRadius: "10px", padding: "40px", textAlign: "center", color: "#6c757d" }}>No bookings found.</div>
+            <div style={{ backgroundColor: "var(--surface)", borderRadius: "10px", padding: "40px", textAlign: "center", color: "#6c757d" }}>No bookings found.</div>
           )}
         </div>
       )}

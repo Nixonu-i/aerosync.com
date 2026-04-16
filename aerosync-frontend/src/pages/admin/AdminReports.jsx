@@ -39,7 +39,7 @@ function downloadCSV(filename, headers, rows) {
 function StatCard({ label, value, color }) {
   return (
     <div style={{
-      backgroundColor: "white",
+      backgroundColor: "var(--surface)",
       borderRadius: "12px",
       padding: "20px 24px",
       boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
@@ -68,7 +68,7 @@ function StatusBadge({ status }) {
 }
 
 const TH = ({ children, right }) => (
-  <th style={{ padding: "10px 12px", textAlign: right ? "right" : "left", color: "#495057", fontSize: "12px", fontWeight: "700", borderBottom: "2px solid #dee2e6", whiteSpace: "nowrap", backgroundColor: "#f8f9fa" }}>
+  <th style={{ padding: "10px 12px", textAlign: right ? "right" : "left", color: "#495057", fontSize: "12px", fontWeight: "700", borderBottom: "2px solid #dee2e6", whiteSpace: "nowrap", backgroundColor: "var(--background)" }}>
     {children}
   </th>
 );
@@ -121,7 +121,7 @@ function BookingsTable({ data }) {
         </span>
         <button onClick={handleCSV} style={csvBtnStyle}>⬇ Export CSV</button>
       </div>
-      <div style={{ overflowX: "auto", borderRadius: "10px", boxShadow: "0 2px 10px rgba(0,0,0,0.1)", backgroundColor: "white" }}>
+      <div style={{ overflowX: "auto", borderRadius: "10px", boxShadow: "0 2px 10px rgba(0,0,0,0.1)", backgroundColor: "var(--surface)" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "860px" }}>
           <thead>
             <tr>
@@ -206,7 +206,7 @@ function FlightsTable({ data }) {
         </span>
         <button onClick={handleCSV} style={csvBtnStyle}>⬇ Export CSV</button>
       </div>
-      <div style={{ overflowX: "auto", borderRadius: "10px", boxShadow: "0 2px 10px rgba(0,0,0,0.1)", backgroundColor: "white" }}>
+      <div style={{ overflowX: "auto", borderRadius: "10px", boxShadow: "0 2px 10px rgba(0,0,0,0.1)", backgroundColor: "var(--surface)" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "900px" }}>
           <thead>
             <tr>
@@ -280,7 +280,7 @@ function UsersTable({ data }) {
         </span>
         <button onClick={handleCSV} style={csvBtnStyle}>⬇ Export CSV</button>
       </div>
-      <div style={{ overflowX: "auto", borderRadius: "10px", boxShadow: "0 2px 10px rgba(0,0,0,0.1)", backgroundColor: "white" }}>
+      <div style={{ overflowX: "auto", borderRadius: "10px", boxShadow: "0 2px 10px rgba(0,0,0,0.1)", backgroundColor: "var(--surface)" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "700px" }}>
           <thead>
             <tr>
@@ -389,37 +389,37 @@ export default function AdminReports() {
     );
   };
 
-  const inputStyle = { padding: "8px 12px", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px", fontSize: "14px", backgroundColor: "rgba(255,255,255,0.12)", color: "white" };
+  const inputStyle = { padding: "8px 12px", border: "1px solid var(--border)", borderRadius: "6px", fontSize: "14px", backgroundColor: "#ffffff", color: "var(--text-primary)" };
 
   return (
     <div style={{ padding: "28px", maxWidth: "1400px", margin: "0 auto" }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px", flexWrap: "wrap", gap: "16px" }}>
         <div>
-          <h2 style={{ color: "white", fontWeight: "800", fontSize: "28px", margin: 0, textShadow: "0 2px 8px rgba(0,0,0,0.6)" }}>
+          <h2 style={{ color: "var(--text-primary)", fontWeight: "800", fontSize: "28px", margin: 0 }}>
             Reports &amp; Analytics
           </h2>
-          <p style={{ color: "rgba(255,255,255,0.55)", fontSize: "13px", margin: "4px 0 0" }}>
+          <p style={{ color: "var(--text-secondary)", fontSize: "13px", margin: "4px 0 0" }}>
             Export data as CSV or view in table format
           </p>
         </div>
-        <button onClick={handleExportAll} style={{ ...csvBtnStyle, backgroundColor: "#d4af37", color: "#0b1220", padding: "10px 22px", fontSize: "14px" }}>
+        <button onClick={handleExportAll} style={{ ...csvBtnStyle, backgroundColor: "#d4af37", color: "var(--text-primary)", padding: "10px 22px", fontSize: "14px" }}>
           ⬇ Export Full Report (CSV)
         </button>
       </div>
 
       {/* Date Range */}
-      <div style={{ backgroundColor: "rgba(255,255,255,0.08)", backdropFilter: "blur(8px)", borderRadius: "12px", padding: "16px 20px", marginBottom: "24px", display: "flex", gap: "14px", flexWrap: "wrap", alignItems: "center" }}>
-        <span style={{ color: "rgba(255,255,255,0.8)", fontSize: "13px", fontWeight: "600" }}>Summary Period:</span>
+      <div style={{ backgroundColor: "var(--background)", border: "1px solid var(--border)", borderRadius: "12px", padding: "16px 20px", marginBottom: "24px", display: "flex", gap: "14px", flexWrap: "wrap", alignItems: "center" }}>
+        <span style={{ color: "var(--text-primary)", fontSize: "13px", fontWeight: "600" }}>Summary Period:</span>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <label style={{ color: "rgba(255,255,255,0.6)", fontSize: "13px" }}>From</label>
+          <label style={{ color: "var(--text-secondary)", fontSize: "13px" }}>From</label>
           <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} style={inputStyle} />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <label style={{ color: "rgba(255,255,255,0.6)", fontSize: "13px" }}>To</label>
+          <label style={{ color: "var(--text-secondary)", fontSize: "13px" }}>To</label>
           <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} style={inputStyle} />
         </div>
-        <button onClick={load} style={{ backgroundColor: "#0b1220", color: "white", border: "1px solid rgba(255,255,255,0.2)", padding: "8px 18px", borderRadius: "6px", fontWeight: "700", fontSize: "13px", cursor: "pointer" }}>
+        <button onClick={load} style={{ backgroundColor: "#d4af37", color: "#0b1220", border: "none", padding: "8px 18px", borderRadius: "6px", fontWeight: "700", fontSize: "13px", cursor: "pointer" }}>
           Apply
         </button>
       </div>
