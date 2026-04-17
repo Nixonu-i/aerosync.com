@@ -2,7 +2,123 @@ import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import API from "../../api/api";
 
-const teal   = "#20c997";
+/* ─── Passenger Photo Component with Auth ─── */
+function PassengerPhoto({ photoUrl, passengerName }) {
+  const [imageSrc, setImageSrc] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const fetchImage = async () => {
+      try {
+        const fullUrl = photoUrl.startsWith('http') 
+          ? photoUrl 
+          : `${window.location.origin}${photoUrl}`;
+        
+        const response = await fetch(fullUrl, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          }
+        });
+        
+        if (!response.ok) throw new Error('Failed to fetch');
+        
+        const blob = await response.blob();
+        setImageSrc(URL.createObjectURL(blob));
+        setLoading(false);
+      } catch (err) {
+        console.error('Failed to load passenger photo:', err);
+        setError(true);
+        setLoading(false);
+      }
+    };
+
+    fetchImage();
+  }, [photoUrl]);
+
+  if (loading) {
+    return (
+      <div style={{
+        background: "rgba(0,0,0,0.4)",
+        borderRadius: "12px",
+        padding: "16px",
+        marginBottom: "20px",
+        textAlign: "center"
+      }}>
+        <div style={{
+          width: "200px",
+          height: "200px",
+          margin: "0 auto",
+          borderRadius: "12px",
+          border: "3px solid teal",
+          background: "rgba(32,201,151,0.1)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center"
+        }}>
+          <div style={{ color: teal, fontSize: "13px" }}>Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !imageSrc) {
+    return (
+      <div style={{
+        background: "rgba(0,0,0,0.4)",
+        borderRadius: "12px",
+        padding: "16px",
+        marginBottom: "20px",
+        textAlign: "center"
+      }}>
+        <div style={{
+          width: "200px",
+          height: "200px",
+          margin: "0 auto",
+          borderRadius: "12px",
+          border: "3px solid #6c757d",
+          background: "rgba(108,117,125,0.2)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexDirection: "column",
+          gap: "8px"
+        }}>
+          <Icons.User size={48} color="#6c757d" />
+          <div style={{ color: "#6c757d", fontSize: "12px" }}>Photo unavailable</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      background: "rgba(0,0,0,0.4)",
+      borderRadius: "12px",
+      padding: "16px",
+      marginBottom: "20px",
+      textAlign: "center"
+    }}>
+      <img
+        src={imageSrc}
+        alt={passengerName || "Passenger"}
+        style={{
+          width: "200px",
+          height: "200px",
+          objectFit: "cover",
+          borderRadius: "12px",
+          border: "3px solid teal",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.5)"
+        }}
+      />
+      <div style={{ marginTop: "12px", color: "rgba(255,255,255,0.7)", fontSize: "13px" }}>
+        {passengerName}
+      </div>
+    </div>
+  );
+}
+
+const teal  = "#20c997";
 const green  = "#28a745";
 const red    = "#dc3545";
 const amber  = "#fd7e14";
@@ -469,51 +585,7 @@ export default function AgentVerifyQR() {
 
           {/* Passenger Photo */}
           {result.passenger_photo_url ? (
-            <div style={{
-              background: "rgba(0,0,0,0.4)",
-              borderRadius: "12px",
-              padding: "16px",
-              marginBottom: "20px",
-              textAlign: "center"
-            }}>
-              <img
-                src={result.passenger_photo_url.startsWith('http') 
-                  ? result.passenger_photo_url 
-                  : `${window.location.origin}${result.passenger_photo_url}`}
-                alt="Passenger"
-                style={{
-                  width: "200px",
-                  height: "200px",
-                  objectFit: "cover",
-                  borderRadius: "12px",
-                  border: "3px solid teal",
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.5)"
-                }}
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'flex';
-                }}
-              />
-              <div style={{
-                display: "none",
-                width: "200px",
-                height: "200px",
-                margin: "0 auto",
-                borderRadius: "12px",
-                border: "3px solid #6c757d",
-                background: "rgba(108,117,125,0.2)",
-                alignItems: "center",
-                justifyContent: "center",
-                flexDirection: "column",
-                gap: "8px"
-              }}>
-                <Icons.User size={48} color="#6c757d" />
-                <div style={{ color: "#6c757d", fontSize: "12px" }}>No Photo</div>
-              </div>
-              <div style={{ marginTop: "12px", color: "rgba(255,255,255,0.7)", fontSize: "13px" }}>
-                {result.passenger_name} • {result.passenger_type || 'ADULT'}
-              </div>
-            </div>
+            <PassengerPhoto photoUrl={result.passenger_photo_url} passengerName={result.passenger_name} />
           ) : (
             <div style={{
               background: "rgba(253,126,20,0.1)",
