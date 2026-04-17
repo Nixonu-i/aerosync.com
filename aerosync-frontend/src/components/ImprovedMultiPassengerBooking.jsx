@@ -47,7 +47,8 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
     phone_area_code: "",
     phone_number: "",
     gender: "",
-    passport_number: ""
+    passport_number: "",
+    photo: null
   }]);
   const [stopoverCity, setStopoverCity] = useState("");
   const [seats, setSeats] = useState([]);
@@ -84,7 +85,8 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
       phone_area_code: "",
       phone_number: "",
       gender: "",
-      passport_number: ""
+      passport_number: "",
+      photo: null
     }]);
   };
 
@@ -99,6 +101,51 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
     setPassengers(prev => prev.map(p => 
       p.id === id ? { ...p, [field]: value } : p
     ));
+  };
+
+  const calculateAge = (dateOfBirth) => {
+    if (!dateOfBirth) return null;
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const requiresPhoto = (passenger) => {
+    // Kids below 4 years (KID type) don't need photo
+    const age = calculateAge(passenger.date_of_birth);
+    if (age !== null && age < 4) {
+      return false;
+    }
+    // Adults and children 4+ need photo
+    return true;
+  };
+
+  const handlePassengerPhotoChange = (passengerId, e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file size (max 2MB)
+      const maxSize = 2 * 1024 * 1024; // 2MB
+      if (file.size > maxSize) {
+        alert(`File size must be under 2MB. Current size: ${(file.size / 1024).toFixed(0)}KB`);
+        e.target.value = '';
+        return;
+      }
+      
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Unsupported file type. Please use JPG, PNG, GIF, or WebP images.');
+        e.target.value = '';
+        return;
+      }
+      
+      updatePassenger(passengerId, 'photo', file);
+    }
   };
 
   // Step 2: Seat Selection
@@ -225,29 +272,46 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
     setSuccess("");
     
     try {
+      // Validate photos for passengers who need them
+      for (let i = 0; i < passengers.length; i++) {
+        const p = passengers[i];
+        if (requiresPhoto(p) && !p.photo) {
+          setError(`Photo required for Passenger ${i + 1} (${p.full_name || 'Unnamed'})`);
+          setLoading(false);
+          return;
+        }
+      }
+
       const referenceNumber = `AS-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
       
-      const apiData = {
-        flight_id: flight.id,
-        reference_number: referenceNumber,
-        passengers: passengers.map(p => ({
-          full_name: p.full_name,
-          date_of_birth: p.date_of_birth,
-          nationality: p.nationality,
-          passenger_type: p.passenger_type,
-          phone_area_code: p.phone_area_code,
-          phone_number: p.phone_number,
-          gender: p.gender,
-          passport_number: p.passport_number
-        })),
-        seat_assignments: seatAssignments.map(a => ({
-          seat_id: a.seat_id,
-          passenger_index: passengers.findIndex(p => p.id === a.passenger_id)
-        })),
-        stopover_city: stopoverCity || ""
-      };
+      // Use FormData for file uploads
+      const formData = new FormData();
+      formData.append('flight_id', flight.id);
+      formData.append('reference_number', referenceNumber);
+      formData.append('passengers', JSON.stringify(passengers.map(p => ({
+        full_name: p.full_name,
+        date_of_birth: p.date_of_birth,
+        nationality: p.nationality,
+        passenger_type: p.passenger_type,
+        phone_area_code: p.phone_area_code,
+        phone_number: p.phone_number,
+        gender: p.gender,
+        passport_number: p.passport_number
+      }))));
+      formData.append('seat_assignments', JSON.stringify(seatAssignments.map(a => ({
+        seat_id: a.seat_id,
+        passenger_index: passengers.findIndex(p => p.id === a.passenger_id)
+      }))));
+      formData.append('stopover_city', stopoverCity || "");
       
-      const res = await API.post("bookings/create_booking/", apiData);
+      // Append passenger photos
+      passengers.forEach((p) => {
+        if (p.photo) {
+          formData.append('passenger_photos', p.photo);
+        }
+      });
+      
+      const res = await API.post("bookings/create_booking/", formData);
       setSuccess("Booking created successfully!");
       setTimeout(() => {
         onBookingComplete(res.data);
@@ -559,6 +623,72 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
                   </select>
                 </div>
               </div>
+
+              {/* Passenger Photo Upload */}
+              {passenger.date_of_birth ? (
+                requiresPhoto(passenger) ? (
+                  <div style={{ 
+                    marginBottom: "15px",
+                    padding: "15px",
+                    background: "#f8f9fa",
+                    borderRadius: "6px",
+                    border: "1px solid #dee2e6"
+                  }}>
+                    <label style={{ 
+                      display: "block", 
+                      marginBottom: "8px", 
+                      fontWeight: "600",
+                      color: "#495057"
+                    }}>
+                      Passenger Photo * <span style={{ fontWeight: 400, fontSize: "12px", color: "#6c757d" }}>
+                        (Max 2MB, for boarding verification)
+                      </span>
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                      onChange={(e) => handlePassengerPhotoChange(passenger.id, e)}
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        border: "1px solid #ced4da",
+                        borderRadius: "4px",
+                        boxSizing: "border-box",
+                        fontSize: "13px"
+                      }}
+                    />
+                    {passenger.photo && (
+                      <div style={{ marginTop: "8px", fontSize: "12px", color: "#28a745", fontWeight: "600" }}>
+                        ✓ {passenger.photo.name} ({(passenger.photo.size / 1024).toFixed(0)}KB)
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ 
+                    marginBottom: "15px",
+                    padding: "12px",
+                    background: "#f8f9fa",
+                    borderRadius: "6px",
+                    border: "1px dashed #dee2e6"
+                  }}>
+                    <div style={{ fontSize: "13px", color: "#6c757d" }}>
+                      📷 Photo not required for children under 4 years
+                    </div>
+                  </div>
+                )
+              ) : (
+                <div style={{ 
+                  marginBottom: "15px",
+                  padding: "12px",
+                  background: "#fff3cd",
+                  borderRadius: "6px",
+                  border: "1px dashed #ffc107"
+                }}>
+                  <div style={{ fontSize: "13px", color: "#856404" }}>
+                    ⚠️ Please enter date of birth first to determine photo requirement
+                  </div>
+                </div>
+              )}
 
               {passenger.passenger_type === "ADULT" && (
                 <div style={{ 

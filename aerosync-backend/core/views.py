@@ -169,6 +169,10 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=["post"], url_path="create_booking")
     def create_booking(self, request):
+        print(f"[DEBUG] Request content type: {request.content_type}")
+        print(f"[DEBUG] Request FILES: {request.FILES}")
+        print(f"[DEBUG] Request DATA keys: {list(request.data.keys())}")
+        
         ser = CreateBookingSerializer(data=request.data)
         if not ser.is_valid():
             import logging
@@ -307,14 +311,18 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
             
             # Get passenger photos from request files (if any)
             passenger_photos = request.FILES.getlist('passenger_photos')
+            print(f"[DEBUG] Self-booking passenger photos received: {len(passenger_photos)}")
             
             # Check if this is a self-booking to use user's profile photo
             is_self_booking = request.data.get('for_self') == True
+            print(f"[DEBUG] Is self-booking: {is_self_booking}")
             user_profile_photo = None
             if is_self_booking and hasattr(request.user, 'profile'):
                 try:
                     user_profile_photo = request.user.profile.profile_photo
-                except:
+                    print(f"[DEBUG] User profile photo: {user_profile_photo}")
+                except Exception as e:
+                    print(f"[DEBUG] Error getting profile photo: {e}")
                     pass
             
             # Create passengers and boarding passes
@@ -2122,6 +2130,9 @@ class AgentBookingViewSet(viewsets.ViewSet):
 
         # Get passenger photos from request files (if any)
         passenger_photos = request.FILES.getlist('passenger_photos')
+        print(f"[DEBUG] Passenger photos received: {len(passenger_photos)}")
+        for idx, photo in enumerate(passenger_photos):
+            print(f"[DEBUG] Photo {idx}: {photo.name}, size: {photo.size}, content_type: {photo.content_type}")
 
         with transaction.atomic():
             booking = Booking.objects.create(

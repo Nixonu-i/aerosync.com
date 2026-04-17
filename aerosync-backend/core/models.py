@@ -16,11 +16,16 @@ def passenger_photo_upload_to(instance, filename):
     now = timezone.now()
     base, ext = os.path.splitext(filename)
     ext = ext.lower()
+    
+    # Use booking ID and passenger ID if available
+    booking_id = instance.booking.pk if instance.booking else 'unknown'
+    passenger_id = instance.passenger.pk if instance.passenger else 'unknown'
+    
     return os.path.join(
         'passenger_photos',
         f"{now.year}",
         f"{now.month:02d}",
-        f"passenger_{instance.passenger.pk}_{uuid.uuid4().hex[:8]}{ext}"
+        f"booking_{booking_id}_passenger_{passenger_id}_{uuid.uuid4().hex[:8]}{ext}"
     )
 
 def validate_passenger_photo_size(file):
