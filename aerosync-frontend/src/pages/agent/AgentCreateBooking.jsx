@@ -49,7 +49,30 @@ const blankPassenger = () => ({
   full_name: "", date_of_birth: "", gender: "",
   passport_number: "", nationality: "", passenger_type: "ADULT",
   phone_area_code: "+254", phone_number: "",
+  photo: null
 });
+
+/* ─── Photo validation helpers ───────────────────────────── */
+const PASSENGER_PHOTO_MAX_SIZE = 2 * 1024 * 1024; // 2MB
+const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+
+const calculateAge = (dateOfBirth) => {
+  if (!dateOfBirth) return null;
+  const today = new Date();
+  const birthDate = new Date(dateOfBirth);
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+};
+
+const requiresPhoto = (passenger) => {
+  const age = calculateAge(passenger.date_of_birth);
+  if (age !== null && age < 4) return false;
+  return true;
+};
 
 /* ─── Passenger Form ─────────────────────────────────────── */
 const TYPE_BTNS = [
@@ -58,9 +81,10 @@ const TYPE_BTNS = [
   { val: "KID",   label: "Kid",    sub: "0–4 yrs" },
 ];
 
-function PassengerForm({ index, data, onChange, onRemove, showRemove }) {
+function PassengerForm({ index, data, onChange, onRemove, showRemove, onPhotoChange }) {
   const set     = (k, v) => onChange(index, { ...data, [k]: v });
   const isAdult = data.passenger_type === "ADULT";
+  const needPhoto = requiresPhoto(data);
 
   return (
     <div style={{ background: "var(--background)", border: "1px solid var(--border)", borderRadius: "10px", padding: "16px", marginBottom: "12px" }}>
@@ -120,6 +144,29 @@ function PassengerForm({ index, data, onChange, onRemove, showRemove }) {
             {NATIONALITIES.map(n => <option key={n} value={n} style={{ background: "var(--surface)" }}>{n}</option>)}
           </select>
         </div>
+
+        {/* Photo upload for adults and children 4+ */}
+        {needPhoto && (
+          <div style={{ gridColumn: "1 / -1" }}>
+            <label style={labelStyle}>
+              Passenger Photo * 
+              <span style={{ fontWeight: 400, opacity: 0.7, marginLeft: "4px" }}>
+                (Max 2MB, for boarding verification)
+              </span>
+            </label>
+            <input
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+              onChange={(e) => onPhotoChange(index, e)}
+              style={{ ...inputStyle, padding: "7px", fontSize: "13px" }}
+            />
+            {data.photo && (
+              <div style={{ color: "#28a745", fontSize: "11px", marginTop: "4px", fontWeight: 600 }}>
+                ✓ {data.photo.name} ({(data.photo.size / 1024).toFixed(0)}KB)
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Adult-only fields */}
         {isAdult && (
@@ -611,6 +658,28 @@ export default function AgentCreateBooking() {
     );
   };
 
+  /* Photo upload handler */
+  const handlePassengerPhotoChange = (index, e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file size
+      if (file.size > PASSENGER_PHOTO_MAX_SIZE) {
+        alert(`File size must be under 2MB. Current size: ${(file.size / 1024).toFixed(0)}KB`);
+        e.target.value = '';
+        return;
+      }
+      
+      // Validate file type
+      if (!ALLOWED_PHOTO_TYPES.includes(file.type)) {
+        alert('Unsupported file type. Please use JPG, PNG, GIF, or WebP images.');
+        e.target.value = '';
+        return;
+      }
+      
+      setPassenger(index, { ...passengers[index], photo: file });
+    }
+  };
+
   /* Seat helpers */
   const onSeatClick   = (seat) => setSeatModal(seat);
   const onSeatUnclick = (seatId) => setSeatAssignments(a => a.filter(x => x.seat_id !== seatId));
@@ -634,6 +703,10 @@ export default function AgentCreateBooking() {
         if (!p.gender)                return `Passenger ${n}: Gender is required for adults.`;
         if (!p.phone_number.trim())   return `Passenger ${n}: Phone number is required for adults.`;
         if (!p.passport_number.trim()) return `Passenger ${n}: Passport/ID is required for adults.`;
+      }
+      // Validate photo for passengers who require it (adults & children 4+)
+      if (requiresPhoto(p) && !p.photo) {
+        return `Passenger ${n}: Photo is required for boarding verification.`;
       }
     }
     return null;
@@ -677,10 +750,30 @@ export default function AgentCreateBooking() {
         return asgn?.seat_id;
       }).filter(Boolean);
 
-      const res = await API.post("agent/bookings/create_for_customer/", {
-        flight_id: flightId,  // UUID, keep as string
-        passengers: passengers.map(p => ({ ...p })),
-        seat_ids,
+      // Use FormData for file uploads
+      const formData = new FormData();
+      formData.append('flight_id', flightId);
+      formData.append('passengers', JSON.stringify(passengers.map(p => ({
+        full_name: p.full_name,
+        date_of_birth: p.date_of_birth,
+        nationality: p.nationality,
+        passenger_type: p.passenger_type,
+        phone_area_code: p.phone_area_code,
+        phone_number: p.phone_number,
+        gender: p.gender,
+        passport_number: p.passport_number
+      }))));
+      formData.append('seat_ids', JSON.stringify(seat_ids));
+      
+      // Append passenger photos
+      passengers.forEach((p) => {
+        if (p.photo) {
+          formData.append('passenger_photos', p.photo);
+        }
+      });
+
+      const res = await API.post("agent/bookings/create_for_customer/", formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
       
       // Fetch full booking details with flight info, seats, etc.
@@ -872,7 +965,8 @@ export default function AgentCreateBooking() {
             </div>
             {passengers.map((p, i) => (
               <PassengerForm key={i} index={i} data={p} onChange={setPassenger}
-                onRemove={() => removePassenger(i)} showRemove={passengers.length > 1} />
+                onRemove={() => removePassenger(i)} showRemove={passengers.length > 1}
+                onPhotoChange={handlePassengerPhotoChange} />
             ))}
           </div>
 

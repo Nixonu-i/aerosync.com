@@ -451,31 +451,45 @@ export default function MultiPassengerBooking({ flight, onBookingComplete }) {
                   </select>
                 </div>
                 
-                {requiresPhoto(passenger) && (
-                  <div style={{ gridColumn: "span 2" }}>
-                    <label style={{ display: "block", marginBottom: "5px", fontWeight: "600" }}>
-                      Passenger Photo * <span style={{ fontWeight: 400, fontSize: "12px", color: "#6c757d" }}>
-                        (Max 2MB, for boarding verification)
-                      </span>
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                      onChange={(e) => handlePassengerPhotoChange(passenger.id, e)}
-                      style={{
-                        width: "100%",
-                        padding: "8px",
-                        border: "1px solid #ced4da",
-                        borderRadius: "4px",
-                        boxSizing: "border-box",
-                        fontSize: "13px"
-                      }}
-                    />
-                    {passenger.photo && (
-                      <div style={{ marginTop: "5px", fontSize: "12px", color: "#28a745" }}>
-                        ✓ {passenger.photo.name} ({(passenger.photo.size / 1024).toFixed(0)}KB)
+                {passenger.date_of_birth ? (
+                  requiresPhoto(passenger) ? (
+                    <div style={{ gridColumn: "span 2" }}>
+                      <label style={{ display: "block", marginBottom: "5px", fontWeight: "600" }}>
+                        Passenger Photo * <span style={{ fontWeight: 400, fontSize: "12px", color: "#6c757d" }}>
+                          (Max 2MB, for boarding verification)
+                        </span>
+                      </label>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                        onChange={(e) => handlePassengerPhotoChange(passenger.id, e)}
+                        style={{
+                          width: "100%",
+                          padding: "8px",
+                          border: "1px solid #ced4da",
+                          borderRadius: "4px",
+                          boxSizing: "border-box",
+                          fontSize: "13px"
+                        }}
+                      />
+                      {passenger.photo && (
+                        <div style={{ marginTop: "5px", fontSize: "12px", color: "#28a745" }}>
+                          ✓ {passenger.photo.name} ({(passenger.photo.size / 1024).toFixed(0)}KB)
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ gridColumn: "span 2", padding: "10px", background: "#f8f9fa", borderRadius: "4px", border: "1px dashed #dee2e6" }}>
+                      <div style={{ fontSize: "12px", color: "#6c757d" }}>
+                        📷 Photo not required for children under 4 years
                       </div>
-                    )}
+                    </div>
+                  )
+                ) : (
+                  <div style={{ gridColumn: "span 2", padding: "10px", background: "#fff3cd", borderRadius: "4px", border: "1px dashed #ffc107" }}>
+                    <div style={{ fontSize: "12px", color: "#856404" }}>
+                      ⚠️ Please enter date of birth first to determine photo requirement
+                    </div>
                   </div>
                 )}
                 

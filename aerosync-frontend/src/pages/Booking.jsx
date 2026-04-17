@@ -446,7 +446,8 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
     phone_area_code: "+254",
     phone_number: "",
     gender: "",
-    passport_number: ""
+    passport_number: "",
+    profile_photo: null
   });
 
   // True once profile data is successfully fetched from the server.
@@ -467,7 +468,8 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
           nationality: profileData.nationality || "",
           gender: profileData.gender || "",
           phone_area_code: profileData.phone_area_code || "+254",
-          phone_number: profileData.phone_number || ""
+          phone_number: profileData.phone_number || "",
+          profile_photo: profileData.profile_photo_url || null
         }));
 
         // Lock all profile-sourced fields once the server confirms a saved profile

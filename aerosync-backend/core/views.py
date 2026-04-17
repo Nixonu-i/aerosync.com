@@ -308,6 +308,15 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
             # Get passenger photos from request files (if any)
             passenger_photos = request.FILES.getlist('passenger_photos')
             
+            # Check if this is a self-booking to use user's profile photo
+            is_self_booking = request.data.get('for_self') == True
+            user_profile_photo = None
+            if is_self_booking and hasattr(request.user, 'profile'):
+                try:
+                    user_profile_photo = request.user.profile.profile_photo
+                except:
+                    pass
+            
             # Create passengers and boarding passes
             for i, assignment in enumerate(seat_assignments):
                 passenger_info = passenger_data[i]
@@ -338,10 +347,14 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
                 
                 total_price += price
                 
-                # Get passenger photo if available
+                # Get passenger photo - priority: uploaded file > user profile photo > None
                 passenger_photo = None
                 if i < len(passenger_photos):
+                    # Use uploaded photo (multi-passenger booking)
                     passenger_photo = passenger_photos[i]
+                elif is_self_booking and user_profile_photo:
+                    # Use user's profile photo for self-booking
+                    passenger_photo = user_profile_photo
                 
                 # Create boarding pass (without QR code yet)
                 BoardingPass.objects.create(
@@ -2050,6 +2063,20 @@ class AgentBookingViewSet(viewsets.ViewSet):
         passengers = request.data.get("passengers", [])
         seat_ids   = request.data.get("seat_ids", [])
 
+        # Parse JSON strings if coming from FormData
+        import json
+        if isinstance(passengers, str):
+            try:
+                passengers = json.loads(passengers)
+            except:
+                passengers = []
+        
+        if isinstance(seat_ids, str):
+            try:
+                seat_ids = json.loads(seat_ids)
+            except:
+                seat_ids = []
+
         if not flight_id:
             return Response({"detail": "flight_id is required"}, status=400)
         if not passengers:
@@ -2093,6 +2120,9 @@ class AgentBookingViewSet(viewsets.ViewSet):
             multiplier = seats[i].price_multiplier if i < len(seats) else Decimal("1.00")
             total_amount += calc_price(p.get("passenger_type", "ADULT"), multiplier)
 
+        # Get passenger photos from request files (if any)
+        passenger_photos = request.FILES.getlist('passenger_photos')
+
         with transaction.atomic():
             booking = Booking.objects.create(
                 user=target_user,
@@ -2115,12 +2145,18 @@ class AgentBookingViewSet(viewsets.ViewSet):
                     phone_number=p.get("phone_number", ""),
                 )
                 if seat:
+                    # Get passenger photo if available
+                    passenger_photo = None
+                    if i < len(passenger_photos):
+                        passenger_photo = passenger_photos[i]
+                    
                     BoardingPass.objects.create(
                         booking=booking,
                         passenger=passenger_obj,
                         seat=seat,
                         price=calc_price(passenger_obj.passenger_type, seat.price_multiplier),
                         qr_code_data=f"BP_{booking.id}_{passenger_obj.id}_{seat.seat_number}",
+                        passenger_photo=passenger_photo
                     )
                     seat.is_available = False
                     seat.save(update_fields=["is_available"])
