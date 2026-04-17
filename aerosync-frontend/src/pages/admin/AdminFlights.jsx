@@ -24,6 +24,16 @@ const inputStyle = {
 };
 const labelStyle = { display: "block", marginBottom: "5px", fontWeight: "600", color: "#495057", fontSize: "13px" };
 
+// Helper to format date for datetime-local input (YYYY-MM-DDTHH:MM)
+const toLocalDatetimeLocal = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 function StatusBadge({ status }) {
   const map = { SCHEDULED: ["#d4edda","#155724"], DELAYED: ["#fff3cd","#856404"], CANCELLED: ["#f8d7da","#721c24"], COMPLETED: ["#e2e3e5","#383d41"] };
   const [bg, text] = map[status] || ["#e9ecef","#495057"];
@@ -162,9 +172,7 @@ export default function AdminFlights() {
     setViaCitiesInput(""); 
     setFormErr(""); 
     // Set departure min to current time
-    const now = new Date();
-    const localISO = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-    setDepartureMin(localISO);
+    setDepartureMin(toLocalDatetimeLocal(new Date()));
     setArrivalMin("");
     setModal("add"); 
   };
@@ -183,15 +191,12 @@ export default function AdminFlights() {
     });
     setViaCitiesInput((f.via_cities || []).join(', '));
     // For editing, set departure min to current time (can't change to past)
-    const now = new Date();
-    const localISO = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-    setDepartureMin(localISO);
+    setDepartureMin(toLocalDatetimeLocal(new Date()));
     // Set arrival min based on departure time
     if (f.departure_time) {
       const depTime = new Date(f.departure_time);
       const minArrival = new Date(depTime.getTime() + 60000);
-      const arrivalLocalISO = new Date(minArrival.getTime() - minArrival.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-      setArrivalMin(arrivalLocalISO);
+      setArrivalMin(toLocalDatetimeLocal(minArrival));
     } else {
       setArrivalMin("");
     }
@@ -657,8 +662,7 @@ export default function AdminFlights() {
                     if (newDeparture) {
                       const depTime = new Date(newDeparture);
                       const minArrival = new Date(depTime.getTime() + 60000);
-                      const arrivalLocalISO = new Date(minArrival.getTime() - minArrival.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-                      setArrivalMin(arrivalLocalISO);
+                      setArrivalMin(toLocalDatetimeLocal(minArrival));
                     } else {
                       setArrivalMin("");
                     }
