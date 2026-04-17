@@ -220,23 +220,27 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
                 }, status=400)
         
         # CONSTRAINT 2: Prevent user from booking flights that depart at the same time
-        # Get all active bookings for this user and check for conflicting departure times
-        user_bookings = Booking.objects.filter(
-            user=request.user
-        ).exclude(
-            booking_status='CANCELLED'
-        ).select_related('flight')
+        # Skip this check for multi-passenger bookings (booking for others)
+        is_multi_passenger = len(passenger_data) > 1 or not request.data.get("for_self", False)
         
-        # Check if any existing booking has a flight departing at the same time (within 1 hour window)
-        for existing_booking in user_bookings:
-            existing_flight = existing_booking.flight
-            time_diff = abs((existing_flight.departure_time - flight.departure_time).total_seconds())
+        if not is_multi_passenger:
+            # Get all active bookings for this user and check for conflicting departure times
+            user_bookings = Booking.objects.filter(
+                user=request.user
+            ).exclude(
+                booking_status='CANCELLED'
+            ).select_related('flight')
             
-            # If flights depart within 1 hour of each other, reject the booking
-            if time_diff < 3600:  # 3600 seconds = 1 hour
-                return Response({
-                    "detail": f"You already have a booking for a flight departing around the same time ({existing_flight.departure_time.strftime('%Y-%m-%d %H:%M')}). You cannot book overlapping flights."
-                }, status=400)
+            # Check if any existing booking has a flight departing at the same time (within 1 hour window)
+            for existing_booking in user_bookings:
+                existing_flight = existing_booking.flight
+                time_diff = abs((existing_flight.departure_time - flight.departure_time).total_seconds())
+                
+                # If flights depart within 1 hour of each other, reject the booking
+                if time_diff < 3600:  # 3600 seconds = 1 hour
+                    return Response({
+                        "detail": f"You already have a booking for a flight departing around the same time ({existing_flight.departure_time.strftime('%Y-%m-%d %H:%M')}). You cannot book overlapping flights."
+                    }, status=400)
         
         # Validate seat assignments
         seat_assignments = data["seat_assignments"]

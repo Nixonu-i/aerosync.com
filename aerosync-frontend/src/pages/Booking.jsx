@@ -154,7 +154,7 @@ function CreateBookingMultiPassenger({ flightId }) {
     window.location.href = "/bookings";
   };
   
-  const downloadPass = async (bookingId, ref, passengerId = null) => {
+  const downloadPass = async (bookingId, ref, passengerId = null, passengerName = null) => {
     try {
       // Build URL with optional passenger_id query parameter
       let url = `bookings/${bookingId}/boarding_pass_png/`;
@@ -162,9 +162,12 @@ function CreateBookingMultiPassenger({ flightId }) {
         url += `?passenger_id=${passengerId}`;
       }
       
-      const fileName = passengerId 
-        ? `boarding-pass-${ref}-passenger-${passengerId}.png`
-        : `boarding-pass-${ref}.png`;
+      // Use passenger name in filename if available, otherwise fallback to passenger ID
+      const fileName = passengerName 
+        ? `boarding-pass-${ref}-${passengerName.replace(/\s+/g, "_")}.png`
+        : passengerId 
+          ? `boarding-pass-${ref}-passenger-${passengerId}.png`
+          : `boarding-pass-${ref}.png`;
       
       const res = await API.get(url, { responseType: "blob" });
       const blobUrl = window.URL.createObjectURL(res.data);
@@ -1429,7 +1432,7 @@ function MyBookings() {
     };
   }, []); // Empty dependency array - only run once on mount
 
-  const downloadPass = async (bookingId, ref, passengerId = null) => {
+  const downloadPass = async (bookingId, ref, passengerId = null, passengerName = null) => {
     try {
       // Build URL with optional passenger_id query parameter
       let url = `bookings/${bookingId}/boarding_pass_png/`;
@@ -1437,9 +1440,12 @@ function MyBookings() {
         url += `?passenger_id=${passengerId}`;
       }
       
-      const fileName = passengerId 
-        ? `boarding-pass-${ref}-passenger-${passengerId}.png`
-        : `boarding-pass-${ref}.png`;
+      // Use passenger name in filename if available, otherwise fallback to passenger ID
+      const fileName = passengerName 
+        ? `boarding-pass-${ref}-${passengerName.replace(/\s+/g, "_")}.png`
+        : passengerId 
+          ? `boarding-pass-${ref}-passenger-${passengerId}.png`
+          : `boarding-pass-${ref}.png`;
       
       const res = await API.get(url, { responseType: "blob" });
       const blobUrl = window.URL.createObjectURL(res.data);
@@ -1631,7 +1637,7 @@ function BookingItem({ booking, onDownloadPass }) {
                   {booking.passengers.map((passenger, index) => (
                     <button 
                       key={passenger.id || index}
-                      onClick={() => onDownloadPass(booking.id, booking.confirmation_code, passenger.id)}
+                      onClick={() => onDownloadPass(booking.id, booking.confirmation_code, passenger.id, passenger.full_name)}
                       style={{
                         ...styles.downloadButton,
                         marginTop: index > 0 ? '0' : '12px'
