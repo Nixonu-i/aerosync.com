@@ -140,8 +140,8 @@ export default function AgentDashboard() {
 
       {/* Quick actions */}
       <h3 style={{
-        color: "var(--text-primary)",
-        fontSize: "13px",
+        color: "#0f172a",
+        fontSize: "18px",
         marginBottom: "16px",
         textTransform: "uppercase",
         letterSpacing: "1.2px",

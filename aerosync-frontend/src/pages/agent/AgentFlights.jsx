@@ -58,7 +58,7 @@ export default function AgentFlights() {
 
   return (
     <div>
-      <h2 style={{ color: "var(--text-primary)", marginBottom: "20px" }}>Available Flights</h2>
+      <h2 style={{ color: "#0f172a", marginBottom: "20px", fontSize: "28px", fontWeight: 800 }}>Available Flights</h2>
 
       {/* Search bar */}
       <div style={{

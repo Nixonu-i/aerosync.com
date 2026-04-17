@@ -115,7 +115,7 @@ function BookingCard({ booking, onStatusUpdate }) {
               {booking.flight_number ? `${booking.flight_number} ·` : ''} &nbsp;{booking.route || 'Route not specified'} &nbsp;·&nbsp; {fmt(booking.departure_time)}
             </div>
             <div style={{ color: "var(--text-secondary)", fontSize: "12px", marginTop: "2px" }}>
-              Customer: <span style={{ color: "var(--text-primary)" }}>{booking.username}</span>
+              Customer: <span style={{ color: "#fff", fontWeight: 700 }}>{booking.username}</span>
               &nbsp;·&nbsp; {booking.passengers?.length || 1} passenger(s)
               &nbsp;·&nbsp; KES {Number(booking.total_amount || 0).toLocaleString()}
             </div>
@@ -213,14 +213,15 @@ function BookingCard({ booking, onStatusUpdate }) {
                   justifyContent: "space-between",
                   alignItems: "center",
                   padding: "10px 14px",
-                  background: "rgba(255,255,255,0.04)",
+                  background: "var(--surface)",
+                  border: "1px solid var(--border)",
                   borderRadius: "8px",
                   marginBottom: "6px",
                   flexWrap: "wrap",
                   gap: "8px",
                 }}>
                   <div>
-                    <div style={{ color: "var(--text-primary)", fontWeight: 600, fontSize: "14px" }}>{p.full_name}</div>
+                    <div style={{ color: "var(--text-primary)", fontWeight: 700, fontSize: "14px" }}>{p.full_name}</div>
                     <div style={{ color: "var(--text-secondary)", fontSize: "12px", textTransform: "capitalize" }}>
                       {(p.passenger_type || "ADULT").toLowerCase()}
                     </div>
@@ -321,7 +322,7 @@ export default function AgentBookings() {
     <div>
       {/* Header */}
       <div style={{ marginBottom: "24px" }}>
-        <h2 style={{ color: "var(--text-primary)", fontWeight: 800, margin: "0 0 6px" }}>Bookings History</h2>
+        <h2 style={{ color: "#0f172a", fontWeight: 800, margin: "0 0 6px", fontSize: "28px" }}>Bookings History</h2>
         <p style={{ color: "var(--text-secondary)", fontSize: "14px", margin: 0 }}>
           Recent and upcoming bookings — download boarding passes for confirmed passengers.
         </p>

@@ -860,7 +860,7 @@ export default function AgentCreateBooking() {
   /* ── Render: Wizard Steps ── */
   return (
     <div style={{ maxWidth: "780px", paddingBottom: "40px" }}>
-      <h2 style={{ color: "var(--text-primary)", fontWeight: 800, margin: "0 0 6px" }}>Create Booking</h2>
+      <h2 style={{ color: "#0f172a", fontWeight: 800, margin: "0 0 6px", fontSize: "28px" }}>Create Booking</h2>
       <p style={{ color: "var(--text-secondary)", fontSize: "14px", marginBottom: "24px" }}>
         Book a flight for a walk-in customer. Payment is required to confirm.
       </p>

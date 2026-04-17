@@ -367,7 +367,7 @@ export default function AgentVerifyQR() {
 
       {/* ── Page Header ── */}
       <div style={{ marginBottom: "24px" }}>
-        <h2 style={{ color: "var(--text-primary)", fontWeight: 800, margin: "0 0 6px" }}>Verify Boarding Pass</h2>
+        <h2 style={{ color: "#0f172a", fontWeight: 800, margin: "0 0 6px", fontSize: "28px" }}>Verify Boarding Pass</h2>
         <p style={{ color: "var(--text-secondary)", fontSize: "14px", margin: 0, lineHeight: 1.6 }}>
           Scan the passenger's QR code or paste it manually.&nbsp;
           <strong style={{ color: "#17a2b8" }}>CONFIRMED</strong> bookings are marked&nbsp;
@@ -378,31 +378,32 @@ export default function AgentVerifyQR() {
       {/* ── Double-Scan Alert (prominent) ── */}
       {isDoubleBoard && (
         <div style={{
-          background: "rgba(253,126,20,0.15)",
-          border: `2px solid ${amber}`,
+          background: "#fd7e14",
+          border: `2px solid #e6730a`,
           borderRadius: "14px",
           padding: "20px 24px",
           marginBottom: "20px",
           display: "flex",
           gap: "14px",
           alignItems: "flex-start",
+          boxShadow: "0 4px 12px rgba(253,126,20,0.4)",
         }}>
-          <Icons.Warning size={36} color={amber} />
+          <Icons.Warning size={36} color="#fff" />
           <div>
-            <div style={{ color: amber, fontWeight: 800, fontSize: "18px", marginBottom: "4px" }}>
+            <div style={{ color: "#fff", fontWeight: 800, fontSize: "18px", marginBottom: "4px" }}>
               DUPLICATE SCAN — Passenger Already On Board!
             </div>
-            <div style={{ color: "var(--text-primary)", fontSize: "14px", lineHeight: 1.5 }}>
-              <strong style={{ color: "var(--text-primary)" }}>{result.passenger_name}</strong> was previously scanned
-              and is already marked as <strong style={{ color: amber }}>ON BOARD</strong>.
+            <div style={{ color: "#fff", fontSize: "14px", lineHeight: 1.5 }}>
+              <strong style={{ color: "#fff", textDecoration: "underline" }}>{result.passenger_name}</strong> was previously scanned
+              and is already marked as <strong style={{ color: "#fff", backgroundColor: "rgba(0,0,0,0.3)", padding: "2px 8px", borderRadius: "4px", fontWeight: 800 }}>ON BOARD</strong>.
               Do not allow re-boarding without supervisor approval.
             </div>
-            <div style={{ marginTop: "10px", display: "flex", gap: "8px", flexWrap: "wrap", fontSize: "13px", color: "var(--text-secondary)" }}>
-              <span>Ref: <strong style={{ color: "var(--text-primary)" }}>{result.booking_reference}</strong></span>
+            <div style={{ marginTop: "10px", display: "flex", gap: "8px", flexWrap: "wrap", fontSize: "13px", color: "#fff" }}>
+              <span>Ref: <strong style={{ color: "#fff" }}>{result.booking_reference}</strong></span>
               <span>·</span>
-              <span>Flight: <strong style={{ color: "var(--text-primary)" }}>{result.flight_number}</strong></span>
+              <span>Flight: <strong style={{ color: "#fff" }}>{result.flight_number}</strong></span>
               <span>·</span>
-              <span>Seat: <strong style={{ color: "var(--text-primary)" }}>{result.seat_number || "—"}</strong></span>
+              <span>Seat: <strong style={{ color: "#fff" }}>{result.seat_number || "—"}</strong></span>
             </div>
           </div>
         </div>
