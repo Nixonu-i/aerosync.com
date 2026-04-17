@@ -1402,7 +1402,6 @@ function MyBookings() {
     load();
     
     // Connect to WebSocket stream when component mounts
-    console.log('📡 Connecting to WebSocket stream for MyBookings');
     reconnect();
     
     // Subscribe to real-time booking updates (silent)
@@ -1425,10 +1424,8 @@ function MyBookings() {
     
     // Cleanup: disconnect WebSocket when component unmounts to free backend resources
     return () => {
-      console.log('🔌 Disconnecting from WebSocket stream - component unmount');
       unsubscribe();
       disconnect(); // Tell backend to close the connection
-      console.log('✅ WebSocket cleanup complete');
     };
   }, []); // Empty dependency array - only run once on mount
 

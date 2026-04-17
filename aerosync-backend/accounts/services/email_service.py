@@ -43,7 +43,6 @@ class EmailVerificationService:
                 )
                     
                 response = api_instance.send_transac_email(send_smtp_email)
-                print(f"Email sent successfully via Brevo! Message ID: {response.message_id}")
                 return True
             else:
                 # Use Django's configured email backend (Gmail OAuth)
@@ -55,7 +54,6 @@ class EmailVerificationService:
                 )
                 msg.attach_alternative(html_content, "text/html")
                 msg.send()
-                print(f"Email sent successfully via Gmail!")
                 return True
         except sib_api_v3_sdk.rest.ApiException as e:
             # Handle Brevo API errors specifically
@@ -70,7 +68,9 @@ class EmailVerificationService:
                 logger.error(f'Brevo API error: {e}')
                 raise
         except Exception as e:
-            print(f"Error sending email: {str(e)}")
+            import logging
+            logger = logging.getLogger('email_service')
+            logger.error(f'Error sending email: {e}')
             raise
     
     @staticmethod
@@ -282,7 +282,6 @@ If you didn't request this password reset, please ignore this email.
             text_content=text_content
         )
         
-        print(f'🔐 Password reset code sent to {user.email}: {code}')
         return code
     
     @staticmethod
@@ -423,7 +422,6 @@ The AeroSync Team
                 )
                     
                 response = api_instance.send_transac_email(send_smtp_email)
-                print(f"✈️ Boarding pass email sent successfully via Brevo! Message ID: {response.message_id}")
             else:
                 # Use Django's configured email backend (Gmail OAuth) with attachment
                 msg = EmailMultiAlternatives(
@@ -439,7 +437,6 @@ The AeroSync Team
                 msg.attach(filename, png_bytes, 'image/png')
                 
                 msg.send()
-                print(f"✈️ Boarding pass email sent successfully via Gmail!")
                 
         except sib_api_v3_sdk.rest.ApiException as e:
             import logging
@@ -447,8 +444,9 @@ The AeroSync Team
             logger.error(f'Brevo API error: {e}')
             raise
         except Exception as e:
-            print(f"Error sending boarding pass email: {str(e)}")
+            import logging
+            logger = logging.getLogger('email_service')
+            logger.error(f'Error sending boarding pass email: {e}')
             raise
         
-        print(f"✈️ Boarding pass email sent to {user.email} for booking {booking.confirmation_code}")
         return True

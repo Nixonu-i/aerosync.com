@@ -108,10 +108,27 @@ export default function AgentProfile() {
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Validate file size (max 2MB)
+      const maxSize = 2 * 1024 * 1024; // 2MB
+      if (file.size > maxSize) {
+        setError(`File size must be under 2MB. Current size: ${(file.size / 1024).toFixed(0)}KB`);
+        e.target.value = ''; // Reset file input
+        return;
+      }
+      
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        setError('Unsupported file type. Please use JPG, PNG, GIF, or WebP images.');
+        e.target.value = ''; // Reset file input
+        return;
+      }
+      
       setFormData(prev => ({
         ...prev,
         profile_photo: file
       }));
+      setError(''); // Clear any previous errors
       // Reset saved state when user changes photo
       if (saved) setSaved(false);
     }
@@ -302,7 +319,7 @@ export default function AgentProfile() {
         </div>
         
         {/* Upload Button */}
-        <div style={{ display: "flex", gap: "10px" }}>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
           <label htmlFor="profile-photo-upload" style={{
             display: "inline-flex",
             alignItems: "center",
@@ -320,12 +337,15 @@ export default function AgentProfile() {
             <input
               id="profile-photo-upload"
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
               onChange={handlePhotoChange}
               style={{ display: "none" }}
             />
             Update Photo
           </label>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "12px", marginTop: "10px" }}>
+            Max 2MB (JPG, PNG, GIF, WebP)
+          </span>
         </div>
       </div>
 

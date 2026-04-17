@@ -1,7 +1,29 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.core.exceptions import ValidationError
 import os
 import uuid
+
+# Maximum profile photo size: 2MB
+PROFILE_PHOTO_MAX_SIZE = 2 * 1024 * 1024  # 2MB in bytes
+
+# Allowed image extensions
+PROFILE_PHOTO_ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+
+def validate_profile_photo_size(file):
+    """Validate profile photo file size"""
+    if file.size > PROFILE_PHOTO_MAX_SIZE:
+        raise ValidationError(
+            f'File size must be under {PROFILE_PHOTO_MAX_SIZE // (1024*1024)}MB. Current size: {file.size // 1024}KB'
+        )
+
+def validate_profile_photo_extension(file):
+    """Validate profile photo file extension"""
+    ext = os.path.splitext(file.name)[1].lower()
+    if ext not in PROFILE_PHOTO_ALLOWED_EXTENSIONS:
+        raise ValidationError(
+            f'Unsupported file type. Allowed: {", ".join(PROFILE_PHOTO_ALLOWED_EXTENSIONS)}'
+        )
 
 def profile_photo_upload_to(instance, filename):
     """
@@ -97,7 +119,12 @@ class Profile(models.Model):
     nationality = models.CharField(max_length=50, blank=True, null=True)
     phone_area_code = models.CharField(max_length=10, default='+254')
     phone_number = models.CharField(max_length=20, blank=True, null=True)
-    profile_photo = models.ImageField(upload_to=profile_photo_upload_to, blank=True, null=True)
+    profile_photo = models.ImageField(
+        upload_to=profile_photo_upload_to,
+        blank=True,
+        null=True,
+        validators=[validate_profile_photo_size, validate_profile_photo_extension]
+    )
     # Address fields
     address_line1 = models.CharField(max_length=255, blank=True, null=True)
     city = models.CharField(max_length=100, blank=True, null=True)
