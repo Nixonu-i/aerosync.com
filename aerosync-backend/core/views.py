@@ -71,7 +71,8 @@ class FlightViewSet(viewsets.ReadOnlyModelViewSet):
         min_price = self.request.query_params.get("min_price")
         max_price = self.request.query_params.get("max_price")
         trip_type = self.request.query_params.get("trip_type")
-        max_stops = self.request.query_params.get("max_stops")
+        route_type = self.request.query_params.get("route_type")
+        via_city = self.request.query_params.get("via_city")
         airline = self.request.query_params.get("airline")
 
         if dep:
@@ -93,8 +94,11 @@ class FlightViewSet(viewsets.ReadOnlyModelViewSet):
             qs = qs.filter(price__lte=max_price)
         if trip_type:
             qs = qs.filter(trip_type=trip_type)
-        if max_stops:
-            qs = qs.filter(stops__lte=max_stops)
+        if route_type:
+            qs = qs.filter(route_type=route_type)
+        if via_city:
+            # Filter flights where via_cities contains the specified city
+            qs = qs.filter(route_type='VIA', via_cities__contains=[via_city])
         if airline:
             qs = qs.filter(airline__icontains=airline)
             
@@ -143,6 +147,16 @@ class FlightViewSet(viewsets.ReadOnlyModelViewSet):
             "all_cities": all_cities
         })
 
+    @action(detail=False, methods=['get'], url_path='via-cities')
+    def via_cities(self, request):
+        """Return unique cities from all VIA flights' via_cities"""
+        via_flights = Flight.objects.filter(route_type='VIA').values_list('via_cities', flat=True)
+        all_cities = set()
+        for cities in via_flights:
+            if cities:
+                all_cities.update(cities)
+        return Response(sorted(list(all_cities)))
+
 
 class BookingViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = BookingSerializer
@@ -172,6 +186,21 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
         
         passenger_data = data["passengers"]
         seat_assignments = data["seat_assignments"]
+        stopover_city = data.get("stopover_city", "").strip()
+        
+        # Validate stopover city for VIA flights
+        if flight.route_type == 'VIA':
+            if not stopover_city:
+                return Response({
+                    "detail": "Stopover city is required for VIA flights. Please select a stopover city from the available options."
+                }, status=400)
+            if stopover_city not in flight.via_cities:
+                return Response({
+                    "detail": f"Invalid stopover city '{stopover_city}'. Must be one of: {', '.join(flight.via_cities)}"
+                }, status=400)
+        else:
+            # For DIRECT flights, ignore stopover_city if provided
+            stopover_city = ""
         
         # CONSTRAINT 1: Prevent user from booking the same flight twice (unless multi-passenger)
         # Check if user already has a booking for this flight
@@ -266,7 +295,8 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
                 user=request.user,
                 flight=flight,
                 booking_status='PENDING',
-                total_amount=0  # Will be calculated after creating passengers
+                total_amount=0,  # Will be calculated after creating passengers
+                stopover_city=stopover_city if stopover_city else None
             )
             
             total_price = 0
@@ -1827,6 +1857,43 @@ class SummaryReportView(APIView):
             "cancelled": cancelled,
             "revenue": str(revenue),
         })
+
+
+class FlightsWithBookingsView(APIView):
+    """Return flights that have at least one booking, with booking count"""
+    permission_classes = [IsAgentOrAdmin]
+
+    def get(self, request):
+        from django.db import models
+        
+        # Get flight IDs that have bookings
+        flight_ids = Booking.objects.values_list('flight_id', flat=True).distinct()
+        
+        # Get those flights with related data
+        flights = Flight.objects.filter(
+            id__in=flight_ids
+        ).select_related(
+            'departure_airport', 'arrival_airport'
+        ).annotate(
+            booking_count=models.Count('booking')
+        ).order_by('departure_time')
+        
+        data = []
+        for flight in flights:
+            data.append({
+                "id": flight.id,
+                "flight_number": flight.flight_number,
+                "departure_code": flight.departure_airport.code,
+                "arrival_code": flight.arrival_airport.code,
+                "departure_city": flight.departure_airport.city,
+                "arrival_city": flight.arrival_airport.city,
+                "route_type": flight.route_type,
+                "via_cities": flight.via_cities,
+                "departure_time": flight.departure_time,
+                "booking_count": flight.booking_count,
+            })
+        
+        return Response(data)
 
 
 # ------------------ AGENT ------------------

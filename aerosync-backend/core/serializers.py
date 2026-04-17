@@ -66,15 +66,18 @@ class FlightSerializer(serializers.ModelSerializer):
     arrival_airport_city = serializers.CharField(source="arrival_airport.city", read_only=True)
     departure_airport_code = serializers.CharField(source="departure_airport.code", read_only=True)
     arrival_airport_code = serializers.CharField(source="arrival_airport.code", read_only=True)
+    flight_path = serializers.ReadOnlyField()
+    intermediate_cities = serializers.ReadOnlyField()
     
     class Meta:
         model = Flight
         fields = [
             "id", "aircraft", "airline", "flight_number", "departure_airport", "arrival_airport",
-            "departure_time", "arrival_time", "price", "trip_type", "stops", "status",
+            "departure_time", "arrival_time", "price", "trip_type", "route_type", "via_cities", "stops", "status",
             "departure_airport_name", "arrival_airport_name", 
             "departure_airport_city", "arrival_airport_city",
-            "departure_airport_code", "arrival_airport_code"
+            "departure_airport_code", "arrival_airport_code",
+            "flight_path", "intermediate_cities"
         ]
 
 
@@ -130,7 +133,7 @@ class BookingSerializer(serializers.ModelSerializer):
             "id", "user", "flight", "booking_date", "total_amount", 
             "booking_status", "confirmation_code", "passengers", "boarding_passes",
             "flight_name", "airline_name", "route", "departure", "arrival", 
-            "flight_date", "seat_numbers"
+            "flight_date", "seat_numbers", "stopover_city"
         ]
 
 
@@ -146,6 +149,33 @@ class CreateBookingSerializer(serializers.Serializer):
             child=serializers.CharField(allow_blank=True)
         )
     )
+    stopover_city = serializers.CharField(required=False, allow_blank=True)
+    
+    def validate(self, data):
+        """Validate passenger data including date of birth"""
+        from datetime import date
+        
+        passengers = data.get('passengers', [])
+        
+        for i, passenger in enumerate(passengers):
+            dob = passenger.get('date_of_birth')
+            if not dob:
+                raise serializers.ValidationError({
+                    "passengers": f"Passenger {i+1}: Date of birth is required."
+                })
+            try:
+                birth_date = date.fromisoformat(dob)
+                today = date.today()
+                if birth_date >= today:
+                    raise serializers.ValidationError({
+                        "passengers": f"Passenger {i+1}: Date of birth cannot be today or in the future."
+                    })
+            except ValueError:
+                raise serializers.ValidationError({
+                    "passengers": f"Passenger {i+1}: Invalid date format."
+                })
+        
+        return data
     
     def create(self, validated_data):
         # This method won't be used since we handle creation in the view
@@ -179,6 +209,7 @@ class FlightAdminSerializer(serializers.ModelSerializer):
     arrival_airport_city = serializers.CharField(source="arrival_airport.city", read_only=True)
     aircraft_model = serializers.CharField(source="aircraft.model", read_only=True)
     aircraft_plate = serializers.CharField(source="aircraft.number_plate", read_only=True)
+    flight_path = serializers.ReadOnlyField()
 
     class Meta:
         model = Flight
@@ -187,12 +218,42 @@ class FlightAdminSerializer(serializers.ModelSerializer):
             "aircraft", "aircraft_model", "aircraft_plate",
             "departure_airport", "arrival_airport",
             "departure_time", "arrival_time", "price",
-            "trip_type", "stops", "status",
+            "trip_type", "route_type", "via_cities", "stops", "status",
             "departure_airport_name", "arrival_airport_name",
             "departure_airport_city", "arrival_airport_city",
             "departure_airport_code", "arrival_airport_code",
+            "flight_path",
         ]
         read_only_fields = ["flight_number"]
+    
+    def validate(self, data):
+        """Validate flight dates and times"""
+        from django.utils import timezone
+        
+        departure_time = data.get('departure_time')
+        arrival_time = data.get('arrival_time')
+        
+        # If updating, get existing values for fields not in data
+        if self.instance:
+            departure_time = departure_time or self.instance.departure_time
+            arrival_time = arrival_time or self.instance.arrival_time
+        
+        # Validate departure time is in the future
+        if departure_time:
+            now = timezone.now()
+            if departure_time <= now:
+                raise serializers.ValidationError({
+                    "departure_time": "Departure date and time must be in the future."
+                })
+        
+        # Validate arrival time is after departure time
+        if departure_time and arrival_time:
+            if arrival_time <= departure_time:
+                raise serializers.ValidationError({
+                    "arrival_time": "Arrival date and time must be after departure date and time."
+                })
+        
+        return data
 
 
 class AdminBookingSerializer(serializers.ModelSerializer):
@@ -205,6 +266,8 @@ class AdminBookingSerializer(serializers.ModelSerializer):
     payment_status = serializers.SerializerMethodField()
     payment_id = serializers.SerializerMethodField()
     payment_amount = serializers.SerializerMethodField()
+    flight_route_type = serializers.CharField(source="flight.route_type", read_only=True)
+    flight_via_cities = serializers.JSONField(source="flight.via_cities", read_only=True)
 
     def get_payment_status(self, obj):
         p = obj.payments.order_by("-created_at").first()
@@ -224,8 +287,9 @@ class AdminBookingSerializer(serializers.ModelSerializer):
             "id", "user", "username", "flight", "flight_number",
             "departure_code", "arrival_code", "flight_departure_time",
             "booking_date", "total_amount", "booking_status",
-            "confirmation_code", "passengers",
+            "confirmation_code", "passengers", "stopover_city",
             "payment_status", "payment_id", "payment_amount",
+            "flight_route_type", "flight_via_cities",
         ]
 
 

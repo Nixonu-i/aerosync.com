@@ -47,6 +47,11 @@ class Flight(models.Model):
         ('ROUND_TRIP', 'Round Trip'),
     ]
     
+    ROUTE_TYPE_CHOICES = [
+        ('DIRECT', 'Direct'),
+        ('VIA', 'Via'),
+    ]
+    
     STATUS_CHOICES = [
         ('SCHEDULED', 'Scheduled'),
         ('DELAYED', 'Delayed'),
@@ -63,8 +68,20 @@ class Flight(models.Model):
     arrival_time = models.DateTimeField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
     trip_type = models.CharField(max_length=20, choices=TRIP_TYPE_CHOICES, default='ONE_WAY')
+    route_type = models.CharField(max_length=20, choices=ROUTE_TYPE_CHOICES, default='DIRECT')
+    via_cities = models.JSONField(default=list, blank=True, help_text="Ordered list of intermediate cities for VIA flights")
     stops = models.IntegerField(default=0)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='SCHEDULED')
+
+    @property
+    def flight_path(self):
+        """Returns complete ordered list: [origin] + via_cities + [destination]"""
+        return [self.departure_airport.city] + self.via_cities + [self.arrival_airport.city]
+    
+    @property
+    def intermediate_cities(self):
+        """Returns only the intermediate cities (for stopover selection)"""
+        return self.via_cities if self.route_type == 'VIA' else []
 
     def _generate_flight_number(self):
         import random, string
@@ -76,6 +93,14 @@ class Flight(models.Model):
     def save(self, *args, **kwargs):
         if not self.flight_number:
             self.flight_number = self._generate_flight_number()
+        
+        # Auto-update stops field based on via_cities for backward compatibility
+        if self.route_type == 'VIA':
+            self.stops = len(self.via_cities)
+        else:
+            self.stops = 0
+            self.via_cities = []
+        
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -127,6 +152,7 @@ class Booking(models.Model):
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     booking_status = models.CharField(max_length=20, choices=BOOKING_STATUS_CHOICES, default='PENDING')
     confirmation_code = models.CharField(max_length=20, unique=True)
+    stopover_city = models.CharField(max_length=100, blank=True, null=True, help_text="Selected stopover city for VIA flights")
     
     def save(self, *args, **kwargs):
         # Generate confirmation code if not set
