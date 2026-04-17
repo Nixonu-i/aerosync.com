@@ -179,7 +179,8 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
             if key not in ['passenger_photos']:
                 value = request.data[key]
                 # If it's a list with one element (from FormData), unwrap it
-                if isinstance(value, list) and len(value) == 1:
+                # EXCEPT for passengers and seat_assignments which must always be lists
+                if isinstance(value, list) and len(value) == 1 and key not in ['passengers', 'seat_assignments']:
                     serializer_data[key] = value[0]
                 else:
                     serializer_data[key] = value
