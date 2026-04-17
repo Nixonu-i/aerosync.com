@@ -69,6 +69,9 @@ export default function AdminFlights() {
   const [genResult, setGenResult] = useState(null);
   // via cities raw input state
   const [viaCitiesInput, setViaCitiesInput] = useState("");
+  // datetime min values
+  const [departureMin, setDepartureMin] = useState("");
+  const [arrivalMin, setArrivalMin] = useState("");
   const { confirm, notify, ModalUI } = useAdminUI();
 
   // Load first page of flights + supporting data
@@ -154,7 +157,17 @@ export default function AdminFlights() {
 
   const hasFilters = Object.values(filters).some(v => v !== "");
 
-  const openAdd = () => { setForm(EMPTY); setViaCitiesInput(""); setFormErr(""); setModal("add"); };
+  const openAdd = () => { 
+    setForm(EMPTY); 
+    setViaCitiesInput(""); 
+    setFormErr(""); 
+    // Set departure min to current time
+    const now = new Date();
+    const localISO = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    setDepartureMin(localISO);
+    setArrivalMin("");
+    setModal("add"); 
+  };
   const openEdit = (f) => {
     setForm({
       airline: f.airline,
@@ -169,7 +182,21 @@ export default function AdminFlights() {
       _id: f.id,
     });
     setViaCitiesInput((f.via_cities || []).join(', '));
-    setFormErr(""); setModal("edit");
+    // For editing, set departure min to current time (can't change to past)
+    const now = new Date();
+    const localISO = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    setDepartureMin(localISO);
+    // Set arrival min based on departure time
+    if (f.departure_time) {
+      const depTime = new Date(f.departure_time);
+      const minArrival = new Date(depTime.getTime() + 60000);
+      const arrivalLocalISO = new Date(minArrival.getTime() - minArrival.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+      setArrivalMin(arrivalLocalISO);
+    } else {
+      setArrivalMin("");
+    }
+    setFormErr(""); 
+    setModal("edit");
   };
 
   const handleSave = async () => {
@@ -624,15 +651,20 @@ export default function AdminFlights() {
                   type="datetime-local" 
                   value={form.departure_time} 
                   onChange={e => {
-                    setForm(p => ({ ...p, departure_time: e.target.value }));
+                    const newDeparture = e.target.value;
+                    setForm(p => ({ ...p, departure_time: newDeparture }));
+                    // Update arrival min to be 1 minute after new departure
+                    if (newDeparture) {
+                      const depTime = new Date(newDeparture);
+                      const minArrival = new Date(depTime.getTime() + 60000);
+                      const arrivalLocalISO = new Date(minArrival.getTime() - minArrival.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                      setArrivalMin(arrivalLocalISO);
+                    } else {
+                      setArrivalMin("");
+                    }
                   }} 
                   style={inputStyle}
-                  min={(() => {
-                    const now = new Date();
-                    const offset = now.getTimezoneOffset() * 60000;
-                    const local = new Date(now.getTime() - offset);
-                    return local.toISOString().slice(0, 16);
-                  })()}
+                  min={departureMin}
                 />
               </div>
               {/* Arrival Time */}
@@ -643,14 +675,7 @@ export default function AdminFlights() {
                   value={form.arrival_time} 
                   onChange={e => setForm(p => ({ ...p, arrival_time: e.target.value }))} 
                   style={inputStyle}
-                  min={(() => {
-                    if (!form.departure_time) return undefined;
-                    const depTime = new Date(form.departure_time);
-                    const minArrival = new Date(depTime.getTime() + 60000); // 1 minute after departure
-                    const offset = minArrival.getTimezoneOffset() * 60000;
-                    const local = new Date(minArrival.getTime() - offset);
-                    return local.toISOString().slice(0, 16);
-                  })()}
+                  min={arrivalMin}
                 />
               </div>
               {/* Price */}
