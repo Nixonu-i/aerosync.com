@@ -25,20 +25,24 @@ AeroSync is a full-stack flight booking system with real-time WebSocket updates,
 **Backend:**
 - **Django 6.0.2** - Python web framework
 - **Django REST Framework 3.16.1** - RESTful API
-- **Django Channels** - WebSocket support
-- **Daphne** - ASGI server for WebSockets
-- **Gunicorn** - WSGI server for HTTP requests (fast)
-- **PostgreSQL** - Primary database
-- **Celery** - Background task processing (optional)
-- **JWT** - Token-based authentication
-- **Brevo (SendInBlue)** - Email service
-- **Fraudlogix** - IP risk scoring and threat detection
+- **Django Channels 4.2.0** - WebSocket support
+- **Daphne 4.2.0** - ASGI server for WebSockets
+- **Gunicorn 25.1.0** - WSGI server for HTTP requests (fast)
+- **PostgreSQL** - Primary database (via psycopg 3.3.3)
+- **Redis 5.2.1** - Channel layer for WebSocket scaling
+- **JWT (djangorestframework-simplejwt 5.5.1)** - Token-based authentication
+- **Brevo (SendInBlue)** - Email service via sib_api_v3_sdk
+- **Pesapal** - Payment gateway integration (API v3)
+- **QR Code (qrcode 8.2)** - Boarding pass QR generation
+- **Pillow 12.1.1** - Image processing for profile photos
+- **WhiteNoise 6.5.0** - Static file serving in production
 
 **Frontend:**
 - **React 19.2.0** - UI library
-- **Vite** - Build tool
-- **TailwindCSS** - Styling
-- **React Router** - Client-side routing
+- **Vite 8.0.0-beta.13** - Build tool
+- **React Router 7.13.1** - Client-side routing
+- **Axios 1.13.5** - HTTP client
+- **html5-qrcode 2.3.8** - QR code scanning for agents
 
 **Infrastructure:**
 - **Cloudflare Tunnel** - Secure HTTPS without port forwarding
@@ -288,26 +292,38 @@ cloudflared tunnel run aerosync-backend
 class User(AbstractUser):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
-    phone_number = models.CharField(max_length=20)
-    role = models.CharField(max_length=20, choices=[
+    role = models.CharField(max_length=10, choices=[
         ('ADMIN', 'Admin'),
         ('AGENT', 'Agent'),
-        ('CUSTOMER', 'Customer')
-    ])
-    email_verified = models.BooleanField(default=False)
-    date_of_birth = models.DateField()
+        ('CUST', 'Customer')
+    ], default='CUST')
+    theme_preference = models.CharField(max_length=10, choices=[
+        ('LIGHT', 'Light'),
+        ('DARK', 'Dark'),
+        ('SYSTEM', 'System Default')
+    ], default='LIGHT')
+    staff_id = models.CharField(max_length=20, unique=True, blank=True, null=True)
+    is_email_verified = models.BooleanField(default=False)
+    is_pending_verification = models.BooleanField(default=True)
+    email_verification_code = models.CharField(max_length=6, blank=True, null=True)
+    password_reset_code = models.CharField(max_length=6, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
     
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username', 'phone_number', 'role', 'date_of_birth']
+    REQUIRED_FIELDS = ['username']
 
 class Profile(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    profile_photo = models.ImageField(upload_to=profile_photo_upload_to)
-    phone_number = models.CharField(max_length=20)
-    initial_setup_done = models.BooleanField(default=False)
+    date_of_birth = models.DateField(null=True, blank=True)
+    gender = models.CharField(max_length=20, choices=[('MALE', 'Male'), ('FEMALE', 'Female'), ('OTHER', 'Other')], blank=True, null=True)
+    nationality = models.CharField(max_length=50, blank=True, null=True)
+    phone_area_code = models.CharField(max_length=10, default='+254')
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
+    profile_photo = models.ImageField(upload_to=profile_photo_upload_to, blank=True, null=True)
     # Address fields for boarding passes
     address_line1, city, country, postal_code...
+    initial_setup_done = models.BooleanField(default=False)
 ```
 
 **How it works:**
@@ -325,46 +341,53 @@ class Profile(models.Model):
 
 ```python
 Airline
-  └─ name, code, country, is_active
+  └─ name, iata_code, country, is_active
 
 Aircraft
-  └─ tail_number, model, airline (FK→Airline), seat_configuration
+  └─ model, total_seats, number_plate (unique)
 
 Airport
-  └─ iata_code, name, city, country
+  └─ code (IATA, unique), name, city, country
 
 Flight
-  └─ flight_number, aircraft (FK→Aircraft), airline
+  └─ flight_number (unique), aircraft (FK→Aircraft), airline (name)
      departure_airport (FK→Airport), arrival_airport (FK→Airport)
      departure_time, arrival_time, price, status
+     trip_type (ONE_WAY/ROUND_TRIP), route_type (DIRECT/VIA)
+     via_cities (JSONField), stops (auto-calculated)
 
 Seat
-  └─ aircraft (FK→Aircraft), seat_number, seat_class
-     is_booked, is_blocked
+  └─ aircraft (FK→Aircraft), seat_number, flight_class
+     is_available, price_multiplier
 
 Booking
-  └─ user (FK→User), flight (FK→Flight), confirmation_code
-     total_amount, status, booking_type
+  └─ user (FK→User), flight (FK→Flight), confirmation_code (unique)
+     total_amount, booking_status, created_by (agent/staff)
+     stopover_city (for VIA flights)
 
 Passenger
-  └─ booking (FK→Booking), first_name, last_name, date_of_birth
+  └─ booking (FK→Booking), full_name, date_of_birth, nationality
+     passenger_type (ADULT/CHILD/KID), gender, passport_number
+     phone_area_code, phone_number
 
 Payment
-  └─ booking (FK→Booking), provider, provider_reference
-     amount, status
+  └─ booking (FK→Booking), provider (MPESA/PESAPAL/PAYPAL/STRIPE/CARD/BANK_TRANSFER)
+     provider_reference, payment_detail, amount, currency
+     status (PENDING/SUCCESS/FAILED/CANCELLED)
 
 BoardingPass
-  └─ booking (FK→Booking), seat (FK→Seat), qr_code_data
-     issued_at, is_scanned
+  └─ booking (FK→Booking), passenger (FK→Passenger), seat (FK→Seat)
+     price, issued_date, qr_code_data, is_checked_in
 
 ScanLog
-  └─ boarding_pass (FK→BoardingPass), scanned_by (FK→User)
-     scanned_at, success
+  └─ scanned_by (FK→User), boarding_pass (FK→BoardingPass)
+     booking_reference, passenger_name, flight_number, seat_number
+     booking_status, already_onboard, scanned_at
 
 UserActivityLog
   ├─ ACTION_CHOICES:
   │   ├─ login - User Login
-  │   ├─ login_blocked - Login Blocked - IP Risk (NEW)
+  │   ├─ login_blocked - Login Blocked - IP Risk
   │   ├─ logout - User Logout
   │   ├─ profile_update - Profile Update
   │   ├─ booking_create - Booking Created
@@ -374,7 +397,7 @@ UserActivityLog
   │   ├─ admin_action - Admin Action
   │   ├─ file_upload - File Upload
   │   └─ other - Other Action
-  └─ Fields: user (FK→User), action, ip_address, user_agent, path, method, status_code, timestamp, additional_data
+  └─ Fields: user (FK→User), action, ip_address, user_agent, path, method, status_code, timestamp, additional_data (JSON)
 ```
 
 **UUID Primary Keys:**
@@ -614,27 +637,39 @@ def _generate_flights_background(task_id: str):
    - Old: Random generation with collision checks (slow)
    - New: Sequential AS00001, AS00002, etc. (instant)
 
-2. **Batched Commits** - Commit every 100 flights instead of all at once
-   - Old: Single massive transaction (memory exhaustion risk)
-   - New: Small batches (memory efficient, flights appear immediately)
+2. **VIA Routes Support** - Flights can now have intermediate stops
+   - New field: `route_type` (DIRECT or VIA)
+   - New field: `via_cities` (JSON array of intermediate cities)
+   - Auto-calculates `stops` field based on via_cities length
+   - Booking allows selecting stopover city for VIA flights
 
-3. **Aircraft Time-Slot Tracking** - Prevents double-booking
-   - Each aircraft can only be in one place at one time
-   - Tracks (aircraft_id, date, hour) -> booked status
+3. **Enhanced Booking Status** - More granular status tracking
+   - PENDING → Payment initiated
+   - CONFIRMED → Payment successful
+   - COMPLETED → Flight departed
+   - CANCELLED → User/admin cancelled
+   - FAILED → Payment failed
+   - ONBOARD → Passenger checked in
 
-4. **Aircraft Location Tracking** - Realistic scheduling
-   - Aircraft must be at departure airport before flight
-   - After landing, aircraft is at arrival airport
-   - Can't teleport between airports!
+4. **Multi-Passenger Support** - Bookings can have multiple passengers
+   - Each passenger gets their own boarding pass
+   - Passenger details: full_name, DOB, nationality, type, gender, passport
+   - Phone area code support for international numbers
 
-5. **Target-Based Generation** - Generate exactly 1000 flights
-   - Old: Generate all possible combinations (millions)
-   - New: Stop after 1000 flights (fast, predictable)
+5. **Payment Provider Flexibility** - Multiple payment methods
+   - M-Pesa, Pesapal, PayPal, Stripe, Credit Card, Bank Transfer
+   - Payment detail field stores provider-specific info (phone, email, card)
+   - Unique constraint: One active payment per booking per provider
 
-6. **9-Day Window** - Reduced from 30 days
-   - Faster generation
-   - More manageable dataset
-   - Still provides good variety
+6. **Boarding Pass Enhancements** - Per-passenger boarding passes
+   - Linked to specific passenger (not just booking)
+   - QR code data includes passenger info
+   - Individual check-in tracking (is_checked_in)
+   - PNG generation and email attachment
+
+7. **Agent/Staff Booking Creation** - Agents can book on behalf of customers
+   - New field: `created_by` (FK to User, null for customer self-bookings)
+   - Tracked in admin reports and activity logs
 
 **Performance:**
 - **Startup**: 0.1-0.5 seconds (load existing flight numbers)
@@ -850,29 +885,62 @@ class BookingViewSet(viewsets.ModelViewSet):
 aerosync-frontend/
 ├── src/
 │   ├── api/
-│   │   └── api.js              # 🔌 API client with JWT
+│   │   └── api.js              # 🔌 Axios client with JWT interceptors
 │   ├── components/             # Reusable UI components
+│   │   ├── AdminNavbar.jsx     # Admin navigation
+│   │   ├── AgentNavbar.jsx     # Agent navigation
+│   │   ├── Navbar.jsx          # Customer navigation
+│   │   ├── ThemeToggle.jsx     # Light/Dark mode toggle
+│   │   ├── PesapalPaymentModal.jsx  # Payment integration
+│   │   ├── MultiPassengerBooking.jsx  # Single passenger booking
+│   │   ├── ImprovedMultiPassengerBooking.jsx  # Enhanced multi-passenger
+│   │   ├── SearchableSelect.jsx  # Dropdown with search
+│   │   ├── DateOfBirthPicker.jsx  # DOB input component
+│   │   └── ProtectedImage.jsx  # Secure image loading
 │   ├── context/
-│   │   ├── AuthContext.jsx     # Authentication state
-│   │   └── WebSocketContext.jsx # Real-time connection
+│   │   ├── AuthContext.jsx     # 🔐 Authentication state & hooks
+│   │   └── BookingRealtimeContext.jsx  # 📡 WebSocket booking updates
 │   ├── hooks/
-│   │   ├── useAuth.js          # Auth hook
-│   │   └── useWebSocket.js     # WebSocket hook
+│   │   ├── useAdminUI.jsx      # Admin feature flags
+│   │   └── useBookingUpdates.jsx  # WebSocket connection hook
 │   ├── pages/
-│   │   ├── auth/               # Login/Register
-│   │   ├── admin/              # Admin dashboard
-│   │   ├── Home.jsx            # Landing page
-│   │   ├── BookFlight.jsx      # Booking flow
-│   │   └── MyBookings.jsx      # User bookings
+│   │   ├── admin/              # 👑 Admin dashboard & management
+│   │   │   ├── AdminDashboard.jsx
+│   │   │   ├── AdminFlights.jsx
+│   │   │   ├── AdminBookings.jsx
+│   │   │   ├── AdminUsers.jsx
+│   │   │   ├── AdminAirlines.jsx
+│   │   │   ├── AdminAircraft.jsx
+│   │   │   ├── AdminAirports.jsx
+│   │   │   ├── AdminActivityLogs.jsx
+│   │   │   └── AdminReports.jsx
+│   │   ├── agent/              # 🎫 Agent portal
+│   │   │   ├── AgentDashboard.jsx
+│   │   │   ├── AgentBookings.jsx
+│   │   │   ├── AgentCreateBooking.jsx
+│   │   │   ├── AgentFlights.jsx
+│   │   │   ├── AgentProfile.jsx
+│   │   │   └── AgentVerifyQR.jsx  # QR scanner for boarding passes
+│   │   ├── Dashboard.jsx       # Customer dashboard
+│   │   ├── Flights.jsx         # Flight search & listing
+│   │   ├── Booking.jsx         # Booking flow & management
+│   │   ├── Seats.jsx           # Seat selection
+│   │   ├── Profile.jsx         # User profile management
+│   │   ├── Login.jsx
+│   │   ├── Register.jsx
+│   │   ├── VerifyEmail.jsx
+│   │   └── ForgotPassword.jsx
 │   ├── utils/
-│   │   └── helpers.js          # Utility functions
-│   ├── App.jsx                 # Main app component
-│   └── index.css               # Global styles (Tailwind)
+│   │   └── errorFormatter.js   # Error message formatting
+│   ├── App.jsx                 # Main app with routing
+│   ├── index.css               # Global styles (Tailwind)
+│   └── responsive.css          # Responsive design utilities
 │
-├── public/                     # Static assets
+├── public/                     # Static assets & manifest
 ├── dist/                       # Production build
 ├── package.json                # Dependencies
-└── vite.config.js              # Vite configuration
+├── vite.config.js              # Vite configuration
+└── .env                        # Environment variables
 ```
 
 ### Key Frontend Files
@@ -956,112 +1024,148 @@ accounts_user (UUID PK)
 ├─ id (UUID, PK)
 ├─ email (VARCHAR, UNIQUE)
 ├─ username (VARCHAR)
-├─ phone_number (VARCHAR)
-├─ role (VARCHAR: ADMIN/AGENT/CUSTOMER)
-├─ email_verified (BOOLEAN)
-├─ date_of_birth (DATE)
+├─ first_name (VARCHAR)
+├─ last_name (VARCHAR)
+├─ role (VARCHAR: ADMIN/AGENT/CUST)
+├─ theme_preference (VARCHAR: LIGHT/DARK/SYSTEM)
+├─ staff_id (VARCHAR, UNIQUE, nullable)
+├─ is_email_verified (BOOLEAN)
+├─ is_pending_verification (BOOLEAN)
+├─ email_verification_code (VARCHAR(6))
+├─ password_reset_code (VARCHAR(6))
+├─ created_at (TIMESTAMP)
 └─ password (VARCHAR, hashed)
 
 accounts_profile (UUID PK)
 ├─ id (UUID, PK)
 ├─ user (OneToOne → accounts_user)
-├─ profile_photo (VARCHAR, path)
+├─ date_of_birth (DATE, nullable)
+├─ gender (VARCHAR: MALE/FEMALE/OTHER, nullable)
+├─ nationality (VARCHAR, nullable)
+├─ phone_area_code (VARCHAR, default +254)
+├─ phone_number (VARCHAR, nullable)
+├─ profile_photo (VARCHAR, path, nullable)
+├─ address_line1 (VARCHAR, nullable)
+├─ city (VARCHAR, nullable)
+├─ country (VARCHAR, nullable)
+├─ postal_code (VARCHAR, nullable)
 ├─ initial_setup_done (BOOLEAN)
-├─ address_line1 (VARCHAR)
-├─ city (VARCHAR)
-├─ country (VARCHAR)
-└─ postal_code (VARCHAR)
+├─ created_at (TIMESTAMP)
+└─ updated_at (TIMESTAMP)
 
 core_airline (UUID PK)
 ├─ id (UUID, PK)
-├─ name (VARCHAR)
-├─ code (VARCHAR)
+├─ name (VARCHAR, UNIQUE)
+├─ iata_code (VARCHAR(3))
 ├─ country (VARCHAR)
 └─ is_active (BOOLEAN)
 
 core_aircraft (UUID PK)
 ├─ id (UUID, PK)
-├─ tail_number (VARCHAR)
 ├─ model (VARCHAR)
-├─ airline (FK → core_airline)
-└─ seat_configuration (JSON)
+├─ total_seats (INTEGER)
+└─ number_plate (VARCHAR, UNIQUE)
 
 core_airport (UUID PK)
 ├─ id (UUID, PK)
-├─ iata_code (VARCHAR)
+├─ code (VARCHAR(3), UNIQUE, IATA)
 ├─ name (VARCHAR)
 ├─ city (VARCHAR)
 └─ country (VARCHAR)
 
 core_flight (UUID PK)
 ├─ id (UUID, PK)
-├─ flight_number (VARCHAR)
+├─ flight_number (VARCHAR, UNIQUE)
 ├─ aircraft (FK → core_aircraft)
-├─ airline (VARCHAR)
+├─ airline (VARCHAR, name)
 ├─ departure_airport (FK → core_airport)
 ├─ arrival_airport (FK → core_airport)
 ├─ departure_time (TIMESTAMP)
 ├─ arrival_time (TIMESTAMP)
 ├─ price (DECIMAL)
-├─ status (VARCHAR: SCHEDULED/COMPLETED/CANCELLED)
 ├─ trip_type (VARCHAR: ONE_WAY/ROUND_TRIP)
-└─ stops (INTEGER)
+├─ route_type (VARCHAR: DIRECT/VIA)
+├─ via_cities (JSON, array of city names)
+├─ stops (INTEGER, auto-calculated)
+└─ status (VARCHAR: SCHEDULED/DELAYED/CANCELLED/COMPLETED)
 
 core_seat (UUID PK)
 ├─ id (UUID, PK)
 ├─ aircraft (FK → core_aircraft)
 ├─ seat_number (VARCHAR)
-├─ seat_class (VARCHAR: FIRST/BUSINESS/ECONOMY)
-├─ is_booked (BOOLEAN)
-└─ is_blocked (BOOLEAN)
+├─ flight_class (VARCHAR: ECONOMY/BUSINESS/FIRST)
+├─ is_available (BOOLEAN)
+└─ price_multiplier (DECIMAL)
 
 core_booking (UUID PK)
 ├─ id (UUID, PK)
 ├─ user (FK → accounts_user)
 ├─ flight (FK → core_flight)
-├─ confirmation_code (VARCHAR)
+├─ created_by (FK → accounts_user, nullable, agent/staff)
+├─ confirmation_code (VARCHAR, UNIQUE)
 ├─ total_amount (DECIMAL)
-├─ status (VARCHAR: PENDING/CONFIRMED/CANCELLED)
-├─ booking_type (VARCHAR)
-└─ created_at (TIMESTAMP)
+├─ booking_status (VARCHAR: PENDING/CONFIRMED/COMPLETED/CANCELLED/FAILED/ONBOARD)
+├─ stopover_city (VARCHAR, nullable, for VIA flights)
+└─ booking_date (TIMESTAMP)
 
 core_passenger (UUID PK)
 ├─ id (UUID, PK)
 ├─ booking (FK → core_booking)
-├─ first_name (VARCHAR)
-├─ last_name (VARCHAR)
-└─ date_of_birth (DATE)
+├─ full_name (VARCHAR)
+├─ date_of_birth (DATE)
+├─ nationality (VARCHAR)
+├─ passenger_type (VARCHAR: ADULT/CHILD/KID)
+├─ gender (VARCHAR: MALE/FEMALE/OTHER, nullable)
+├─ passport_number (VARCHAR)
+├─ phone_area_code (VARCHAR, default +254)
+└─ phone_number (VARCHAR)
 
 core_payment (UUID PK)
 ├─ id (UUID, PK)
 ├─ booking (FK → core_booking)
-├─ provider (VARCHAR: PESAPAL)
-├─ provider_reference (VARCHAR)
+├─ provider (VARCHAR: MPESA/PESAPAL/PAYPAL/STRIPE/CARD/BANK_TRANSFER)
+├─ provider_reference (VARCHAR, indexed)
+├─ payment_detail (VARCHAR, nullable, provider-specific info)
 ├─ amount (DECIMAL)
-└─ status (VARCHAR: PENDING/COMPLETED/FAILED)
+├─ currency (VARCHAR(3), default KES)
+├─ status (VARCHAR: PENDING/SUCCESS/FAILED/CANCELLED)
+├─ created_at (TIMESTAMP)
+└─ updated_at (TIMESTAMP)
 
 core_boardingpass (UUID PK)
 ├─ id (UUID, PK)
 ├─ booking (FK → core_booking)
+├─ passenger (FK → core_passenger)
 ├─ seat (FK → core_seat)
+├─ price (DECIMAL)
+├─ issued_date (TIMESTAMP)
 ├─ qr_code_data (TEXT)
-├─ issued_at (TIMESTAMP)
-└─ is_scanned (BOOLEAN)
+└─ is_checked_in (BOOLEAN)
 
 core_scanlog (UUID PK)
 ├─ id (UUID, PK)
-├─ boarding_pass (FK → core_boardingpass)
-├─ scanned_by (FK → accounts_user)
-├─ scanned_at (TIMESTAMP)
-└─ success (BOOLEAN)
+├─ scanned_by (FK → accounts_user, nullable)
+├─ boarding_pass (FK → core_boardingpass, nullable)
+├─ booking_reference (VARCHAR)
+├─ passenger_name (VARCHAR)
+├─ flight_number (VARCHAR)
+├─ seat_number (VARCHAR)
+├─ booking_status (VARCHAR)
+├─ already_onboard (BOOLEAN)
+└─ scanned_at (TIMESTAMP)
 
 core_useractivitylog (UUID PK)
 ├─ id (UUID, PK)
-├─ user (FK → accounts_user)
+├─ user (FK → accounts_user, nullable)
 ├─ action (VARCHAR)
-├─ ip_address (VARCHAR)
+├─ ip_address (INET)
 ├─ user_agent (TEXT)
-└─ timestamp (TIMESTAMP)
+├─ path (VARCHAR)
+├─ method (VARCHAR)
+├─ status_code (INTEGER)
+├─ timestamp (TIMESTAMP)
+├─ additional_data (JSON)
+└─ Indexes: (user, -timestamp), (ip_address, -timestamp), (action, -timestamp)
 ```
 
 ---
@@ -1462,22 +1566,42 @@ The system gracefully handles API failures:
 ### WebSocket Architecture
 
 ```
-Client Browser
-    ↓ connects to wss://api.aerosync.live/ws/bookings/
+Client Browser (React)
+    ↓ connects to ws://localhost:8000/api/ws/bookings/?token={jwt}
+    ↓ (dev) or wss://api.aerosync.live/api/ws/bookings/?token={jwt} (prod)
 Daphne (ASGI Server, port 8001)
     ↓ routes to BookingUpdatesConsumer
 Consumer joins group: "user_{user_id}"
     ↓
-Django Signal triggers (booking created/updated)
+Django Signal triggers (booking created/updated/payment changed)
     ↓
-channel_layer.group_send("user_{id}", message)
+channel_layer.group_send("user_{id}", message)  [via Redis]
     ↓
 Consumer receives message
     ↓
 Sends JSON to client via WebSocket
     ↓
-Client updates UI in real-time
+BookingRealtimeContext processes update
+    ↓
+Custom event dispatched: 'booking-update' or 'payment-update'
+    ↓
+Components update UI in real-time
 ```
+
+### Connection Management
+
+**Hook: `useBookingUpdates.jsx`**
+- Auto-connects when token is available
+- Exponential backoff reconnection (3s, 6s, 12s, 24s, 48s)
+- Maximum 5 retry attempts before showing error
+- Heartbeat messages to keep connection alive
+- Disconnects on logout
+
+**Context: `BookingRealtimeContext.jsx`**
+- Centralized state for all booking updates
+- Pub/sub pattern using CustomEvent
+- Subscribe to specific booking or all bookings
+- Payment update handling with automatic booking status sync
 
 ### Message Types
 
@@ -1485,24 +1609,55 @@ Client updates UI in real-time
 // Booking updated
 {
   type: "booking_updated",
-  booking_id: "uuid",
-  status: "CONFIRMED",
-  flight: {number: "AS12345"}
+  booking: {
+    id: "uuid",
+    booking_status: "CONFIRMED",
+    flight: { flight_number: "AS12345" },
+    ...full booking object
+  },
+  changed_fields: ["booking_status", "updated_at"]
 }
 
-// Payment completed
+// Payment update
 {
-  type: "payment_completed",
+  type: "payment_update",
+  payment: {
+    id: "uuid",
+    status: "SUCCESS",
+    provider: "PESAPAL",
+    amount: 15000
+  },
   booking_id: "uuid",
-  payment_id: "uuid",
-  amount: 15000
+  booking_status: "CONFIRMED",
+  changed_fields: ["status", "updated_at"]
 }
 
-// Seat availability
+// Heartbeat (keeps connection alive)
 {
-  type: "seat_availability",
-  flight_id: "uuid",
-  seats: [{number: "1A", class: "FIRST", booked: false}]
+  type: "heartbeat",
+  timestamp: "2026-04-17T10:30:00Z"
+}
+```
+
+### Usage Example
+
+```javascript
+import { useBookingRealtime } from '../context/BookingRealtimeContext';
+
+function BookingCard({ bookingId }) {
+  const { subscribeToBooking } = useBookingRealtime();
+  
+  useEffect(() => {
+    const unsubscribe = subscribeToBooking(bookingId, (booking, changedFields) => {
+      console.log('Booking updated:', booking);
+      console.log('Changed fields:', changedFields);
+      // Update local state
+    });
+    
+    return unsubscribe; // Cleanup on unmount
+  }, [bookingId, subscribeToBooking]);
+  
+  return <div>...</div>;
 }
 ```
 
@@ -1510,34 +1665,107 @@ Client updates UI in real-time
 
 ## Payment Processing
 
-### Pesapal Integration
+### Pesapal Integration (API v3)
+
+**Service: `core/pesapal_service.py`**
 
 ```
 1. User initiates payment
    POST /api/payments/initiate/
-   Body: {booking_id, email, phone}
+   Body: {booking_id, email, phone, first_name, last_name}
    ↓
 
 2. Backend creates Pesapal order
-   → Calls Pesapal API
-   ← Returns order_id + redirect_url
+   → Get/renew access token (cached for 57 minutes)
+   → Register IPN URL (cached for 30 days)
+   → Submit order with billing details
+   ← Returns order_tracking_id + redirect_url
    ↓
 
-3. User redirected to Pesapal
-   → User enters card/mobile money
+3. User redirected to Pesapal payment page
+   → User enters card/mobile money details
    ← Pesapal processes payment
    ↓
 
-4. IPN Callback
+4. IPN Callback (Instant Payment Notification)
    Pesapal → POST /api/payments/ipn/
-   Body: {order_id, status, amount}
+   Body: {
+     OrderTrackingId,
+     OrderMerchantReference,
+     NotificationType,
+     PaymentStatusDescription,
+     PaymentMethod,
+     ConfirmationCode
+   }
    ↓
 
-5. Backend updates payment
-   → Updates Payment.status = "COMPLETED"
-   → Updates Booking.status = "CONFIRMED"
-   → Triggers WebSocket notification
-   → Sends boarding pass email
+5. Backend processes IPN
+   → Validates order reference
+   → Updates Payment.status (PENDING/SUCCESS/FAILED/CANCELLED)
+   → Updates Booking.booking_status based on payment status
+   → Triggers WebSocket notification to user
+   → Sends boarding pass email with PNG attachment (if SUCCESS)
+   
+6. User checks payment status
+   GET /api/payments/{id}/status/
+   → Backend queries Pesapal API for latest status
+   ← Returns payment details and confirmation code
+```
+
+### Token & IPN Caching
+
+```python
+# Access token cached for 57 minutes (expires in 1 hour)
+cache.set('pesapal_access_token', token, 3400)
+
+# IPN ID cached for 30 days (persistent across restarts)
+cache.set('pesapal_ipn_id', ipn_id, 86400 * 30)
+```
+
+### Payment Status Flow
+
+```
+PENDING → User initiated payment
+   ↓
+SUCCESS → Payment completed (Pesapal confirms)
+   → Booking status → CONFIRMED
+   → Boarding pass generated & emailed
+   ↓
+FAILED → Payment declined/expired
+   → Booking status → FAILED
+   → User can retry with new payment
+   ↓
+CANCELLED → User cancelled payment
+   → Booking status → CANCELLED
+   → Allows retry (unique constraint excludes CANCELLED)
+```
+
+### Error Handling
+
+| Error Type | Behavior |
+|-----------|----------|
+| **Amount exceeds limit** | User-friendly message to contact support |
+| **Authentication failed (401)** | Refresh token and retry |
+| **Authorization failed (403)** | Log error, notify user |
+| **Network timeout** | Return safe default, log error |
+| **Invalid order ID** | Query Pesapal API for status |
+
+### Supported Payment Providers
+
+1. **PESAPAL** - Primary payment gateway (cards, mobile money)
+2. **MPESA** - Direct M-Pesa integration (future)
+3. **PAYPAL** - PayPal payments (future)
+4. **STRIPE** - Stripe payments (future)
+5. **CARD** - Direct credit card (future)
+6. **BANK_TRANSFER** - Bank transfer (future)
+
+**Unique Constraint:** One active payment per booking per provider
+```python
+models.UniqueConstraint(
+    fields=['booking', 'provider'],
+    name='unique_booking_payment',
+    condition=~models.Q(status='CANCELLED')
+)
 ```
 
 ---
@@ -1607,10 +1835,10 @@ journalctl -u aerosync --since "1 hour ago"
 ### `.env` (Backend)
 
 ```bash
-# Django
-SECRET_KEY=your-secret-key
+# Django Core
+DJANGO_SECRET=your-secret-key
 DEBUG=False
-ALLOWED_HOSTS=api.aerosync.live,127.0.0.1
+DJANGO_ALLOWED_HOSTS=api.aerosync.live,127.0.0.1,localhost
 
 # Database
 DB_NAME=aerosync
@@ -1620,26 +1848,36 @@ DB_HOST=127.0.0.1
 DB_PORT=5432
 
 # Email (Brevo)
-BREVO_API_KEY=your-brevo-api-key
-BREVO_SENDER_EMAIL=noreply@aerosync.live
-BREVO_SENDER_NAME=AeroSync
+BREVO_API_KEY=xkeysib-your-api-key-here
+DEFAULT_FROM_EMAIL=AeroSync <noreply@aerosync.live>
 
-# Pesapal
-PESAPAL_CONSUMER_KEY=your-key
-PESAPAL_CONSUMER_SECRET=your-secret
-PESAPAL_CALLBACK_URL=https://api.aerosync.live/api/payments/ipn/
+# Pesapal Payment Gateway
+PESAPAL_CONSUMER_KEY=your-consumer-key
+PESAPAL_CONSUMER_SECRET=your-consumer-secret
+PESAPAL_ENVIRONMENT=sandbox  # or production
+PESAPAL_API_URLS={"sandbox": "https://cybqa.pesapal.com/pesapalv3", "production": "https://pay.pesapal.com/v3"}
+PESAPAL_CALLBACK_URL=https://api.aerosync.live/api/payments/callback/
+PESAPAL_IPN_URL=https://api.aerosync.live/api/payments/ipn/
 
-# JWT
-JWT_SECRET_KEY=your-jwt-secret
-JWT_ACCESS_TOKEN_LIFETIME=5
-JWT_REFRESH_TOKEN_LIFETIME=7
+# JWT Authentication
+SIMPLE_JWT_ACCESS_TOKEN_LIFETIME=timedelta(minutes=60)
+SIMPLE_JWT_REFRESH_TOKEN_LIFETIME=timedelta(days=7)
+
+# Redis (for WebSocket channel layer)
+REDIS_URL=redis://localhost:6379/0
+
+# Email Verification
+EMAIL_VERIFICATION_EXPIRY_MINUTES=15
 ```
 
 ### `.env` (Frontend)
 
 ```bash
+# Development
+VITE_API_URL=http://localhost:8000/api/
+
+# Production
 VITE_API_URL=https://api.aerosync.live/api/
-VITE_WS_URL=wss://api.aerosync.live/ws/
 ```
 
 ---
@@ -1651,7 +1889,7 @@ VITE_WS_URL=wss://api.aerosync.live/ws/
 - **Daphne (ASGI)**: WebSocket support only
 - **Result**: 10-20x faster than pure ASGI
 
-### 2. Async Task Processing
+### 2. Background Task Processing
 - Flight generation runs in background thread
 - Progress tracked via Django cache
 - Client polls for status
@@ -1662,31 +1900,78 @@ VITE_WS_URL=wss://api.aerosync.live/ws/
 - `bulk_create` for batch operations
 - `select_related` and `prefetch_related` for query optimization
 - Database-level unique constraints
+- Partial indexes on UserActivityLog for faster queries
 
-### 4. Caching
-- Local memory cache for async task progress
-- JWT token caching (implicit via client storage)
-- Static files via Cloudflare CDN
+### 4. Caching Strategy
+- **Redis Cache**: WebSocket channel layer for real-time updates
+- **Local Memory Cache**: Pesapal tokens (57 min), IPN IDs (30 days)
+- **JWT Token Caching**: Client-side localStorage
+- **Static Files**: WhiteNoise with Cloudflare CDN
 
 ### 5. Media Storage
-- Files stored outside project directory
-- Organized by date: `~/aerosync-media/profile_photos/2026/04/`
+- Files stored outside project directory (`~/aerosync-media/`)
+- Organized by date: `profile_photos/2026/04/user_uuid_filename.jpg`
+- Custom middleware blocks direct access (security)
+- ProtectedImage component loads via authenticated API
 - Easy migration to cloud storage (S3, etc.)
+
+### 6. WebSocket Optimization
+- Redis channel layer for horizontal scaling
+- Exponential backoff reconnection (3s → 48s)
+- Heartbeat messages to keep connections alive
+- Maximum 5 retries before showing error
+- Automatic disconnect on logout
+
+### 7. Email Service Optimization
+- Brevo API for fast transactional email delivery
+- HTML templates rendered server-side
+- Boarding pass PNG generation in-memory (no disk I/O)
+- Base64 encoding for attachments
+- Fallback to Gmail OAuth if Brevo unavailable
+
+### 8. Frontend Optimizations
+- **React 19**: Latest React with concurrent features
+- **Vite 8**: Fast HMR and optimized builds
+- **Code Splitting**: Lazy loading for admin/agent pages
+- **Axios Interceptors**: Automatic JWT token refresh
+- **Context API**: Centralized state for auth and real-time updates
+- **Custom Events**: Pub/sub pattern for booking updates
 
 ---
 
 ## Security Features
 
-1. **JWT Authentication**: Token-based, stateless
-2. **Email Verification**: Confirms user identity
-3. **Role-Based Access Control**: Admin, Agent, Customer
-4. **UUID Primary Keys**: Prevents ID enumeration attacks
-5. **CORS Configuration**: Restricted to frontend domain
-6. **CSRF Protection**: Enabled for session auth
-7. **Password Hashing**: Django's PBKDF2
-8. **HTTPS Only**: Enforced via Cloudflare
-9. **Input Validation**: DRF serializers
-10. **Rate Limiting**: (Optional via DRF throttling)
+1. **JWT Authentication**: Token-based, stateless (60-minute access tokens)
+2. **Email Verification**: 6-digit OTP code, 15-minute expiry
+3. **Password Reset**: OTP-based password recovery via email
+4. **Role-Based Access Control**: Admin, Agent, Customer (CUST)
+5. **UUID Primary Keys**: Prevents ID enumeration attacks
+6. **CORS Configuration**: Restricted to frontend domains
+7. **CSRF Protection**: Enabled for session auth
+8. **Password Hashing**: Django's PBKDF2
+9. **HTTPS Only**: Enforced via Cloudflare
+10. **Input Validation**: DRF serializers with field-level validation
+11. **Media Access Protection**: Custom middleware blocks direct access to profile photos
+12. **Profile Completion Middleware**: Forces users to complete profile on first login
+13. **Activity Logging**: All actions logged with IP, user agent, and metadata
+14. **WhiteNoise**: Secure static file serving in production
+15. **Protected Image Component**: Frontend component loads images via authenticated API
+
+### Email Service Security
+
+- **Brevo API Integration**: Transactional email via authenticated API
+- **IP Authorization**: Brevo requires whitelisted server IPs
+- **Fallback Support**: Can fallback to Gmail OAuth if Brevo unavailable
+- **Template-Based Emails**: HTML templates for verification and boarding passes
+- **Attachment Support**: Boarding passes sent as PNG attachments
+
+### QR Code & Boarding Pass Security
+
+- **Unique QR Data**: Each boarding pass has unique QR code with booking reference
+- **Scan Logging**: Every QR scan attempt logged (successful or failed)
+- **Agent Verification**: Dedicated agent portal with camera-based QR scanner
+- **Check-in Tracking**: Per-passenger check-in status (is_checked_in)
+- **Duplicate Detection**: Prevents same boarding pass from being scanned twice
 
 ---
 
@@ -1737,16 +2022,21 @@ chmod 755 ~/aerosync-media/
 
 ## Future Enhancements
 
-1. **Celery/RQ Integration**: More robust background tasks
-2. **Redis Cache**: Distributed caching
-3. **S3 Media Storage**: Cloud storage for media files
-4. **Elasticsearch**: Advanced flight search
-5. **Mobile App**: React Native client
-6. **Multi-language Support**: i18n
-7. **Advanced Analytics**: Data warehouse integration
-8. **Push Notifications**: FCM integration
-9. **Email Templates**: Markdown-based templates
-10. **API Versioning**: `/api/v1/`, `/api/v2/`
+1. **Mobile Push Notifications**: FCM integration for booking updates
+2. **Advanced Analytics Dashboard**: Revenue tracking, popular routes, user behavior
+3. **Multi-Currency Support**: Automatic currency conversion based on user location
+4. **Loyalty Program**: Points system for frequent flyers
+5. **Seat Preferences**: Save seat preferences for future bookings
+6. **Flight Notifications**: Email/SMS alerts for flight status changes
+7. **Mobile App**: React Native client for iOS and Android
+8. **Advanced Search**: Filter by price range, departure time, airlines, stops
+9. **Group Bookings**: Discount for booking 10+ passengers
+10. **API Versioning**: `/api/v1/`, `/api/v2/` for backward compatibility
+11. **Rate Limiting**: DRF throttling to prevent abuse
+12. **Two-Factor Authentication**: SMS/email OTP for login
+13. **Dark Mode Optimization**: Full dark mode support across all pages
+14. **Internationalization**: Multi-language support (i18n)
+15. **S3 Media Storage**: Cloud storage for scalability
 
 ---
 
@@ -1754,8 +2044,10 @@ chmod 755 ~/aerosync-media/
 
 ### Code Style
 - Follow PEP 8 for Python
-- Use ESLint for JavaScript
-- Consistent naming: snake_case (Python), camelCase (JS)
+- Use ESLint for JavaScript/React
+- Consistent naming: snake_case (Python), camelCase (JS/React)
+- Component names: PascalCase
+- Custom hooks: use prefixed with `use` (e.g., `useBookingUpdates`)
 
 ### Git Workflow
 ```bash
@@ -1772,215 +2064,23 @@ git push origin feature/new-feature
 
 ### Testing
 ```bash
-# Run tests
+# Run backend tests
+cd aerosync-backend
 python manage.py test
 
 # Test specific app
 python manage.py test core
 
-# With coverage
-coverage run manage.py test
-coverage report
+# Run frontend linting
+cd aerosync-frontend
+npm run lint
+
+# Build frontend for production
+npm run build
 ```
 
 ---
 
-## Flight Generation System (OPTIMIZED)
-
-### Overview
-The flight generation system has been completely optimized for speed, reliability, and realistic scheduling. It generates 1000 flights over 9 days with intelligent aircraft management.
-
-### Performance Improvements
-
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| Generation Time | Minutes/hanging | 3-6 seconds | **50-100x faster** |
-| Memory Usage | GBs (all flights in memory) | MBs (batched) | **100x less** |
-| Flight Number Generation | Random + DB checks | Sequential counter | **Instant** |
-| Database Commits | One massive transaction | Batches of 100 | **Safer, faster** |
-| Days Generated | 30 days | 9 days | **Focused, manageable** |
-| Aircraft Scheduling | Basic slot checking | Location-aware | **Realistic** |
-
-### Key Optimizations
-
-#### 1. Sequential Flight Number Generation
-**Problem**: Random generation with database uniqueness checks was slow
-**Solution**: Sequential counter starting from highest existing number
-
-```python
-# Old: Random with collision checks (SLOW)
-while True:
-    fn = "AS" + "".join(random.choices(string.digits, k=5))
-    if fn not in existing_fns:  # DB query!
-        return fn
-
-# New: Sequential (INSTANT)
-fn_counter = max_existing + 1
-flight_number = f"AS{fn_counter:05d}"
-fn_counter += 1
-```
-
-#### 2. Batched Database Commits
-**Problem**: Single transaction for millions of flights caused memory exhaustion
-**Solution**: Commit every 100 flights
-
-```python
-BATCH_SIZE = 100
-flights_batch = []
-
-for ...:
-    flights_batch.append(Flight(...))
-    
-    if len(flights_batch) >= BATCH_SIZE:
-        with transaction.atomic():
-            Flight.objects.bulk_create(flights_batch, batch_size=100)
-        flights_batch = []  # Clear memory
-```
-
-**Benefits**:
-- ✅ Memory efficient (only 100 flights in memory at once)
-- ✅ Flights appear in database immediately (not at end)
-- ✅ If generation fails, previous batches are saved
-- ✅ No transaction timeout issues
-
-#### 3. Aircraft Time-Slot Tracking
-**Problem**: Aircraft could be double-booked at same time
-**Solution**: Track (aircraft_id, date, hour) combinations
-
-```python
-aircraft_schedule = {}
-
-# Check availability
-slot_key = (ac.id, current_date, hour)
-if slot_key in aircraft_schedule:
-    continue  # Already booked
-
-# Mark as booked
-aircraft_schedule[slot_key] = True
-```
-
-#### 4. Aircraft Location Tracking
-**Problem**: Aircraft could depart from wrong airport (teleportation)
-**Solution**: Track aircraft location after each flight
-
-```python
-aircraft_location = {}
-
-# Before assigning aircraft, check location
-ac_location = aircraft_location.get((ac.id, date, hour))
-if ac_location != departure_airport.id:
-    continue  # Aircraft is elsewhere!
-
-# After flight, update location to arrival airport
-for h in range(24):
-    aircraft_location[(ac.id, arr_date, arr_hour + h)] = arr_ap.id
-```
-
-**Real-World Example**:
-- ✗ 8:00 AM: NBO → DXB (departs Nairobi)
-- ✗ 10:00 AM: Can't depart NBO (aircraft in air)
-- ✗ 2:00 PM: Can't depart LUN (aircraft is in Dubai!)
-- ✓ 3:00 PM: Can depart DXB → LHR (correct location)
-
-#### 5. Target-Based Generation
-**Problem**: Generated all possible combinations (millions of flights)
-**Solution**: Generate exactly 1000 flights and stop
-
-```python
-TARGET_FLIGHTS = 1000
-
-for day_offset in range(DAYS):
-    if created >= TARGET_FLIGHTS:
-        break  # Stop when target reached
-    
-    for ...:
-        if created >= TARGET_FLIGHTS:
-            break
-```
-
-#### 6. Reduced Time Window
-**Problem**: 30 days generated too many flights
-**Solution**: 9 days provides good variety without excess
-
-```python
-DAYS = 9  # Reduced from 30
-HOURS = [6, 10, 12, 14, 16, 18, 20]  # 7 departure times
-```
-
-### Business Rules Enforced
-
-1. ✅ **Unique Flight Numbers**: Sequential AS00001, AS00002, etc.
-2. ✅ **No Double-Booking**: Each aircraft in one place at one time
-3. ✅ **Location Awareness**: Aircraft must be at departure airport
-4. ✅ **Flight Durations**: 1.5h domestic, 4h international
-5. ✅ **Pricing**: Domestic ~8K KES, International ~35K KES
-6. ✅ **Status**: New flights marked as SCHEDULED
-7. ✅ **Trip Type**: ONE_WAY flights
-8. ✅ **Departure Hours**: [6, 10, 12, 14, 16, 18, 20]
-9. ✅ **Direct Flights**: 0 stops
-10. ✅ **Active Airlines Only**: Only uses is_active=True airlines
-
-### Monitoring & Logging
-
-The system provides detailed logging for debugging:
-
-```python
-logger.info(f"Task {task_id}: Starting generation of {TARGET_FLIGHTS} flights")
-logger.info(f"Task {task_id}: {len(airports)} airports, {len(aircraft_list)} aircraft")
-logger.info(f"Task {task_id}: Starting flight numbers from AS{fn_counter:05d}")
-logger.info(f"Task {task_id}: Loaded {len(aircraft_schedule)} existing aircraft slots")
-logger.info(f"Task {task_id}: Committing batch ({created}/{TARGET_FLIGHTS})")
-logger.info(f"Task {task_id} completed: {created} flights created")
-```
-
-### Error Handling
-
-```python
-try:
-    # Generation logic
-    ...
-except Exception as e:
-    _flight_generation_tasks[task_id]['status'] = 'failed'
-    _flight_generation_tasks[task_id]['error'] = str(e)
-    logger.error(f"Flight generation task {task_id} failed: {e}", exc_info=True)
-```
-
-**Validation Checks**:
-- At least 2 airports required
-- At least 1 aircraft required
-- At least 1 active airline required
-
-### Frontend Integration
-
-The admin panel polls for status updates every second:
-
-```javascript
-const pollInterval = setInterval(async () => {
-  const statusRes = await API.get(`admin/flights/generation_status/${taskId}/`);
-  const taskData = statusRes.data;
-  
-  if (taskData.status === 'completed') {
-    clearInterval(pollInterval);
-    // Reload flights list
-    await reloadFlights();
-  } else if (taskData.status === 'running') {
-    const percentage = (taskData.progress / taskData.estimated_total) * 100;
-    // Update progress bar
-  }
-}, 1000);
-```
-
----
-
-## Contributors
-
-- Backend: Django + PostgreSQL
-- Frontend: React + Vite + TailwindCSS
-- Infrastructure: Cloudflare + Systemd
-- Documentation: This file
-
----
-
-*Last Updated: April 14, 2026*  
-*Version: 3.0 - Optimized Flight Generation*  
+*Last Updated: April 17, 2026*  
+*Version: 4.0 - Multi-Passenger, VIA Routes & Agent Portal*  
 *Status: Production Ready*
