@@ -576,7 +576,7 @@ export default function AgentVerifyQR() {
       {!result && !scanning && (
         <form onSubmit={e => { e.preventDefault(); verifyCode(manualQR); }}>
           <div style={{ ...CARD, marginBottom: "20px" }}>
-            <div style={{ color: "rgba(255,255,255,0.7)", fontSize: "12px", fontWeight: 700, marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            <div style={{ color: "var(--text-primary)", fontSize: "12px", fontWeight: 700, marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
               Or paste QR code manually
             </div>
             <div style={{ display: "flex", gap: "10px" }}>
@@ -585,7 +585,7 @@ export default function AgentVerifyQR() {
                 placeholder="Paste QR code string here…"
                 value={manualQR}
                 onChange={e => setManualQR(e.target.value)}
-                style={{ flex: 1, padding: "10px 14px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.07)", color: "#fff", fontSize: "14px", outline: "none" }}
+                style={{ flex: 1, padding: "10px 14px", borderRadius: "8px", border: "1px solid var(--border)", background: "var(--background)", color: "var(--text-primary)", fontSize: "14px", outline: "none" }}
               />
               <button
                 type="submit"
