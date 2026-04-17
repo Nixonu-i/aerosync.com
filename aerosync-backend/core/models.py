@@ -2,7 +2,41 @@ from django.conf import settings
 from django.db import models
 from accounts.models import User
 from django.core.validators import RegexValidator
+from django.core.exceptions import ValidationError
 import uuid
+import os
+
+# Constants for passenger photo validation
+PASSENGER_PHOTO_MAX_SIZE = 2 * 1024 * 1024  # 2MB
+PASSENGER_PHOTO_ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+
+def passenger_photo_upload_to(instance, filename):
+    """Upload passenger photos for boarding verification"""
+    from django.utils import timezone
+    now = timezone.now()
+    base, ext = os.path.splitext(filename)
+    ext = ext.lower()
+    return os.path.join(
+        'passenger_photos',
+        f"{now.year}",
+        f"{now.month:02d}",
+        f"passenger_{instance.passenger.pk}_{uuid.uuid4().hex[:8]}{ext}"
+    )
+
+def validate_passenger_photo_size(file):
+    """Validate passenger photo file size"""
+    if file.size > PASSENGER_PHOTO_MAX_SIZE:
+        raise ValidationError(
+            f'File size must be under {PASSENGER_PHOTO_MAX_SIZE // (1024*1024)}MB'
+        )
+
+def validate_passenger_photo_extension(file):
+    """Validate passenger photo file extension"""
+    ext = os.path.splitext(file.name)[1].lower()
+    if ext not in PASSENGER_PHOTO_ALLOWED_EXTENSIONS:
+        raise ValidationError(
+            f'Unsupported file type. Allowed: {", ".join(PASSENGER_PHOTO_ALLOWED_EXTENSIONS)}'
+        )
 
 
 class Airline(models.Model):
@@ -303,6 +337,13 @@ class BoardingPass(models.Model):
     issued_date = models.DateTimeField(auto_now_add=True)
     qr_code_data = models.TextField(blank=True)
     is_checked_in = models.BooleanField(default=False)  # per-passenger check-in status
+    passenger_photo = models.ImageField(
+        upload_to=passenger_photo_upload_to,
+        blank=True,
+        null=True,
+        validators=[validate_passenger_photo_size, validate_passenger_photo_extension],
+        help_text="Passenger photo for boarding verification (required for adults & children 4+)"
+    )
     
     def __str__(self):
         return f"Boarding Pass - {self.passenger.full_name} - {self.booking.confirmation_code}"
@@ -330,6 +371,7 @@ class ScanLog(models.Model):
     booking_status    = models.CharField(max_length=20, blank=True)
     already_onboard   = models.BooleanField(default=False)
     scanned_at        = models.DateTimeField(auto_now_add=True)
+    additional_data   = models.JSONField(default=dict, blank=True)
 
     class Meta:
         ordering = ["-scanned_at"]

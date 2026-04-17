@@ -49,6 +49,37 @@ const Icons = {
       <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
     </svg>
   ),
+  UserCheck: ({ size = 40, color = teal }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="8.5" cy="7" r="4"/>
+      <polyline points="17 11 19 13 23 9"/>
+    </svg>
+  ),
+  User: ({ size = 48, color = "#6c757d" }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+      <circle cx="12" cy="7" r="4"/>
+    </svg>
+  ),
+  AlertCircle: ({ size = 16, color = amber }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="8" x2="12" y2="12"/>
+      <line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+  ),
+  Check: ({ size = 20 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12"/>
+    </svg>
+  ),
+  X: ({ size = 20 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18"/>
+      <line x1="6" y1="6" x2="18" y2="18"/>
+    </svg>
+  ),
 };
 
 const STATUS_BADGE = {
@@ -162,6 +193,50 @@ export default function AgentVerifyQR() {
   };
 
   const reset = () => { setResult(null); setVerifyErr(""); setManualQR(""); setScanErr(""); };
+
+  const [confirming, setConfirming] = useState(false);
+  const [confirmErr, setConfirmErr] = useState("");
+
+  const handleConfirmBoarding = async () => {
+    if (!result?.boarding_pass_id) return;
+    setConfirming(true);
+    setConfirmErr("");
+    try {
+      const res = await API.post("verify/confirm-boarding/", {
+        boarding_pass_id: result.boarding_pass_id,
+        action: "confirm"
+      });
+      // Update result with new status
+      setResult(prev => ({
+        ...prev,
+        status: res.data.status,
+        already_onboard: res.data.already_onboard
+      }));
+      // Update scan history
+      fetchHistory();
+    } catch (e) {
+      setConfirmErr(e?.response?.data?.detail || "Failed to confirm boarding");
+    } finally {
+      setConfirming(false);
+    }
+  };
+
+  const handleCancelBoarding = async () => {
+    if (!result?.boarding_pass_id) return;
+    setConfirming(true);
+    setConfirmErr("");
+    try {
+      await API.post("verify/confirm-boarding/", {
+        boarding_pass_id: result.boarding_pass_id,
+        action: "cancel"
+      });
+      reset();
+    } catch (e) {
+      setConfirmErr(e?.response?.data?.detail || "Failed to cancel boarding");
+    } finally {
+      setConfirming(false);
+    }
+  };
 
   const isDoubleBoard = result?.already_onboard;
 
@@ -374,30 +449,92 @@ export default function AgentVerifyQR() {
       {/* ── Success Result ── */}
       {result && (
         <div style={{
-          background: isDoubleBoard ? "rgba(253,126,20,0.10)" : "rgba(40,167,69,0.12)",
-          border: `2px solid ${isDoubleBoard ? amber : green}`,
+          background: "rgba(5,19,30,0.95)",
+          border: `2px solid ${isDoubleBoard ? amber : teal}`,
           borderRadius: "14px",
           padding: "24px",
           marginBottom: "20px",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "20px" }}>
-            {isDoubleBoard ? <Icons.Repeat size={40} color={amber} /> : <Icons.CheckCircle size={40} color={green} />}
+            <Icons.UserCheck size={40} color={teal} />
             <div>
-              <div style={{ fontWeight: 800, fontSize: "18px", color: isDoubleBoard ? amber : green }}>
-                {isDoubleBoard ? "Already Boarded — Duplicate Scan" : "Boarding Pass Verified!"}
+              <div style={{ fontWeight: 800, fontSize: "18px", color: teal }}>
+                Passenger Verified
               </div>
               <div style={{ color: "rgba(255,255,255,0.75)", fontSize: "13px", marginTop: "3px" }}>
-                {isDoubleBoard
-                  ? "This passenger was already marked as ON BOARD. Check with supervisor."
-                  : "Status updated to ON BOARD successfully."}
+                Compare the photo below with the passenger before confirming
               </div>
             </div>
           </div>
 
+          {/* Passenger Photo */}
+          {result.passenger_photo_url ? (
+            <div style={{
+              background: "rgba(0,0,0,0.4)",
+              borderRadius: "12px",
+              padding: "16px",
+              marginBottom: "20px",
+              textAlign: "center"
+            }}>
+              <img
+                src={result.passenger_photo_url.startsWith('http') 
+                  ? result.passenger_photo_url 
+                  : `${window.location.origin}${result.passenger_photo_url}`}
+                alt="Passenger"
+                style={{
+                  width: "200px",
+                  height: "200px",
+                  objectFit: "cover",
+                  borderRadius: "12px",
+                  border: "3px solid teal",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.5)"
+                }}
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'flex';
+                }}
+              />
+              <div style={{
+                display: "none",
+                width: "200px",
+                height: "200px",
+                margin: "0 auto",
+                borderRadius: "12px",
+                border: "3px solid #6c757d",
+                background: "rgba(108,117,125,0.2)",
+                alignItems: "center",
+                justifyContent: "center",
+                flexDirection: "column",
+                gap: "8px"
+              }}>
+                <Icons.User size={48} color="#6c757d" />
+                <div style={{ color: "#6c757d", fontSize: "12px" }}>No Photo</div>
+              </div>
+              <div style={{ marginTop: "12px", color: "rgba(255,255,255,0.7)", fontSize: "13px" }}>
+                {result.passenger_name} • {result.passenger_type || 'ADULT'}
+              </div>
+            </div>
+          ) : (
+            <div style={{
+              background: "rgba(253,126,20,0.1)",
+              border: "1px solid amber",
+              borderRadius: "8px",
+              padding: "12px",
+              marginBottom: "20px",
+              color: amber,
+              fontSize: "13px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px"
+            }}>
+              <Icons.AlertCircle size={16} />
+              No passenger photo available for verification
+            </div>
+          )}
+
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "10px", marginBottom: "20px" }}>
             {[
               ["Booking Ref",  result.booking_reference],
-              ["Passenger",    result.passenger_name || "—"],
               ["Flight",       result.flight_number  || "—"],
               ["Route",        result.departure && result.arrival ? `${result.departure} → ${result.arrival}` : "—"],
               ["Departure",    fmtTime(result.departure_time)],
@@ -423,9 +560,105 @@ export default function AgentVerifyQR() {
             );
           })()}
 
+          {/* Error message */}
+          {confirmErr && (
+            <div style={{
+              background: "rgba(220,53,69,0.15)",
+              border: `1px solid ${red}`,
+              color: "#ff8891",
+              borderRadius: "8px",
+              padding: "12px 16px",
+              marginBottom: "14px",
+              fontSize: "14px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px"
+            }}>
+              <Icons.XCircle size={18} color="#ff8891" />
+              {confirmErr}
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          {!isDoubleBoard && (
+            <div style={{ display: "flex", gap: "12px", marginBottom: "12px" }}>
+              <button
+                onClick={handleConfirmBoarding}
+                disabled={confirming}
+                style={{
+                  flex: 1,
+                  background: green,
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "9px",
+                  padding: "13px 0",
+                  fontWeight: 800,
+                  cursor: confirming ? "not-allowed" : "pointer",
+                  fontSize: "15px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  opacity: confirming ? 0.6 : 1
+                }}
+              >
+                {confirming ? "Processing..." : <><Icons.Check size={20} /> Confirm Boarding</>}
+              </button>
+              <button
+                onClick={handleCancelBoarding}
+                disabled={confirming}
+                style={{
+                  flex: 1,
+                  background: "rgba(220,53,69,0.2)",
+                  color: "#ff6b78",
+                  border: `1px solid ${red}`,
+                  borderRadius: "9px",
+                  padding: "13px 0",
+                  fontWeight: 800,
+                  cursor: confirming ? "not-allowed" : "pointer",
+                  fontSize: "15px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px"
+                }}
+              >
+                <Icons.X size={20} /> Cancel
+              </button>
+            </div>
+          )}
+
+          {isDoubleBoard && (
+            <div style={{
+              background: "rgba(253,126,20,0.10)",
+              border: `1px solid ${amber}`,
+              borderRadius: "8px",
+              padding: "12px 16px",
+              marginBottom: "12px",
+              color: amber,
+              fontSize: "14px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px"
+            }}>
+              <Icons.Repeat size={18} />
+              This passenger was already marked as ON BOARD
+            </div>
+          )}
+
           <button
             onClick={reset}
-            style={{ background: teal, color: "#fff", border: "none", borderRadius: "8px", padding: "11px 28px", cursor: "pointer", fontWeight: 700, fontSize: "15px" }}
+            style={{
+              width: "100%",
+              background: teal,
+              color: "#fff",
+              border: "none",
+              borderRadius: "8px",
+              padding: "11px 28px",
+              cursor: "pointer",
+              fontWeight: 700,
+              fontSize: "15px"
+            }}
           >
             Scan Next Passenger
           </button>

@@ -7,7 +7,7 @@ from .views import (
     AircraftAdminViewSet, BookingAdminViewSet, UserAdminViewSet,
     AirlineAdminViewSet, AirlinePublicViewSet,
     AgentFlightViewSet, AgentBookingViewSet,
-    SummaryReportView, FlightsWithBookingsView, VerifyQRView, ScanHistoryView,
+    SummaryReportView, FlightsWithBookingsView, VerifyQRView, ConfirmBoardingView, ScanHistoryView,
     PaymentProviderView,
     PesapalInitiatePaymentView, PesapalCallbackView, PesapalIPNView, PesapalStatusCheckView
 )
@@ -39,6 +39,7 @@ urlpatterns = [
     path("reports/summary/", SummaryReportView.as_view()),
     path("reports/flights-with-bookings/", FlightsWithBookingsView.as_view()),
     path("verify/qr/",       VerifyQRView.as_view()),
+    path("verify/confirm-boarding/", ConfirmBoardingView.as_view()),
     path("agent/scan-history/", ScanHistoryView.as_view()),
     path("payment-providers/", PaymentProviderView.as_view()),
     

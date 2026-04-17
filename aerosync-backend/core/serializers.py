@@ -37,13 +37,31 @@ class BoardingPassSerializer(serializers.ModelSerializer):
     booking = serializers.PrimaryKeyRelatedField(read_only=True)
     passenger = serializers.PrimaryKeyRelatedField(read_only=True)
     seat = serializers.PrimaryKeyRelatedField(read_only=True)
+    passenger_photo_url = serializers.SerializerMethodField()
     
     class Meta:
         model = BoardingPass
         fields = [
             "id", "booking", "passenger", "seat", "price", 
-            "issued_date", "qr_code_data"
+            "issued_date", "qr_code_data", "is_checked_in", 
+            "passenger_photo", "passenger_photo_url"
         ]
+        extra_kwargs = {
+            'passenger_photo': {'required': False, 'allow_null': True}
+        }
+    
+    def get_passenger_photo_url(self, obj):
+        """Return the URL for the passenger photo"""
+        try:
+            if obj.passenger_photo:
+                request = self.context.get('request')
+                url = f"/api/auth/media/{obj.passenger_photo.name}"
+                if request:
+                    return request.build_absolute_uri(url)
+                return url
+        except (AttributeError, ValueError, TypeError):
+            pass
+        return None
 
 
 class SeatSerializer(serializers.ModelSerializer):

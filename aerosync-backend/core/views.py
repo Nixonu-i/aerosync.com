@@ -305,6 +305,9 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
             
             total_price = 0
             
+            # Get passenger photos from request files (if any)
+            passenger_photos = request.FILES.getlist('passenger_photos')
+            
             # Create passengers and boarding passes
             for i, assignment in enumerate(seat_assignments):
                 passenger_info = passenger_data[i]
@@ -335,13 +338,19 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
                 
                 total_price += price
                 
+                # Get passenger photo if available
+                passenger_photo = None
+                if i < len(passenger_photos):
+                    passenger_photo = passenger_photos[i]
+                
                 # Create boarding pass (without QR code yet)
                 BoardingPass.objects.create(
                     booking=booking,
                     seat=seat,
                     passenger=passenger,
                     qr_code_data=f"BP_{booking.id}_{passenger.id}_{seat.seat_number}",
-                    price=price
+                    price=price,
+                    passenger_photo=passenger_photo
                 )
             
             # Update total amount
@@ -2149,20 +2158,20 @@ class VerifyQRView(APIView):
 
         already_onboard = bp.is_checked_in
 
-        if not already_onboard:
-            bp.is_checked_in = True
-            bp.save(update_fields=["is_checked_in"])
-
-            if booking.booking_status == "CONFIRMED":
-                booking.booking_status = "ONBOARD"
-                booking.save(update_fields=["booking_status"])
+        # Build passenger photo URL
+        passenger_photo_url = None
+        if bp.passenger_photo:
+            passenger_photo_url = f"/api/auth/media/{bp.passenger_photo.name}"
 
         payload = {
             "valid": True,
             "already_onboard": already_onboard,
+            "boarding_pass_id": str(bp.id),
             "booking_reference": booking.confirmation_code,
             "status": booking.booking_status,
             "passenger_name": passenger.full_name if passenger else None,
+            "passenger_type": passenger.passenger_type if passenger else None,
+            "passenger_photo_url": passenger_photo_url,
             "flight_number": booking.flight.flight_number if booking.flight else None,
             "departure": booking.flight.departure_airport.code if booking.flight else None,
             "arrival": booking.flight.arrival_airport.code if booking.flight else None,
@@ -2171,18 +2180,86 @@ class VerifyQRView(APIView):
             "flight_id": booking.flight_id,
         }
 
-        ScanLog.objects.create(
-            scanned_by=request.user,
-            boarding_pass=bp,
-            booking_reference=booking.confirmation_code or "",
-            passenger_name=passenger.full_name if passenger else "",
-            flight_number=booking.flight.flight_number if booking.flight else "",
-            seat_number=bp.seat.seat_number if bp.seat else "",
-            booking_status=booking.booking_status,
-            already_onboard=already_onboard,
-        )
-
         return Response(payload)
+
+
+class ConfirmBoardingView(APIView):
+    """Confirm or cancel boarding after agent verifies passenger photo"""
+    permission_classes = [IsAgentOrAdmin]
+
+    def post(self, request):
+        boarding_pass_id = (request.data or {}).get("boarding_pass_id")
+        action = (request.data or {}).get("action")  # 'confirm' or 'cancel'
+
+        if not boarding_pass_id:
+            return Response({"detail": "boarding_pass_id is required"}, status=400)
+        
+        if action not in ['confirm', 'cancel']:
+            return Response({"detail": "action must be 'confirm' or 'cancel'"}, status=400)
+
+        try:
+            bp = BoardingPass.objects.select_related(
+                "booking", "booking__flight",
+                "booking__flight__departure_airport",
+                "booking__flight__arrival_airport",
+                "seat", "passenger",
+            ).get(id=boarding_pass_id)
+        except BoardingPass.DoesNotExist:
+            return Response({"detail": "Boarding pass not found"}, status=404)
+
+        booking = bp.booking
+        passenger = bp.passenger
+
+        if action == 'confirm':
+            # Mark as checked in
+            already_onboard = bp.is_checked_in
+            if not already_onboard:
+                bp.is_checked_in = True
+                bp.save(update_fields=["is_checked_in"])
+
+                if booking.booking_status == "CONFIRMED":
+                    booking.booking_status = "ONBOARD"
+                    booking.save(update_fields=["booking_status"])
+
+            # Log the scan
+            ScanLog.objects.create(
+                scanned_by=request.user,
+                boarding_pass=bp,
+                booking_reference=booking.confirmation_code or "",
+                passenger_name=passenger.full_name if passenger else "",
+                flight_number=booking.flight.flight_number if booking.flight else "",
+                seat_number=bp.seat.seat_number if bp.seat else "",
+                booking_status=booking.booking_status,
+                already_onboard=already_onboard,
+            )
+
+            return Response({
+                "success": True,
+                "action": "confirmed",
+                "already_onboard": already_onboard,
+                "status": booking.booking_status,
+                "message": "Passenger marked as ON BOARD" if not already_onboard else "Passenger was already on board"
+            })
+        
+        else:  # action == 'cancel'
+            # Log the cancellation
+            ScanLog.objects.create(
+                scanned_by=request.user,
+                boarding_pass=bp,
+                booking_reference=booking.confirmation_code or "",
+                passenger_name=passenger.full_name if passenger else "",
+                flight_number=booking.flight.flight_number if booking.flight else "",
+                seat_number=bp.seat.seat_number if bp.seat else "",
+                booking_status=booking.booking_status,
+                already_onboard=bp.is_checked_in,
+                additional_data={"action": "cancelled_by_agent"}
+            )
+
+            return Response({
+                "success": True,
+                "action": "cancelled",
+                "message": "Boarding cancelled by agent"
+            })
 
 
 class ScanHistoryView(APIView):
