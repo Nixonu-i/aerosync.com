@@ -41,12 +41,12 @@ export default function DateOfBirthPicker({
   theme = "light",
   wrapperStyle = {},
   minYear,          // default: 1920
-  maxYear,          // default: current year
+  maxYear,          // default: current year - 1 (no future dates, no today)
   yearOrder = "desc", // "desc" for DOB | "asc" for future dates
 }) {
   const currentYear = new Date().getFullYear();
   const resolvedMin = minYear ?? 1920;
-  const resolvedMax = maxYear ?? currentYear;
+  const resolvedMax = maxYear ?? (currentYear - 1); // Exclude current year to prevent future dates and today
   const [sel, setSel] = useState(() => fromValue(value));
 
   // Sync internal state when the controlled value changes (e.g. profile load)

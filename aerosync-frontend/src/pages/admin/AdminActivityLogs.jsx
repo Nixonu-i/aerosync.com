@@ -1,6 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import API from '../../api/api';
 
+// Force light theme for all admin pages
+function AdminThemeEnforcer() {
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', 'light');
+    return () => {
+      // Restore user preference on unmount
+      const saved = localStorage.getItem('theme') || 'LIGHT';
+      if (saved === 'DARK') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    };
+  }, []);
+  return null;
+}
+
 const AdminActivityLogs = () => {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -138,7 +153,9 @@ const AdminActivityLogs = () => {
   };
 
   return (
-    <div className="as-admin-container" style={{ background: 'var(--background)' }}>
+    <>
+      <AdminThemeEnforcer />
+      <div className="as-admin-container" style={{ background: 'var(--background)' }}>
       <div className="as-admin-content">
         <div className="as-card" style={{ background: 'var(--surface)' }}>
           {/* Header */}
@@ -513,6 +530,7 @@ const AdminActivityLogs = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

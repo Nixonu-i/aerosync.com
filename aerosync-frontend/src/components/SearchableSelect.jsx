@@ -97,13 +97,13 @@ export default function SearchableSelect({
           position: "absolute",
           top: "calc(100% + 4px)",
           left: 0,
-          right: 0,
+          minWidth: "100%",
           zIndex: 1000,
           backgroundColor: "var(--surface)",
           border: "1px solid var(--border)",
           borderRadius: "8px",
           boxShadow: "0 8px 24px var(--shadow-md)",
-          overflow: "hidden",
+          overflow: "visible",
           color: "var(--text-primary)",
         }}>
           {/* Search input */}

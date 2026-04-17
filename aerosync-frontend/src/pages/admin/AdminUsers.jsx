@@ -3,6 +3,21 @@ import API from "../../api/api";
 import { useAdminUI } from "../../hooks/useAdminUI";
 import ProtectedImage from "../../components/ProtectedImage";
 
+// Force light theme for all admin pages
+function AdminThemeEnforcer() {
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', 'light');
+    return () => {
+      // Restore user preference on unmount
+      const saved = localStorage.getItem('theme') || 'LIGHT';
+      if (saved === 'DARK') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    };
+  }, []);
+  return null;
+}
+
 const inputStyle = {
   width: "100%", padding: "10px 12px", border: "1px solid #ced4da",
   borderRadius: "6px", fontSize: "14px", boxSizing: "border-box",
@@ -115,6 +130,7 @@ export default function AdminUsers() {
 
   return (
     <>
+      <AdminThemeEnforcer />
       <div style={{ padding: "28px", maxWidth: "1200px", margin: "0 auto" }}>
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>

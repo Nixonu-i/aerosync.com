@@ -173,12 +173,14 @@ export default function Flights() {
     min_price: "",
     max_price: "",
     trip_type: "",
-    max_stops: "",
+    route_type: "",
+    via_city: "",
     airline: "",
     from_city: "",
     to_city: ""
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [viaCities, setViaCities] = useState([]);
 
   // Build query param object from filters (strips empty strings)
   const buildParams = (overrides = {}) => {
@@ -237,10 +239,20 @@ export default function Flights() {
     }
   };
 
+  const loadViaCities = async () => {
+    try {
+      const res = await API.get("flights/via-cities/");
+      setViaCities(res.data);
+    } catch (e) {
+      console.error("Failed to load via cities:", e);
+    }
+  };
+
   useEffect(() => {
     loadFlights();
     loadAirlines();
     loadCities();
+    loadViaCities();
   }, []);
 
   const handleFilterChange = (field, value) => {
@@ -440,7 +452,7 @@ export default function Flights() {
           borderRadius: "14px",
           boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
           marginBottom: "28px",
-          overflow: "hidden",
+          overflow: "visible",
         }}>
           {/* Filter Toggle Button */}
           <button
@@ -503,13 +515,15 @@ export default function Flights() {
             <div style={{
               padding: "0 24px 22px",
               borderTop: "1px solid var(--border)",
+              overflow: "visible",
             }}>
           
           <div style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
             gap: "15px",
-            marginBottom: "20px"
+            marginBottom: "20px",
+            overflow: "visible",
           }}>
             {/* ── Departure Date ── */}
             <div>
@@ -669,11 +683,11 @@ export default function Flights() {
                 color: "var(--text-primary)", fontSize: "12px",
                 letterSpacing: "0.02em",
               }}>
-                Max Stops
+                Route Type
               </label>
               <select
-                value={filters.max_stops}
-                onChange={(e) => handleFilterChange("max_stops", e.target.value)}
+                value={filters.route_type}
+                onChange={(e) => handleFilterChange("route_type", e.target.value)}
                 style={{
                   width: "100%", padding: "10px",
                   border: "1px solid var(--border)",
@@ -684,12 +698,28 @@ export default function Flights() {
                 }}
               >
                 <option value="">Any</option>
-                <option value="0">Direct (0 stops)</option>
-                <option value="1">1 stop</option>
-                <option value="2">2 stops</option>
-                <option value="3">3+ stops</option>
+                <option value="DIRECT">Direct</option>
+                <option value="VIA">Via</option>
               </select>
             </div>
+            
+            {filters.route_type === 'VIA' && (
+              <div style={{ minWidth: "250px" }}>
+                <label style={{
+                  display: "block", marginBottom: "6px", fontWeight: "600",
+                  color: "var(--text-primary)", fontSize: "12px",
+                  letterSpacing: "0.02em",
+                }}>
+                  Via City
+                </label>
+                <SearchableSelect
+                  value={filters.via_city}
+                  onChange={(v) => handleFilterChange("via_city", v)}
+                  options={viaCities}
+                  placeholder="Select via city..."
+                />
+              </div>
+            )}
           </div>
           
           <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
@@ -853,7 +883,7 @@ export default function Flights() {
                     { label: "Airline",    val: f.airline },
                     { label: "Departure",  val: new Date(f.departure_time).toLocaleString("en-US", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" }) },
                     { label: "Arrival",    val: new Date(f.arrival_time).toLocaleString("en-US", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" }) },
-                    { label: "Stops",      val: f.stops === 0 ? "Direct" : `${f.stops} stop${f.stops > 1 ? "s" : ""}` },
+                    { label: "Route",      val: f.route_type === 'VIA' ? `Via ${f.via_cities.join(', ')}` : "Direct" },
                     { label: "Type",       val: f.trip_type === "ONE_WAY" ? "One Way" : "Round Trip" },
                   ].map(({ label, val }) => (
                     <div key={label}>

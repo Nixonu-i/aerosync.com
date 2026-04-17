@@ -375,9 +375,11 @@ function CreateBookingMultiPassenger({ flightId }) {
         </div>
         
         <div>
-          <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "5px" }}>Stops</div>
+          <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "5px" }}>Route Type</div>
           <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>
-            {flight?.stops === 0 ? "Direct" : `${flight?.stops} stop${flight?.stops > 1 ? "s" : ""}`}
+            {flight?.route_type === 'VIA' 
+              ? `Via ${flight?.via_cities?.join(', ')}` 
+              : 'Direct'}
           </div>
         </div>
       </div>
@@ -483,6 +485,7 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
     }
   }, [user]);
   
+  const [stopoverCity, setStopoverCity] = useState("");
   const [selectedSeat, setSelectedSeat] = useState(null);
   const [seats, setSeats] = useState([]);
   const [seatsLoading, setSeatsLoading] = useState(true);
@@ -694,12 +697,23 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
     }
     
     if (!passenger.date_of_birth) errors.push("Date of birth is required");
+    
+    // Validate date of birth is not in the future and not today
+    if (passenger.date_of_birth) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
+      const birthDate = new Date(passenger.date_of_birth);
+      if (birthDate >= today) {
+        errors.push("Date of birth cannot be today or in the future");
+      }
+    }
+    
     if (!passenger.nationality) errors.push("Nationality is required");
     
     // Age validation based on passenger type
-    const today = new Date();
-    const birthDate = new Date(passenger.date_of_birth);
-    const age = Math.floor((today - birthDate) / (365.25 * 24 * 60 * 60 * 1000));
+    const today2 = new Date();
+    const birthDate2 = new Date(passenger.date_of_birth);
+    const age = Math.floor((today2 - birthDate2) / (365.25 * 24 * 60 * 60 * 1000));
     
     if (passenger.passenger_type === "KID" && age >= 5) {
       errors.push("Kids must be under 5 years old");
@@ -746,6 +760,12 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
       return;
     }
     
+    // Validate stopover city for VIA flights
+    if (flight.route_type === 'VIA' && !stopoverCity) {
+      setError("Please select a stopover city for this VIA flight");
+      return;
+    }
+    
     setLoading(true);
     setError("");
     
@@ -767,7 +787,8 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
         }],
         seat_assignments: [
           { seat_id: selectedSeat.seat_id, passenger_index: 0 }
-        ]
+        ],
+        stopover_city: stopoverCity || ""
       });
       
       onBookingComplete(res.data);
@@ -1120,6 +1141,105 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
           </div>
         </div>
       </div>
+      
+      {/* Stopover City Selection for VIA flights */}
+      {flight.route_type === 'VIA' && (
+        <div style={{ marginBottom: "25px" }}>
+          <h4 style={{
+            color: "var(--text-primary)",
+            marginBottom: "15px",
+            fontSize: "20px",
+            fontWeight: "600"
+          }}>
+            🛬 Select Stopover City
+          </h4>
+          
+          <div style={{
+            backgroundColor: "var(--surface)",
+            padding: "20px",
+            borderRadius: "8px",
+            border: "1px solid #dee2e6"
+          }}>
+            <p style={{ 
+              color: "#6c757d", 
+              marginBottom: "15px",
+              fontSize: "14px"
+            }}>
+              This is a VIA flight with intermediate stops. Please select the city where you want to pause your journey.
+            </p>
+            
+            <div style={{ maxWidth: "400px" }}>
+              <label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#495057", fontSize: "14px" }}>
+                Stopover City *
+              </label>
+              <select
+                value={stopoverCity}
+                onChange={(e) => setStopoverCity(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  border: "2px solid #ced4da",
+                  borderRadius: "6px",
+                  fontSize: "15px",
+                  backgroundColor: stopoverCity ? "#f8f9fa" : "var(--surface)",
+                  cursor: "pointer"
+                }}
+              >
+                <option value="">Select a stopover city...</option>
+                {flight.via_cities && flight.via_cities.length > 0 ? (
+                  flight.via_cities.map((city, index) => (
+                    <option key={index} value={city}>
+                      {city}
+                    </option>
+                  ))
+                ) : (
+                  <option value="" disabled>No via cities available for this flight</option>
+                )}
+              </select>
+              {stopoverCity && (
+                <p style={{
+                  marginTop: "10px",
+                  color: "#28a745",
+                  fontSize: "14px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px"
+                }}>
+                  ✓ Selected: <strong>{stopoverCity}</strong>
+                </p>
+              )}
+              {(!flight.via_cities || flight.via_cities.length === 0) && (
+                <p style={{
+                  marginTop: "10px",
+                  color: "#dc3545",
+                  fontSize: "13px",
+                  backgroundColor: "#f8d7da",
+                  padding: "10px",
+                  borderRadius: "6px"
+                }}>
+                  ⚠️ This VIA flight has no via cities configured. Please contact support or select a different flight.
+                </p>
+              )}
+            </div>
+            
+            <div style={{
+              backgroundColor: "#e7f3ff",
+              padding: "12px",
+              borderRadius: "6px",
+              marginTop: "15px",
+              borderLeft: "4px solid #0d6efd"
+            }}>
+              <p style={{
+                margin: 0,
+                color: "#0b1220",
+                fontSize: "13px"
+              }}>
+                <strong>Flight Route:</strong> {flight.departure_airport_city} → {flight.via_cities && flight.via_cities.length > 0 ? flight.via_cities.join(' → ') : 'No via cities'} → {flight.arrival_airport_city}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div style={{ marginBottom: "25px" }}>
         <h4 style={{

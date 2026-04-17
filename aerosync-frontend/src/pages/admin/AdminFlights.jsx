@@ -3,6 +3,21 @@ import API from "../../api/api";
 import { useAdminUI } from "../../hooks/useAdminUI";
 import SearchableSelect from "../../components/SearchableSelect";
 
+// Force light theme for all admin pages
+function AdminThemeEnforcer() {
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', 'light');
+    return () => {
+      // Restore user preference on unmount
+      const saved = localStorage.getItem('theme') || 'LIGHT';
+      if (saved === 'DARK') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    };
+  }, []);
+  return null;
+}
+
 const inputStyle = {
   width: "100%", padding: "10px 12px", border: "1px solid #ced4da",
   borderRadius: "6px", fontSize: "14px", boxSizing: "border-box",
@@ -15,11 +30,15 @@ function StatusBadge({ status }) {
   return <span style={{ backgroundColor: bg, color: text, padding: "3px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: "600" }}>{status}</span>;
 }
 
-const EMPTY = { airline: "", aircraft: "", departure_airport: "", arrival_airport: "", departure_time: "", arrival_time: "", price: "", trip_type: "ONE_WAY", stops: "0", status: "SCHEDULED" };
+const EMPTY = { airline: "", aircraft: "", departure_airport: "", arrival_airport: "", departure_time: "", arrival_time: "", price: "", trip_type: "ONE_WAY", route_type: "DIRECT", via_cities: [], status: "SCHEDULED" };
 
 const TRIP_TYPE_OPTS = [
   { value: "ONE_WAY", label: "One Way" },
   { value: "ROUND_TRIP", label: "Round Trip" },
+];
+const ROUTE_TYPE_OPTS = [
+  { value: "DIRECT", label: "Direct" },
+  { value: "VIA", label: "Via" },
 ];
 const STATUS_OPTS = [
   { value: "SCHEDULED", label: "Scheduled" },
@@ -48,6 +67,8 @@ export default function AdminFlights() {
   const [genModal, setGenModal]   = useState(false);
   const [genBusy, setGenBusy]     = useState(false);
   const [genResult, setGenResult] = useState(null);
+  // via cities raw input state
+  const [viaCitiesInput, setViaCitiesInput] = useState("");
   const { confirm, notify, ModalUI } = useAdminUI();
 
   // Load first page of flights + supporting data
@@ -133,7 +154,7 @@ export default function AdminFlights() {
 
   const hasFilters = Object.values(filters).some(v => v !== "");
 
-  const openAdd = () => { setForm(EMPTY); setFormErr(""); setModal("add"); };
+  const openAdd = () => { setForm(EMPTY); setViaCitiesInput(""); setFormErr(""); setModal("add"); };
   const openEdit = (f) => {
     setForm({
       airline: f.airline,
@@ -143,8 +164,11 @@ export default function AdminFlights() {
       departure_time: f.departure_time?.slice(0, 16) || "",
       arrival_time: f.arrival_time?.slice(0, 16) || "",
       price: f.price, trip_type: f.trip_type, stops: f.stops, status: f.status,
+      route_type: f.route_type || 'DIRECT',
+      via_cities: f.via_cities || [],
       _id: f.id,
     });
+    setViaCitiesInput((f.via_cities || []).join(', '));
     setFormErr(""); setModal("edit");
   };
 
@@ -156,6 +180,23 @@ export default function AdminFlights() {
       // Validate required fields before sending
       if (!form.aircraft || !form.departure_airport || !form.arrival_airport) {
         setFormErr("Please select Aircraft, Departure Airport, and Arrival Airport.");
+        setBusy(false);
+        return;
+      }
+      
+      // Validate departure time is in the future
+      const departureTime = new Date(form.departure_time);
+      const now = new Date();
+      if (departureTime <= now) {
+        setFormErr("Departure date and time must be in the future.");
+        setBusy(false);
+        return;
+      }
+      
+      // Validate arrival time is after departure time
+      const arrivalTime = new Date(form.arrival_time);
+      if (arrivalTime <= departureTime) {
+        setFormErr("Arrival date and time must be after departure date and time.");
         setBusy(false);
         return;
       }
@@ -255,6 +296,7 @@ export default function AdminFlights() {
 
   return (
     <>
+      <AdminThemeEnforcer />
       <div style={{ padding: "28px", maxWidth: "1400px", margin: "0 auto" }}>
       {/* ── Page Header ─────────────────────────────────────────────── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", flexWrap: "wrap", gap: "12px" }}>
@@ -436,7 +478,16 @@ export default function AdminFlights() {
                     <td style={{ padding: "12px 14px", fontSize: "12px", color: "#495057" }}>{new Date(f.departure_time).toLocaleString()}</td>
                     <td style={{ padding: "12px 14px", fontSize: "12px", color: "#495057" }}>{new Date(f.arrival_time).toLocaleString()}</td>
                     <td style={{ padding: "12px 14px", fontWeight: "600", fontSize: "13px" }}>{Number(f.price).toLocaleString()}</td>
-                    <td style={{ padding: "12px 14px", fontSize: "12px" }}>{f.trip_type}</td>
+                    <td style={{ padding: "12px 14px", fontSize: "12px" }}>
+                      {f.route_type === 'VIA' ? (
+                        <div>
+                          <div style={{ fontWeight: "600", color: "#d4af37", marginBottom: "2px" }}>VIA</div>
+                          <div style={{ fontSize: "11px", color: "#6c757d" }}>{f.via_cities?.join(' → ') || 'N/A'}</div>
+                        </div>
+                      ) : (
+                        <span style={{ fontWeight: "600", color: "#28a745" }}>Direct</span>
+                      )}
+                    </td>
                     <td style={{ padding: "12px 14px" }}><StatusBadge status={f.status} /></td>
                     <td style={{ padding: "12px 14px" }}>
                       <div style={{ display: "flex", gap: "6px" }}>
@@ -507,6 +558,45 @@ export default function AdminFlights() {
                   placeholder="Select type…"
                 />
               </div>
+              {/* Route Type */}
+              <div>
+                <label style={labelStyle}>Route Type</label>
+                <SearchableSelect
+                  value={form.route_type}
+                  onChange={v => {
+                    setForm(p => ({ ...p, route_type: v, via_cities: v === 'DIRECT' ? [] : p.via_cities }));
+                    if (v === 'DIRECT') setViaCitiesInput("");
+                  }}
+                  options={ROUTE_TYPE_OPTS}
+                  placeholder="Select route type…"
+                />
+              </div>
+              {/* Via Cities - only show when route_type is VIA */}
+              {form.route_type === 'VIA' && (
+                <div>
+                  <label style={labelStyle}>Via Cities (intermediate stops, comma-separated)</label>
+                  <input
+                    type="text"
+                    value={viaCitiesInput}
+                    onChange={e => setViaCitiesInput(e.target.value)}
+                    onBlur={e => {
+                      const cities = e.target.value.split(',').map(c => c.trim()).filter(c => c);
+                      setForm(p => ({ ...p, via_cities: cities }));
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        const cities = e.target.value.split(',').map(c => c.trim()).filter(c => c);
+                        setForm(p => ({ ...p, via_cities: cities }));
+                      }
+                    }}
+                    style={inputStyle}
+                    placeholder="e.g., Mombasa, Dar es Salaam"
+                  />
+                  <p style={{ fontSize: "11px", color: "#6c757d", marginTop: "4px", marginBottom: 0 }}>
+                    Enter cities in order of the flight path
+                  </p>
+                </div>
+              )}
               {/* Departure Airport */}
               <div>
                 <label style={labelStyle}>Departure Airport</label>
@@ -530,12 +620,38 @@ export default function AdminFlights() {
               {/* Departure Time */}
               <div>
                 <label style={labelStyle}>Departure Time</label>
-                <input type="datetime-local" value={form.departure_time} onChange={e => setForm(p => ({ ...p, departure_time: e.target.value }))} style={inputStyle} />
+                <input 
+                  type="datetime-local" 
+                  value={form.departure_time} 
+                  onChange={e => {
+                    setForm(p => ({ ...p, departure_time: e.target.value }));
+                  }} 
+                  style={inputStyle}
+                  min={(() => {
+                    const now = new Date();
+                    const offset = now.getTimezoneOffset() * 60000;
+                    const local = new Date(now.getTime() - offset);
+                    return local.toISOString().slice(0, 16);
+                  })()}
+                />
               </div>
               {/* Arrival Time */}
               <div>
                 <label style={labelStyle}>Arrival Time</label>
-                <input type="datetime-local" value={form.arrival_time} onChange={e => setForm(p => ({ ...p, arrival_time: e.target.value }))} style={inputStyle} />
+                <input 
+                  type="datetime-local" 
+                  value={form.arrival_time} 
+                  onChange={e => setForm(p => ({ ...p, arrival_time: e.target.value }))} 
+                  style={inputStyle}
+                  min={(() => {
+                    if (!form.departure_time) return undefined;
+                    const depTime = new Date(form.departure_time);
+                    const minArrival = new Date(depTime.getTime() + 60000); // 1 minute after departure
+                    const offset = minArrival.getTimezoneOffset() * 60000;
+                    const local = new Date(minArrival.getTime() - offset);
+                    return local.toISOString().slice(0, 16);
+                  })()}
+                />
               </div>
               {/* Price */}
               <div>

@@ -2,6 +2,21 @@ import { useEffect, useState } from "react";
 import API from "../../api/api";
 import { useAdminUI } from "../../hooks/useAdminUI";
 
+// Force light theme for all admin pages
+function AdminThemeEnforcer() {
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', 'light');
+    return () => {
+      // Restore user preference on unmount
+      const saved = localStorage.getItem('theme') || 'LIGHT';
+      if (saved === 'DARK') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    };
+  }, []);
+  return null;
+}
+
 function StatusBadge({ status }) {
   const map = {
     CONFIRMED: ["#d4edda","#155724"], PENDING: ["#fff3cd","#856404"],
@@ -68,6 +83,7 @@ export default function AdminBookings() {
 
   return (
     <>
+      <AdminThemeEnforcer />
       <div style={{ padding: "28px", maxWidth: "1400px", margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
         <h2 style={{ color: "var(--text-primary)", fontWeight: "800", fontSize: "26px", margin: 0 }}>Booking Management</h2>
