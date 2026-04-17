@@ -169,16 +169,42 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=["post"], url_path="create_booking")
     def create_booking(self, request):
-        print(f"[DEBUG] Request content type: {request.content_type}")
-        print(f"[DEBUG] Request FILES: {request.FILES}")
-        print(f"[DEBUG] Request DATA keys: {list(request.data.keys())}")
+        import json
         
-        ser = CreateBookingSerializer(data=request.data)
+        # Prepare data for serializer
+        serializer_data = {}
+        
+        # Copy non-file fields from request.data
+        for key in request.data:
+            if key not in ['passenger_photos']:
+                value = request.data[key]
+                # If it's a list with one element (from FormData), unwrap it
+                if isinstance(value, list) and len(value) == 1:
+                    serializer_data[key] = value[0]
+                else:
+                    serializer_data[key] = value
+        
+        # If this is a FormData request (multipart), parse JSON strings
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            try:
+                # Parse passengers JSON string
+                if 'passengers' in serializer_data and isinstance(serializer_data['passengers'], str):
+                    serializer_data['passengers'] = json.loads(serializer_data['passengers'])
+                
+                # Parse seat_assignments JSON string
+                if 'seat_assignments' in serializer_data and isinstance(serializer_data['seat_assignments'], str):
+                    serializer_data['seat_assignments'] = json.loads(serializer_data['seat_assignments'])
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error parsing JSON from FormData: {e}")
+        
+        ser = CreateBookingSerializer(data=serializer_data)
         if not ser.is_valid():
             import logging
             logger = logging.getLogger(__name__)
             logger.error(f"CreateBooking validation errors: {ser.errors}")
-            logger.error(f"Request data: {request.data}")
+            logger.error(f"Request data: {serializer_data}")
         ser.is_valid(raise_exception=True)
         data = ser.validated_data
 
@@ -311,18 +337,17 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
             
             # Get passenger photos from request files (if any)
             passenger_photos = request.FILES.getlist('passenger_photos')
-            print(f"[DEBUG] Self-booking passenger photos received: {len(passenger_photos)}")
             
             # Check if this is a self-booking to use user's profile photo
             is_self_booking = request.data.get('for_self') == True
-            print(f"[DEBUG] Is self-booking: {is_self_booking}")
             user_profile_photo = None
             if is_self_booking and hasattr(request.user, 'profile'):
                 try:
                     user_profile_photo = request.user.profile.profile_photo
-                    print(f"[DEBUG] User profile photo: {user_profile_photo}")
                 except Exception as e:
-                    print(f"[DEBUG] Error getting profile photo: {e}")
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Error getting profile photo: {e}")
                     pass
             
             # Create passengers and boarding passes
@@ -2278,6 +2303,7 @@ class ConfirmBoardingView(APIView):
                 seat_number=bp.seat.seat_number if bp.seat else "",
                 booking_status=booking.booking_status,
                 already_onboard=already_onboard,
+                action="confirm",
             )
 
             return Response({
@@ -2299,7 +2325,7 @@ class ConfirmBoardingView(APIView):
                 seat_number=bp.seat.seat_number if bp.seat else "",
                 booking_status=booking.booking_status,
                 already_onboard=bp.is_checked_in,
-                additional_data={"action": "cancelled_by_agent"}
+                action="cancel",
             )
 
             return Response({
@@ -2313,7 +2339,11 @@ class ScanHistoryView(APIView):
     permission_classes = [IsAgentOrAdmin]
 
     def get(self, request):
-        logs = ScanLog.objects.filter(scanned_by=request.user).select_related("boarding_pass")[:200]
+        # Only return confirmed scans (action='confirm')
+        logs = ScanLog.objects.filter(
+            scanned_by=request.user,
+            action="confirm"
+        ).select_related("boarding_pass")[:200]
         data = [
             {
                 "booking_reference": log.booking_reference,

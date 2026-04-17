@@ -375,6 +375,7 @@ class ScanLog(models.Model):
     seat_number       = models.CharField(max_length=10, blank=True)
     booking_status    = models.CharField(max_length=20, blank=True)
     already_onboard   = models.BooleanField(default=False)
+    action            = models.CharField(max_length=20, blank=True, default="")  # 'confirm' or 'cancel'
     scanned_at        = models.DateTimeField(auto_now_add=True)
     additional_data   = models.JSONField(default=dict, blank=True)
 

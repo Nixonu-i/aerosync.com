@@ -309,10 +309,10 @@ export default function AgentProfile() {
             )}
           </div>
           <div>
-            <h1 style={{ color: "white", fontSize: "28px", fontWeight: 700, margin: "0 0 4px", letterSpacing: "-0.02em" }}>
+            <h1 style={{ color: "var(--text-primary)", fontSize: "28px", fontWeight: 700, margin: "0 0 4px", letterSpacing: "-0.02em" }}>
               Agent Profile
             </h1>
-            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "13px", margin: 0 }}>
+            <p style={{ color: "var(--text-secondary)", fontSize: "13px", margin: 0 }}>
               {locked ? "Your personal details are locked after initial setup." : "Fill in your personal details — required for your account."}
             </p>
           </div>

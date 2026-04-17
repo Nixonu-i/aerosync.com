@@ -1540,9 +1540,17 @@ function BookingItem({ booking, onDownloadPass }) {
       <div style={{
         ...styles.statusBadge,
         backgroundColor: booking.booking_status === 'CONFIRMED' ? '#d4edda' : 
-                         booking.booking_status === 'PENDING' ? '#fff3cd' : '#f8d7da',
+                         booking.booking_status === 'PENDING' ? '#fff3cd' :
+                         booking.booking_status === 'ONBOARD' ? '#d1ecf1' :
+                         booking.booking_status === 'COMPLETED' ? '#d4edda' :
+                         booking.booking_status === 'FAILED' ? '#f8d7da' :
+                         booking.booking_status === 'CANCELLED' ? '#f8d7da' : '#e2e3e5',
         color: booking.booking_status === 'CONFIRMED' ? '#155724' : 
-               booking.booking_status === 'PENDING' ? '#856404' : '#721c24'
+               booking.booking_status === 'PENDING' ? '#856404' :
+               booking.booking_status === 'ONBOARD' ? '#0c5460' :
+               booking.booking_status === 'COMPLETED' ? '#155724' :
+               booking.booking_status === 'FAILED' ? '#721c24' :
+               booking.booking_status === 'CANCELLED' ? '#721c24' : '#383d41'
       }}>
         {booking.booking_status}
       </div>
