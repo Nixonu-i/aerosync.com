@@ -33,12 +33,8 @@ export const AuthProvider = ({ children }) => {
       // Also fetch profile data
       try {
         const profileRes = await API.get("auth/profile/");
-<<<<<<< HEAD
-        setUser({...res.data, profile: profileRes.data});
-=======
         const userData = {...res.data, profile: profileRes.data};
         setUser(userData);
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         // Check backend's initial_setup_done flag
         setProfileComplete(!!profileRes.data.initial_setup_done);
         // Sync to localStorage for persistence
@@ -47,24 +43,13 @@ export const AuthProvider = ({ children }) => {
         } else {
           localStorage.removeItem(`profile_completed_${res.data.id}`);
         }
-<<<<<<< HEAD
-=======
         setLoading(false);
         return userData;
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
       } catch {
         // If profile doesn't exist yet, just set user data
         setUser(res.data);
         setProfileComplete(false);
         localStorage.removeItem(`profile_completed_${res.data.id}`);
-<<<<<<< HEAD
-      }
-      
-    } catch (error) {
-      setUser(null);
-      setProfileComplete(false);
-      localStorage.removeItem("token");
-=======
         setLoading(false);
         return res.data;
       }
@@ -86,7 +71,6 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
       }
       throw error;
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     }
   }, [navigate]);
 

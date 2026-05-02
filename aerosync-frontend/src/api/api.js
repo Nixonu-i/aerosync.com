@@ -3,11 +3,7 @@ import axios from "axios";
 // Use environment variable in production, fallback to relative in development
 const API = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "/api/",
-<<<<<<< HEAD
-  timeout: 20000,
-=======
   timeout: 200000,
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
   // we use JWT tokens sent in the Authorization header, so there is no
   // need to send cookies by default.  enabling `withCredentials` causes
   // the browser to preflight with `credentials=include` which in turn

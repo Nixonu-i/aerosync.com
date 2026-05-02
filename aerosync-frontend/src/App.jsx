@@ -99,24 +99,6 @@ function PrivateContent() {
     return <Navigate to="/login" replace />;
   }
 
-<<<<<<< HEAD
-  // force onboarding: customers/agents must complete profile once
-  if (!profileComplete && !user.is_admin) {
-    // Redirect to appropriate profile page based on role
-    const isAgentPath = location.pathname.startsWith('/agent');
-    const isProfilePath = location.pathname === '/profile';
-    const isAgentProfilePath = location.pathname === '/agent/profile';
-    
-    // Allow access to profile pages and auth endpoints
-    if (isProfilePath || isAgentProfilePath) {
-      // Let them stay on profile page
-    } else if (isAgentPath && user.role === 'AGENT') {
-      // Agent trying to access agent pages - redirect to agent profile
-      return <Navigate to="/agent/profile" replace />;
-    } else if (user.role === 'CUST' || !user.role) {
-      // Customer trying to access customer pages - redirect to customer profile
-      return <Navigate to="/profile" replace />;
-=======
   // Force profile completion based on user type
   if (!profileComplete && !user.is_admin) {
     // Check if user is agent
@@ -140,7 +122,6 @@ function PrivateContent() {
       if (!isProfilePath) {
         return <Navigate to="/profile" replace />;
       }
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     }
   }
 

@@ -191,14 +191,9 @@ export default function Profile() {
           'Content-Type': 'multipart/form-data'
         }
       });
-<<<<<<< HEAD
       
       // the API sets initial_setup_done; frontend state will be
       // updated by re‑fetching or by the existing logic above.
-=======
-        
-      // Update state
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
       setIsProfileComplete(true);
       setIsFirstTime(false);
       setSaved(true); // flip button to green "Saved"
