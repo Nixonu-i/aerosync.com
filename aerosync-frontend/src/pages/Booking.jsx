@@ -27,6 +27,11 @@ export default function Booking() {
   }, [isCreateMode, flightId]);
 
   const loadFlight = async () => {
+    if (!flightId || flightId === 'NaN' || flightId === 'undefined') {
+      console.error('Invalid flight ID:', flightId);
+      return;
+    }
+    
     try {
       const res = await API.get(`flights/${flightId}/`);
       setFlight(res.data);
@@ -52,12 +57,11 @@ export default function Booking() {
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
       <h2 style={{
-        color: "white",
+        color: "var(--text-primary)",
         marginBottom: "20px",
         fontSize: "32px",
         fontWeight: "700",
-        textAlign: "center",
-        textShadow: "0 2px 10px rgba(0,0,0,0.7)"
+        textAlign: "center"
       }}>
         {isCreateMode ? "Create Booking" : "My Bookings"}
       </h2>
@@ -92,7 +96,21 @@ export default function Booking() {
           </Link>
         </div>
       ) : isCreateMode ? (
-        <CreateBookingMultiPassenger flightId={Number(flightId)} />
+        flightId && flightId !== 'NaN' && flightId !== 'undefined' && flightId !== 'null' ? (
+          <CreateBookingMultiPassenger flightId={flightId} />
+        ) : (
+          <div style={{ 
+            background: "#e2e3e5", 
+            padding: "15px", 
+            borderRadius: "5px", 
+            marginBottom: "20px",
+            border: "1px solid #d6d8db",
+            color: "#383d41",
+            textAlign: "center"
+          }}>
+            Invalid flight ID. Please go back and select a flight.
+          </div>
+        )
       ) : (
         <MyBookings />
       )}
@@ -113,6 +131,13 @@ function CreateBookingMultiPassenger({ flightId }) {
   }, [flightId]);
 
   const loadFlight = async () => {
+    if (!flightId || flightId === 'NaN' || flightId === 'undefined' || flightId === 'null') {
+      console.error('Invalid flight ID in CreateBookingMultiPassenger:', flightId);
+      setError("Invalid flight ID");
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true);
       const res = await API.get(`flights/${flightId}/`);
@@ -129,7 +154,7 @@ function CreateBookingMultiPassenger({ flightId }) {
     window.location.href = "/bookings";
   };
   
-  const downloadPass = async (bookingId, ref, passengerId = null) => {
+  const downloadPass = async (bookingId, ref, passengerId = null, passengerName = null) => {
     try {
       // Build URL with optional passenger_id query parameter
       let url = `bookings/${bookingId}/boarding_pass_png/`;
@@ -137,9 +162,12 @@ function CreateBookingMultiPassenger({ flightId }) {
         url += `?passenger_id=${passengerId}`;
       }
       
-      const fileName = passengerId 
-        ? `boarding-pass-${ref}-passenger-${passengerId}.png`
-        : `boarding-pass-${ref}.png`;
+      // Use passenger name in filename if available, otherwise fallback to passenger ID
+      const fileName = passengerName 
+        ? `boarding-pass-${ref}-${passengerName.replace(/\s+/g, "_")}.png`
+        : passengerId 
+          ? `boarding-pass-${ref}-passenger-${passengerId}.png`
+          : `boarding-pass-${ref}.png`;
       
       const res = await API.get(url, { responseType: "blob" });
       const blobUrl = window.URL.createObjectURL(res.data);
@@ -205,18 +233,18 @@ function CreateBookingMultiPassenger({ flightId }) {
   if (showBookingChoice) {
     return (
       <div style={{
-        background: "white",
+        background: "var(--surface)",
         padding: "30px",
-        borderRadius: "10px",
-        boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+        borderRadius: "12px",
+        boxShadow: "0 4px 6px -1px var(--shadow), 0 2px 4px -2px var(--shadow)",
         marginBottom: "30px",
-        border: "1px solid #e0e0e0",
+        border: "1px solid var(--border)",
         maxWidth: "600px",
         margin: "0 auto",
         textAlign: "center"
       }}>
         <h3 style={{
-          color: "#0b1220",
+          color: "var(--text-primary)",
           marginBottom: "25px",
           fontSize: "24px",
           fontWeight: "600"
@@ -265,7 +293,7 @@ function CreateBookingMultiPassenger({ flightId }) {
               setShowMultiPassenger(true);
             }}
             style={{
-              backgroundColor: "#0b1220",
+              backgroundColor: "var(--primary)",
               color: "white",
               border: "none",
               padding: "15px 30px",
@@ -295,17 +323,17 @@ function CreateBookingMultiPassenger({ flightId }) {
   
   return (
     <div style={{
-      background: "white",
+      background: "var(--surface)",
       padding: "30px",
       borderRadius: "10px",
       boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
       marginBottom: "30px",
-      border: "1px solid #e0e0e0",
+      border: "1px solid var(--border)",
       maxWidth: "800px",
       margin: "0 auto"
     }}>
       <h3 style={{
-        color: "#0b1220",
+        color: "var(--text-primary)",
         marginBottom: "20px",
         fontSize: "24px",
         fontWeight: "600",
@@ -322,50 +350,52 @@ function CreateBookingMultiPassenger({ flightId }) {
       }}>
         <div>
           <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "5px" }}>Flight ID</div>
-          <div style={{ fontSize: "18px", fontWeight: "600", color: "#0b1220" }}>{flightId}</div>
+          <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>{flightId}</div>
         </div>
         
         <div>
           <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "5px" }}>Route</div>
-          <div style={{ fontSize: "18px", fontWeight: "600", color: "#0b1220" }}>
+          <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>
             {flight?.departure_airport_code} → {flight?.arrival_airport_code}
           </div>
         </div>
         
         <div>
           <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "5px" }}>Date</div>
-          <div style={{ fontSize: "18px", fontWeight: "600", color: "#0b1220" }}>
+          <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>
             {flight ? new Date(flight.departure_time).toLocaleDateString() : "Loading..."}
           </div>
         </div>
         
         <div>
           <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "5px" }}>Price</div>
-          <div style={{ fontSize: "18px", fontWeight: "600", color: "#0b1220" }}>KES {flight?.price || "Loading..."}</div>
+          <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>KES {flight?.price || "Loading..."}</div>
         </div>
         
         <div>
           <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "5px" }}>Airline</div>
-          <div style={{ fontSize: "18px", fontWeight: "600", color: "#0b1220" }}>{flight?.airline || "Loading..."}</div>
+          <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>{flight?.airline || "Loading..."}</div>
         </div>
         
         <div>
-          <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "5px" }}>Stops</div>
-          <div style={{ fontSize: "18px", fontWeight: "600", color: "#0b1220" }}>
-            {flight?.stops === 0 ? "Direct" : `${flight?.stops} stop${flight?.stops > 1 ? "s" : ""}`}
+          <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "5px" }}>Route Type</div>
+          <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>
+            {flight?.route_type === 'VIA' 
+              ? `Via ${flight?.via_cities?.join(', ')}` 
+              : 'Direct'}
           </div>
         </div>
       </div>
       
       <div style={{
-        backgroundColor: "#f8f9fa",
+        backgroundColor: "var(--background)",
         padding: "20px",
         borderRadius: "8px",
         marginBottom: "25px",
         textAlign: "center"
       }}>
         <h4 style={{
-          color: "#0b1220",
+          color: "var(--text-primary)",
           marginBottom: "15px",
           fontSize: "18px",
           fontWeight: "600"
@@ -384,7 +414,7 @@ function CreateBookingMultiPassenger({ flightId }) {
         <button
           onClick={() => setShowMultiPassenger(true)}
           style={{
-            backgroundColor: "#0b1220",
+            backgroundColor: "var(--primary)",
             color: "white",
             border: "none",
             padding: "12px 30px",
@@ -394,8 +424,8 @@ function CreateBookingMultiPassenger({ flightId }) {
             cursor: "pointer",
             transition: "background-color 0.2s"
           }}
-          onMouseEnter={(e) => e.target.style.backgroundColor = "#1a2439"}
-          onMouseLeave={(e) => e.target.style.backgroundColor = "#0b1220"}
+          onMouseEnter={(e) => e.target.style.backgroundColor = "var(--primary-dark)"}
+          onMouseLeave={(e) => e.target.style.backgroundColor = "var(--primary)"}
         >
           Start Multi-Passenger Booking
         </button>
@@ -416,7 +446,8 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
     phone_area_code: "+254",
     phone_number: "",
     gender: "",
-    passport_number: ""
+    passport_number: "",
+    profile_photo: null
   });
 
   // True once profile data is successfully fetched from the server.
@@ -437,7 +468,8 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
           nationality: profileData.nationality || "",
           gender: profileData.gender || "",
           phone_area_code: profileData.phone_area_code || "+254",
-          phone_number: profileData.phone_number || ""
+          phone_number: profileData.phone_number || "",
+          profile_photo: profileData.profile_photo_url || null
         }));
 
         // Lock all profile-sourced fields once the server confirms a saved profile
@@ -458,6 +490,7 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
     }
   }, [user]);
   
+  const [stopoverCity, setStopoverCity] = useState("");
   const [selectedSeat, setSelectedSeat] = useState(null);
   const [seats, setSeats] = useState([]);
   const [seatsLoading, setSeatsLoading] = useState(true);
@@ -669,12 +702,23 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
     }
     
     if (!passenger.date_of_birth) errors.push("Date of birth is required");
+    
+    // Validate date of birth is not in the future and not today
+    if (passenger.date_of_birth) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
+      const birthDate = new Date(passenger.date_of_birth);
+      if (birthDate >= today) {
+        errors.push("Date of birth cannot be today or in the future");
+      }
+    }
+    
     if (!passenger.nationality) errors.push("Nationality is required");
     
     // Age validation based on passenger type
-    const today = new Date();
-    const birthDate = new Date(passenger.date_of_birth);
-    const age = Math.floor((today - birthDate) / (365.25 * 24 * 60 * 60 * 1000));
+    const today2 = new Date();
+    const birthDate2 = new Date(passenger.date_of_birth);
+    const age = Math.floor((today2 - birthDate2) / (365.25 * 24 * 60 * 60 * 1000));
     
     if (passenger.passenger_type === "KID" && age >= 5) {
       errors.push("Kids must be under 5 years old");
@@ -721,6 +765,12 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
       return;
     }
     
+    // Validate stopover city for VIA flights
+    if (flight.route_type === 'VIA' && !stopoverCity) {
+      setError("Please select a stopover city for this VIA flight");
+      return;
+    }
+    
     setLoading(true);
     setError("");
     
@@ -742,12 +792,33 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
         }],
         seat_assignments: [
           { seat_id: selectedSeat.seat_id, passenger_index: 0 }
-        ]
+        ],
+        stopover_city: stopoverCity || ""
       });
       
       onBookingComplete(res.data);
     } catch (err) {
-      setError(err.response?.data?.detail || err.response?.data?.non_field_errors?.[0] || "Failed to create booking");
+      console.error('Booking creation error:', err);
+      console.error('Error response:', err.response?.data);
+      console.error('Error status:', err.response?.status);
+      
+      // Extract detailed error messages
+      const errorData = err.response?.data;
+      let errorMessage = "Failed to create booking";
+      
+      if (errorData) {
+        if (errorData.detail) {
+          errorMessage = errorData.detail;
+        } else if (typeof errorData === 'object') {
+          // Format validation errors
+          const messages = Object.entries(errorData)
+            .map(([field, errors]) => `${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`)
+            .join('\n');
+          errorMessage = messages || errorMessage;
+        }
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -755,18 +826,18 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
   
   return (
     <div className="light-card" style={{
-      background: "white",
+      background: "var(--surface)",
       padding: "30px",
-      borderRadius: "10px",
-      boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+      borderRadius: "12px",
+      boxShadow: "0 4px 6px -1px var(--shadow), 0 2px 4px -2px var(--shadow)",
       marginBottom: "30px",
-      border: "1px solid #e0e0e0",
+      border: "1px solid var(--border)",
       maxWidth: "800px",
       margin: "0 auto",
-      color: "#212529"
+      color: "var(--text-primary)"
     }}>
       <h3 style={{
-        color: "#0b1220",
+        color: "var(--text-primary)",
         marginBottom: "20px",
         fontSize: "24px",
         fontWeight: "600",
@@ -781,35 +852,35 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
         gap: "20px",
         marginBottom: "25px",
         padding: "15px",
-        backgroundColor: "#f8f9fa",
+        backgroundColor: "var(--background)",
         borderRadius: "8px"
       }}>
         <div>
           <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "5px" }}>From</div>
-          <div style={{ fontSize: "18px", fontWeight: "600", color: "#0b1220" }}>{flight.departure_airport_code}</div>
+          <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>{flight.departure_airport_code}</div>
         </div>
         
         <div>
           <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "5px" }}>To</div>
-          <div style={{ fontSize: "18px", fontWeight: "600", color: "#0b1220" }}>{flight.arrival_airport_code}</div>
+          <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>{flight.arrival_airport_code}</div>
         </div>
         
         <div>
           <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "5px" }}>Date</div>
-          <div style={{ fontSize: "18px", fontWeight: "600", color: "#0b1220" }}>
+          <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>
             {new Date(flight.departure_time).toLocaleDateString()}
           </div>
         </div>
         
         <div>
           <div style={{ fontSize: "14px", color: "#6c757d", marginBottom: "5px" }}>Price</div>
-          <div style={{ fontSize: "18px", fontWeight: "600", color: "#0b1220" }}>KES {flight.price}</div>
+          <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--text-primary)" }}>KES {flight.price}</div>
         </div>
       </div>
       
       <div style={{ marginBottom: "25px" }}>
         <h4 style={{
-          color: "#0b1220",
+          color: "var(--text-primary)",
           marginBottom: "15px",
           fontSize: "20px",
           fontWeight: "600"
@@ -838,12 +909,12 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
                 borderRadius: "4px",
                 fontSize: "14px",
                 textTransform: "uppercase",
-                backgroundColor: user && (user.full_name === passenger.full_name || user.username === passenger.full_name) ? "#f8f9fa" : "white",
+                backgroundColor: user && (user.full_name === passenger.full_name || user.username === passenger.full_name) ? "var(--background)" : "var(--surface)",
                 cursor: user && (user.full_name === passenger.full_name || user.username === passenger.full_name) ? "not-allowed" : "auto"
               }}
             />
             {user && (user.full_name === passenger.full_name || user.username === passenger.full_name) && (
-              <small style={{ color: "#6c757d", fontSize: "12px" }}>
+              <small style={{ color: "var(--text-secondary)", fontSize: "12px" }}>
                 Retrieved from your profile (cannot be edited)
               </small>
             )}
@@ -876,7 +947,7 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
                 border: "1px solid #ced4da",
                 borderRadius: "4px",
                 fontSize: "14px",
-                backgroundColor: profileLocked ? "#f8f9fa" : "white",
+                backgroundColor: profileLocked ? "var(--background)" : "var(--surface)",
                 cursor: profileLocked ? "not-allowed" : "pointer"
               }}
             >
@@ -946,7 +1017,7 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
                     border: "1px solid #ced4da",
                     borderRadius: "4px",
                     fontSize: "14px",
-                    backgroundColor: profileLocked ? "#f8f9fa" : "white",
+                    backgroundColor: profileLocked ? "var(--background)" : "var(--surface)",
                     cursor: profileLocked ? "not-allowed" : "pointer"
                   }}
                 >
@@ -1019,7 +1090,7 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
                   borderRadius: "4px",
                   fontSize: "14px",
                   minWidth: "100px",
-                  backgroundColor: profileLocked ? "#f8f9fa" : "white",
+                  backgroundColor: profileLocked ? "var(--background)" : "var(--surface)",
                   cursor: profileLocked ? "not-allowed" : "pointer"
                 }}
               >
@@ -1062,7 +1133,7 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
                   border: "1px solid #ced4da",
                   borderRadius: "4px",
                   fontSize: "14px",
-                  backgroundColor: profileLocked ? "#f8f9fa" : "white",
+                  backgroundColor: profileLocked ? "var(--background)" : "var(--surface)",
                   cursor: profileLocked ? "not-allowed" : "auto"
                 }}
               />
@@ -1076,9 +1147,108 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
         </div>
       </div>
       
+      {/* Stopover City Selection for VIA flights */}
+      {flight.route_type === 'VIA' && (
+        <div style={{ marginBottom: "25px" }}>
+          <h4 style={{
+            color: "var(--text-primary)",
+            marginBottom: "15px",
+            fontSize: "20px",
+            fontWeight: "600"
+          }}>
+            🛬 Select Stopover City
+          </h4>
+          
+          <div style={{
+            backgroundColor: "var(--surface)",
+            padding: "20px",
+            borderRadius: "8px",
+            border: "1px solid #dee2e6"
+          }}>
+            <p style={{ 
+              color: "#6c757d", 
+              marginBottom: "15px",
+              fontSize: "14px"
+            }}>
+              This is a VIA flight with intermediate stops. Please select the city where you want to pause your journey.
+            </p>
+            
+            <div style={{ maxWidth: "400px" }}>
+              <label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#495057", fontSize: "14px" }}>
+                Stopover City *
+              </label>
+              <select
+                value={stopoverCity}
+                onChange={(e) => setStopoverCity(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  border: "2px solid #ced4da",
+                  borderRadius: "6px",
+                  fontSize: "15px",
+                  backgroundColor: stopoverCity ? "#f8f9fa" : "var(--surface)",
+                  cursor: "pointer"
+                }}
+              >
+                <option value="">Select a stopover city...</option>
+                {flight.via_cities && flight.via_cities.length > 0 ? (
+                  flight.via_cities.map((city, index) => (
+                    <option key={index} value={city}>
+                      {city}
+                    </option>
+                  ))
+                ) : (
+                  <option value="" disabled>No via cities available for this flight</option>
+                )}
+              </select>
+              {stopoverCity && (
+                <p style={{
+                  marginTop: "10px",
+                  color: "#28a745",
+                  fontSize: "14px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px"
+                }}>
+                  ✓ Selected: <strong>{stopoverCity}</strong>
+                </p>
+              )}
+              {(!flight.via_cities || flight.via_cities.length === 0) && (
+                <p style={{
+                  marginTop: "10px",
+                  color: "#dc3545",
+                  fontSize: "13px",
+                  backgroundColor: "#f8d7da",
+                  padding: "10px",
+                  borderRadius: "6px"
+                }}>
+                  ⚠️ This VIA flight has no via cities configured. Please contact support or select a different flight.
+                </p>
+              )}
+            </div>
+            
+            <div style={{
+              backgroundColor: "#e7f3ff",
+              padding: "12px",
+              borderRadius: "6px",
+              marginTop: "15px",
+              borderLeft: "4px solid #0d6efd"
+            }}>
+              <p style={{
+                margin: 0,
+                color: "#0b1220",
+                fontSize: "13px"
+              }}>
+                <strong>Flight Route:</strong> {flight.departure_airport_city} → {flight.via_cities && flight.via_cities.length > 0 ? flight.via_cities.join(' → ') : 'No via cities'} → {flight.arrival_airport_city}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div style={{ marginBottom: "25px" }}>
         <h4 style={{
-          color: "#0b1220",
+          color: "var(--text-primary)",
           marginBottom: "15px",
           fontSize: "20px",
           fontWeight: "600"
@@ -1093,12 +1263,12 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
           padding: "10px",
           border: "2px solid #dee2e6",
           borderRadius: "8px",
-          backgroundColor: "#f8f9fa",
+          backgroundColor: "var(--background)",
           position: "relative",
           maxWidth: "100%",
           overflowX: "auto"
         }}>
-          <div style={{ marginBottom: "20px", fontWeight: "bold", fontSize: "18px", color: "#0b1220" }}>Aircraft Cabin Layout</div>
+          <div style={{ marginBottom: "20px", fontWeight: "bold", fontSize: "18px", color: "var(--text-primary)" }}>Aircraft Cabin Layout</div>
           
           {/* Front of plane indicator */}
           <div style={{ 
@@ -1188,7 +1358,7 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
           onClick={handleSubmit}
           disabled={loading}
           style={{
-            backgroundColor: loading ? "#6c757d" : "#0b1220",
+            backgroundColor: loading ? "var(--text-secondary)" : "var(--primary)",
             color: "white",
             border: "none",
             padding: "12px 30px",
@@ -1198,8 +1368,8 @@ function SimpleBookingForm({ flight, onBookingComplete }) {
             cursor: loading ? "not-allowed" : "pointer",
             transition: "background-color 0.2s"
           }}
-          onMouseEnter={(e) => !loading && (e.target.style.backgroundColor = "#1a2439")}
-          onMouseLeave={(e) => !loading && (e.target.style.backgroundColor = "#0b1220")}
+          onMouseEnter={(e) => !loading && (e.target.style.backgroundColor = "var(--primary-dark)")}
+          onMouseLeave={(e) => !loading && (e.target.style.backgroundColor = "var(--primary)")}
         >
           {loading ? "Creating Booking..." : "Create Booking"}
         </button>
@@ -1234,18 +1404,21 @@ function MyBookings() {
     load();
     
     // Connect to WebSocket stream when component mounts
-    console.log('📡 Connecting to WebSocket stream for MyBookings');
     reconnect();
     
     // Subscribe to real-time booking updates (silent)
     const unsubscribe = subscribeToAll((updatedBooking, changedFields) => {
-      // Update the booking in our list silently
+      // Update the booking in our list silently by merging fields
       setItems(prevItems => {
         const index = prevItems.findIndex(b => b.id === updatedBooking.id);
         if (index === -1) return prevItems; // Not our booking
         
         const newItems = [...prevItems];
-        newItems[index] = updatedBooking;
+        // Merge the updated fields with existing booking data
+        newItems[index] = {
+          ...newItems[index],  // Keep all existing fields (flight, passengers, seats, etc.)
+          ...updatedBooking,   // Override with updated fields (booking_status, etc.)
+        };
         return newItems;
       });
       // No visual feedback - silent update, boarding pass button will auto-update based on status
@@ -1253,14 +1426,12 @@ function MyBookings() {
     
     // Cleanup: disconnect WebSocket when component unmounts to free backend resources
     return () => {
-      console.log('🔌 Disconnecting from WebSocket stream - component unmount');
       unsubscribe();
       disconnect(); // Tell backend to close the connection
-      console.log('✅ WebSocket cleanup complete');
     };
   }, []); // Empty dependency array - only run once on mount
 
-  const downloadPass = async (bookingId, ref, passengerId = null) => {
+  const downloadPass = async (bookingId, ref, passengerId = null, passengerName = null) => {
     try {
       // Build URL with optional passenger_id query parameter
       let url = `bookings/${bookingId}/boarding_pass_png/`;
@@ -1268,9 +1439,12 @@ function MyBookings() {
         url += `?passenger_id=${passengerId}`;
       }
       
-      const fileName = passengerId 
-        ? `boarding-pass-${ref}-passenger-${passengerId}.png`
-        : `boarding-pass-${ref}.png`;
+      // Use passenger name in filename if available, otherwise fallback to passenger ID
+      const fileName = passengerName 
+        ? `boarding-pass-${ref}-${passengerName.replace(/\s+/g, "_")}.png`
+        : passengerId 
+          ? `boarding-pass-${ref}-passenger-${passengerId}.png`
+          : `boarding-pass-${ref}.png`;
       
       const res = await API.get(url, { responseType: "blob" });
       const blobUrl = window.URL.createObjectURL(res.data);
@@ -1366,9 +1540,17 @@ function BookingItem({ booking, onDownloadPass }) {
       <div style={{
         ...styles.statusBadge,
         backgroundColor: booking.booking_status === 'CONFIRMED' ? '#d4edda' : 
-                         booking.booking_status === 'PENDING' ? '#fff3cd' : '#f8d7da',
+                         booking.booking_status === 'PENDING' ? '#fff3cd' :
+                         booking.booking_status === 'ONBOARD' ? '#d1ecf1' :
+                         booking.booking_status === 'COMPLETED' ? '#d4edda' :
+                         booking.booking_status === 'FAILED' ? '#f8d7da' :
+                         booking.booking_status === 'CANCELLED' ? '#f8d7da' : '#e2e3e5',
         color: booking.booking_status === 'CONFIRMED' ? '#155724' : 
-               booking.booking_status === 'PENDING' ? '#856404' : '#721c24'
+               booking.booking_status === 'PENDING' ? '#856404' :
+               booking.booking_status === 'ONBOARD' ? '#0c5460' :
+               booking.booking_status === 'COMPLETED' ? '#155724' :
+               booking.booking_status === 'FAILED' ? '#721c24' :
+               booking.booking_status === 'CANCELLED' ? '#721c24' : '#383d41'
       }}>
         {booking.booking_status}
       </div>
@@ -1462,7 +1644,7 @@ function BookingItem({ booking, onDownloadPass }) {
                   {booking.passengers.map((passenger, index) => (
                     <button 
                       key={passenger.id || index}
-                      onClick={() => onDownloadPass(booking.id, booking.confirmation_code, passenger.id)}
+                      onClick={() => onDownloadPass(booking.id, booking.confirmation_code, passenger.id, passenger.full_name)}
                       style={{
                         ...styles.downloadButton,
                         marginTop: index > 0 ? '0' : '12px'

@@ -10,7 +10,7 @@ from .models import Payment, Booking, Flight
 
 
 @receiver(post_save, sender=Payment)
-def auto_confirm_booking_on_payment_success(sender, instance, **kwargs):
+def auto_confirm_booking_on_payment_success(sender, instance, created, update_fields, **kwargs):
     """
     Automatically confirm the booking when its payment is marked SUCCESS.
 <<<<<<< HEAD
@@ -26,8 +26,18 @@ def auto_confirm_booking_on_payment_success(sender, instance, **kwargs):
     import logging
     logger = logging.getLogger('core.signals')
     
+    # Only process if this is an update (not creation) and status field was updated
+    if created:
+        return
+    
+    # If update_fields is provided, only proceed if 'status' was actually changed
+    if update_fields and 'status' not in update_fields:
+        return
+    
     if instance.status == 'SUCCESS':
+        # Refresh booking from database to get the latest status
         booking = instance.booking
+        booking.refresh_from_db()
         old_status = booking.booking_status
         
         logger.info(f"Payment {instance.id} is SUCCESS. Booking {booking.id} status: {old_status}")
@@ -38,39 +48,17 @@ def auto_confirm_booking_on_payment_success(sender, instance, **kwargs):
             
             logger.info(f"Booking {booking.id} set to CONFIRMED")
             
-            # Broadcast booking status change via WebSocket
-            try:
-                from asgiref.sync import async_to_sync
-                from channels.layers import get_channel_layer
-                channel_layer = get_channel_layer()
-                
-                booking_data = {
-                    'id': booking.id,
-                    'booking_status': 'CONFIRMED',
-                    'confirmation_code': booking.confirmation_code,
-                }
-                
-                # Send to user
-                if booking.user_id:
-                    async_to_sync(channel_layer.group_send)(
-                        f"user_{booking.user_id}",
-                        {
-                            'type': 'booking_updated',
-                            'booking': booking_data,
-                        }
-                    )
-                    logger.info(f"📢 Sent booking status update to user {booking.user_id}")
-            except Exception as e:
-                logger.error(f"Failed to broadcast booking update: {str(e)}")
-            
             # Send boarding pass email only if status just changed to CONFIRMED
             if old_status != 'CONFIRMED':
-                logger.info(f"Sending boarding pass email for booking {booking.id} (was {old_status})")
+                logger.info(f"✅ Sending boarding pass email for booking {booking.id} (was {old_status})")
                 try:
                     from accounts.services.email_service import EmailVerificationService
                     from core.services import ensure_boarding_pass
                     
                     # Send email for each passenger in the booking
+                    passenger_count = booking.passengers.count()
+                    logger.info(f"Found {passenger_count} passenger(s) in booking {booking.id}")
+                    
                     for passenger in booking.passengers.all():
                         # Ensure boarding pass exists before trying to send it
                         boarding_pass = booking.boarding_passes.filter(passenger=passenger).first()
@@ -81,21 +69,24 @@ def auto_confirm_booking_on_payment_success(sender, instance, **kwargs):
                                 seat = booking.seats.filter(passenger=passenger).first()
                                 if seat:
                                     boarding_pass = ensure_boarding_pass(booking, seat)
-                                    logger.info(f"Generated boarding pass for {passenger.full_name}")
+                                    logger.info(f"✅ Generated boarding pass for {passenger.full_name}")
                                 else:
-                                    logger.error(f"No seat found for passenger {passenger.full_name}")
+                                    logger.error(f"❌ No seat found for passenger {passenger.full_name}")
                                     continue
                             except Exception as bp_error:
-                                logger.error(f"Failed to generate boarding pass: {str(bp_error)}")
+                                logger.error(f"❌ Failed to generate boarding pass: {str(bp_error)}", exc_info=True)
                                 continue
                         
                         if boarding_pass:
-                            logger.info(f"Sending boarding pass for passenger {passenger.full_name}")
+                            logger.info(f"📧 Sending boarding pass email for passenger {passenger.full_name}")
                             EmailVerificationService.send_boarding_pass_email(booking, passenger)
+                            logger.info(f"✅ Boarding pass email sent for {passenger.full_name}")
                         else:
-                            logger.error(f"Cannot send email - no boarding pass for {passenger.full_name}")
+                            logger.error(f"❌ Cannot send email - no boarding pass for {passenger.full_name}")
                 except Exception as e:
-                    logger.error(f"Failed to send boarding pass email for booking {booking.id}: {str(e)}", exc_info=True)
+                    logger.error(f"❌ Failed to send boarding pass email for booking {booking.id}: {str(e)}", exc_info=True)
+        else:
+            logger.warning(f"⚠️ Booking {booking.id} is already CONFIRMED - skipping email send (old_status: {old_status})")
 
 
 @receiver(post_save, sender=Flight)
@@ -155,7 +146,7 @@ def broadcast_payment_update(sender, instance, created, update_fields, **kwargs)
     """
     Broadcast real-time payment status updates via WebSocket.
     Notifies:
-    - Customer: About their payment status changes
+    - Customer: About their payment status changes (includes booking status)
     - Agents: About all payment changes (for dashboard visibility)
     
     IMPORTANT: This signal is triggered by BOTH:
@@ -189,7 +180,7 @@ def broadcast_payment_update(sender, instance, created, update_fields, **kwargs)
     except Exception as e:
         logger.error(f"Failed to serialize payment {instance.id}: {str(e)}")
         payment_data = {
-            'id': instance.id,
+            'id': str(instance.id),
             'status': instance.status,
             'amount': str(instance.amount),
         }
@@ -200,7 +191,7 @@ def broadcast_payment_update(sender, instance, created, update_fields, **kwargs)
     update_data = {
         'type': 'payment_update',  # Must match the handler method name in websocket.py
         'payment': payment_data,
-        'booking_id': instance.booking.id if instance.booking else None,
+        'booking_id': str(instance.booking.id) if instance.booking else None,
         'booking_status': booking_status,  # Include booking status for frontend
         'changed_fields': list(update_fields) if update_fields else None,
     }
@@ -212,9 +203,9 @@ def broadcast_payment_update(sender, instance, created, update_fields, **kwargs)
     
     # Notify the customer who owns this booking/payment
     if booking.user_id:
-        logger.info(f"💰 Sent payment update to user {booking.user_id}")
+        logger.info(f"💰 Sent payment update to user {booking.user_id} (Payment: {instance.status}, Booking: {booking_status})")
         async_to_sync(channel_layer.group_send)(
-            f"user_{booking.user_id}",
+            f"user_{str(booking.user_id)}",  # Convert UUID to string
             {'type': 'payment_update', **update_data}
         )
     
@@ -244,12 +235,19 @@ def broadcast_booking_update(sender, instance, created, update_fields, **kwargs)
     # Prepare update payload
     from .serializers import BookingSerializer
     try:
-        serializer = BookingSerializer(instance)
-        booking_data = serializer.data
+        # For WebSocket, we only need essential fields to avoid deep nesting issues
+        booking_data = {
+            'id': str(instance.id),
+            'user': str(instance.user_id),
+            'booking_status': instance.booking_status,
+            'confirmation_code': instance.confirmation_code,
+            'booking_date': instance.booking_date.isoformat() if instance.booking_date else None,
+            'total_amount': str(instance.total_amount),
+        }
     except Exception as e:
         logger.error(f"Failed to serialize booking {instance.id}: {str(e)}")
         booking_data = {
-            'id': instance.id,
+            'id': str(instance.id),
             'booking_status': instance.booking_status,
             'confirmation_code': instance.confirmation_code,
         }
@@ -269,7 +267,7 @@ def broadcast_booking_update(sender, instance, created, update_fields, **kwargs)
     if instance.user_id:
         logger.info(f"Sending update to user {instance.user_id}")
         async_to_sync(channel_layer.group_send)(
-            f"user_{instance.user_id}",
+            f"user_{str(instance.user_id)}",  # Convert UUID to string
             {'type': 'booking_updated', **update_data}
         )
     

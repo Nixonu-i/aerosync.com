@@ -69,7 +69,6 @@ export const useBookingUpdates = () => {
         setIsConnected(true);
         setError(null);
         retryCountRef.current = 0;
-        console.log('🔌 WebSocket connected');
       };
 
       // Handle incoming messages
@@ -110,7 +109,6 @@ export const useBookingUpdates = () => {
 
       // Handle connection close
       ws.onclose = (event) => {
-        console.log('🔌 WebSocket closed:', event.code, event.reason);
         setIsConnected(false);
         
         // Reconnect if not a normal closure

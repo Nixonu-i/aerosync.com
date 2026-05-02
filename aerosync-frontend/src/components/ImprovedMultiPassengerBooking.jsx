@@ -37,7 +37,7 @@ const NATIONALITIES = [
 ];
 
 export default function ImprovedMultiPassengerBooking({ flight, onBookingComplete }) {
-  const [currentStep, setCurrentStep] = useState(1); // 1: Passengers, 2: Seats, 3: Review
+  const [currentStep, setCurrentStep] = useState(1); // 1: Passengers, 1.5: Stopover (VIA only), 2: Seats, 3: Review
   const [passengers, setPassengers] = useState([{
     id: Date.now(),
     full_name: "",
@@ -47,8 +47,10 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
     phone_area_code: "",
     phone_number: "",
     gender: "",
-    passport_number: ""
+    passport_number: "",
+    photo: null
   }]);
+  const [stopoverCity, setStopoverCity] = useState("");
   const [seats, setSeats] = useState([]);
   const [seatAssignments, setSeatAssignments] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -83,7 +85,8 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
       phone_area_code: "",
       phone_number: "",
       gender: "",
-      passport_number: ""
+      passport_number: "",
+      photo: null
     }]);
   };
 
@@ -98,6 +101,51 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
     setPassengers(prev => prev.map(p => 
       p.id === id ? { ...p, [field]: value } : p
     ));
+  };
+
+  const calculateAge = (dateOfBirth) => {
+    if (!dateOfBirth) return null;
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const requiresPhoto = (passenger) => {
+    // Kids below 4 years (KID type) don't need photo
+    const age = calculateAge(passenger.date_of_birth);
+    if (age !== null && age < 4) {
+      return false;
+    }
+    // Adults and children 4+ need photo
+    return true;
+  };
+
+  const handlePassengerPhotoChange = (passengerId, e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file size (max 2MB)
+      const maxSize = 2 * 1024 * 1024; // 2MB
+      if (file.size > maxSize) {
+        alert(`File size must be under 2MB. Current size: ${(file.size / 1024).toFixed(0)}KB`);
+        e.target.value = '';
+        return;
+      }
+      
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Unsupported file type. Please use JPG, PNG, GIF, or WebP images.');
+        e.target.value = '';
+        return;
+      }
+      
+      updatePassenger(passengerId, 'photo', file);
+    }
   };
 
   // Step 2: Seat Selection
@@ -144,6 +192,16 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
       errors.push("Date of birth is required");
     }
     
+    // Validate date of birth is not in the future and not today
+    if (passenger.date_of_birth) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
+      const birthDate = new Date(passenger.date_of_birth);
+      if (birthDate >= today) {
+        errors.push("Date of birth cannot be today or in the future");
+      }
+    }
+    
     if (!passenger.nationality) {
       errors.push("Nationality is required");
     }
@@ -188,8 +246,20 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
   };
 
   // Navigation
-  const canProceedToSeats = () => {
+  const canProceedToStopover = () => {
     return passengers.every(p => validatePassenger(p).length === 0);
+  };
+
+  const canProceedToSeats = () => {
+    // If VIA flight, stopover city must be selected (if via_cities exist)
+    if (flight.route_type === 'VIA') {
+      // If no via_cities are configured, allow proceeding but will show error
+      if (!flight.via_cities || flight.via_cities.length === 0) {
+        return true; // Allow proceeding, but will show warning
+      }
+      return stopoverCity !== "";
+    }
+    return true;
   };
 
   const canProceedToReview = () => {
@@ -202,28 +272,46 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
     setSuccess("");
     
     try {
+      // Validate photos for passengers who need them
+      for (let i = 0; i < passengers.length; i++) {
+        const p = passengers[i];
+        if (requiresPhoto(p) && !p.photo) {
+          setError(`Photo required for Passenger ${i + 1} (${p.full_name || 'Unnamed'})`);
+          setLoading(false);
+          return;
+        }
+      }
+
       const referenceNumber = `AS-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
       
-      const apiData = {
-        flight_id: flight.id,
-        reference_number: referenceNumber,
-        passengers: passengers.map(p => ({
-          full_name: p.full_name,
-          date_of_birth: p.date_of_birth,
-          nationality: p.nationality,
-          passenger_type: p.passenger_type,
-          phone_area_code: p.phone_area_code,
-          phone_number: p.phone_number,
-          gender: p.gender,
-          passport_number: p.passport_number
-        })),
-        seat_assignments: seatAssignments.map(a => ({
-          seat_id: a.seat_id,
-          passenger_index: passengers.findIndex(p => p.id === a.passenger_id)
-        }))
-      };
+      // Use FormData for file uploads
+      const formData = new FormData();
+      formData.append('flight_id', flight.id);
+      formData.append('reference_number', referenceNumber);
+      formData.append('passengers', JSON.stringify(passengers.map(p => ({
+        full_name: p.full_name,
+        date_of_birth: p.date_of_birth,
+        nationality: p.nationality,
+        passenger_type: p.passenger_type,
+        phone_area_code: p.phone_area_code,
+        phone_number: p.phone_number,
+        gender: p.gender,
+        passport_number: p.passport_number
+      }))));
+      formData.append('seat_assignments', JSON.stringify(seatAssignments.map(a => ({
+        seat_id: a.seat_id,
+        passenger_index: passengers.findIndex(p => p.id === a.passenger_id)
+      }))));
+      formData.append('stopover_city', stopoverCity || "");
       
-      const res = await API.post("bookings/create_booking/", apiData);
+      // Append passenger photos
+      passengers.forEach((p) => {
+        if (p.photo) {
+          formData.append('passenger_photos', p.photo);
+        }
+      });
+      
+      const res = await API.post("bookings/create_booking/", formData);
       setSuccess("Booking created successfully!");
       setTimeout(() => {
         onBookingComplete(res.data);
@@ -259,45 +347,60 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
         boxShadow: "0 1px 6px rgba(0,0,0,0.08)",
         flexWrap: "wrap"
       }}>
-        {[1, 2, 3].map(step => (
-          <div key={step} style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px"
-          }}>
-            <div style={{
-              width: "32px",
-              height: "32px",
-              borderRadius: "50%",
-              backgroundColor: currentStep > step ? "#28a745" : currentStep === step ? "#0b1220" : "#e9ecef",
-              color: currentStep >= step ? "white" : "#6c757d",
+        {(() => {
+          const steps = flight.route_type === 'VIA' 
+            ? [
+                { num: 1, label: "Passengers" },
+                { num: 1.5, label: "Stopover" },
+                { num: 2, label: "Seat Selection" },
+                { num: 3, label: "Review & Book" }
+              ]
+            : [
+                { num: 1, label: "Passengers" },
+                { num: 2, label: "Seat Selection" },
+                { num: 3, label: "Review & Book" }
+              ];
+          
+          return steps.map((step, idx) => (
+            <div key={step.num} style={{
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              fontWeight: "700",
-              fontSize: "14px",
-              flexShrink: 0
+              gap: "8px"
             }}>
-              {currentStep > step ? "✓" : step}
-            </div>
-            <span style={{
-              color: currentStep >= step ? "#0b1220" : "#adb5bd",
-              fontWeight: currentStep === step ? "700" : "400",
-              fontSize: "14px",
-              whiteSpace: "nowrap"
-            }}>
-              {step === 1 ? "Passengers" : step === 2 ? "Seat Selection" : "Review & Book"}
-            </span>
-            {step < 3 && (
               <div style={{
-                width: "40px",
-                height: "2px",
-                backgroundColor: currentStep > step ? "#28a745" : "#dee2e6",
-                margin: "0 4px"
-              }} />
-            )}
-          </div>
-        ))}
+                width: "32px",
+                height: "32px",
+                borderRadius: "50%",
+                backgroundColor: currentStep > step.num ? "#28a745" : currentStep === step.num ? "#0b1220" : "#e9ecef",
+                color: currentStep >= step.num ? "white" : "#6c757d",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: "700",
+                fontSize: "14px",
+                flexShrink: 0
+              }}>
+                {currentStep > step.num ? "✓" : step.num === 1.5 ? "🛬" : step.num}
+              </div>
+              <span style={{
+                color: currentStep >= step.num ? "#0b1220" : "#adb5bd",
+                fontWeight: currentStep === step.num ? "700" : "400",
+                fontSize: "14px",
+                whiteSpace: "nowrap"
+              }}>
+                {step.label}
+              </span>
+              {idx < steps.length - 1 && (
+                <div style={{
+                  width: "40px",
+                  height: "2px",
+                  backgroundColor: currentStep > step.num ? "#28a745" : "#dee2e6",
+                  margin: "0 4px"
+                }} />
+              )}
+            </div>
+          ));
+        })()}
       </div>
 
       {error && (
@@ -335,7 +438,7 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
           borderRadius: "10px",
           padding: "30px",
           boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-          border: "1px solid #e0e0e0"
+          border: "1px solid var(--border)"
         }}>
           <h3 style={{ 
             color: "#0b1220", 
@@ -354,11 +457,11 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
 
           {passengers.map((passenger, index) => (
             <div key={passenger.id} style={{
-              border: "1px solid #e0e0e0",
+              border: "1px solid var(--border)",
               borderRadius: "8px",
               padding: "20px",
               marginBottom: "20px",
-              backgroundColor: "#f8f9fa"
+              backgroundColor: "var(--background)"
             }}>
               <div style={{ 
                 display: "flex", 
@@ -521,6 +624,72 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
                 </div>
               </div>
 
+              {/* Passenger Photo Upload */}
+              {passenger.date_of_birth ? (
+                requiresPhoto(passenger) ? (
+                  <div style={{ 
+                    marginBottom: "15px",
+                    padding: "15px",
+                    background: "#f8f9fa",
+                    borderRadius: "6px",
+                    border: "1px solid #dee2e6"
+                  }}>
+                    <label style={{ 
+                      display: "block", 
+                      marginBottom: "8px", 
+                      fontWeight: "600",
+                      color: "#495057"
+                    }}>
+                      Passenger Photo * <span style={{ fontWeight: 400, fontSize: "12px", color: "#6c757d" }}>
+                        (Max 2MB, for boarding verification)
+                      </span>
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                      onChange={(e) => handlePassengerPhotoChange(passenger.id, e)}
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        border: "1px solid #ced4da",
+                        borderRadius: "4px",
+                        boxSizing: "border-box",
+                        fontSize: "13px"
+                      }}
+                    />
+                    {passenger.photo && (
+                      <div style={{ marginTop: "8px", fontSize: "12px", color: "#28a745", fontWeight: "600" }}>
+                        ✓ {passenger.photo.name} ({(passenger.photo.size / 1024).toFixed(0)}KB)
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ 
+                    marginBottom: "15px",
+                    padding: "12px",
+                    background: "#f8f9fa",
+                    borderRadius: "6px",
+                    border: "1px dashed #dee2e6"
+                  }}>
+                    <div style={{ fontSize: "13px", color: "#6c757d" }}>
+                      📷 Photo not required for children under 4 years
+                    </div>
+                  </div>
+                )
+              ) : (
+                <div style={{ 
+                  marginBottom: "15px",
+                  padding: "12px",
+                  background: "#fff3cd",
+                  borderRadius: "6px",
+                  border: "1px dashed #ffc107"
+                }}>
+                  <div style={{ fontSize: "13px", color: "#856404" }}>
+                    ⚠️ Please enter date of birth first to determine photo requirement
+                  </div>
+                </div>
+              )}
+
               {passenger.passenger_type === "ADULT" && (
                 <div style={{ 
                   display: "grid", 
@@ -675,6 +844,145 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
 
           <div style={{ textAlign: "center" }}>
             <button
+              onClick={() => setCurrentStep(flight.route_type === 'VIA' ? 1.5 : 2)}
+              disabled={!canProceedToStopover()}
+              style={{
+                background: canProceedToStopover() ? "#0b1220" : "#6c757d",
+                color: "white",
+                border: "none",
+                padding: "12px 30px",
+                borderRadius: "4px",
+                cursor: canProceedToStopover() ? "pointer" : "not-allowed",
+                fontSize: "16px",
+                fontWeight: "600"
+              }}
+            >
+              {flight.route_type === 'VIA' ? 'Continue to Stopover Selection' : 'Continue to Seat Selection'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 1.5: Stopover Selection (VIA flights only) */}
+      {currentStep === 1.5 && flight.route_type === 'VIA' && (
+        <div style={{
+          backgroundColor: "white",
+          padding: "30px",
+          borderRadius: "10px",
+          boxShadow: "0 2px 10px rgba(0,0,0,0.1)"
+        }}>
+          <h3 style={{ 
+            color: "#0b1220", 
+            marginBottom: "20px",
+            fontSize: "24px",
+            fontWeight: "700"
+          }}>
+            🛬 Select Your Stopover City
+          </h3>
+          
+          <p style={{ 
+            color: "#6c757d", 
+            marginBottom: "25px",
+            fontSize: "15px",
+            lineHeight: "1.6"
+          }}>
+            This is a VIA flight with intermediate stops. Please select the city where you want to pause your journey.
+          </p>
+
+          <div style={{ marginBottom: "30px" }}>
+            <label style={{
+              display: "block",
+              marginBottom: "8px",
+              fontWeight: "600",
+              color: "#0b1220",
+              fontSize: "14px"
+            }}>
+              Stopover City *
+            </label>
+            <select
+              value={stopoverCity}
+              onChange={(e) => setStopoverCity(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "12px",
+                border: "2px solid #dee2e6",
+                borderRadius: "6px",
+                fontSize: "15px",
+                backgroundColor: stopoverCity ? "#f8f9fa" : "white",
+                cursor: "pointer"
+              }}
+            >
+              <option value="">Select a stopover city...</option>
+              {flight.via_cities && flight.via_cities.length > 0 ? (
+                flight.via_cities.map((city, index) => (
+                  <option key={index} value={city}>
+                    {city}
+                  </option>
+                ))
+              ) : (
+                <option value="" disabled>No via cities available for this flight</option>
+              )}
+            </select>
+            {stopoverCity && (
+              <p style={{
+                marginTop: "10px",
+                color: "#28a745",
+                fontSize: "14px",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px"
+              }}>
+                ✓ Selected: <strong>{stopoverCity}</strong>
+              </p>
+            )}
+            {(!flight.via_cities || flight.via_cities.length === 0) && (
+              <p style={{
+                marginTop: "10px",
+                color: "#dc3545",
+                fontSize: "13px",
+                backgroundColor: "#f8d7da",
+                padding: "10px",
+                borderRadius: "6px"
+              }}>
+                ⚠️ This VIA flight has no via cities configured. Please contact support or select a different flight.
+              </p>
+            )}
+          </div>
+
+          <div style={{
+            backgroundColor: "#e7f3ff",
+            padding: "15px",
+            borderRadius: "8px",
+            marginBottom: "25px",
+            borderLeft: "4px solid #0d6efd"
+          }}>
+            <p style={{
+              margin: 0,
+              color: "#0b1220",
+              fontSize: "14px",
+              lineHeight: "1.6"
+            }}>
+              <strong>Flight Route:</strong> {flight.departure_airport_city} → {flight.via_cities && flight.via_cities.length > 0 ? flight.via_cities.join(' → ') : 'No via cities'} → {flight.arrival_airport_city}
+            </p>
+          </div>
+
+          <div style={{ display: "flex", gap: "15px", justifyContent: "space-between" }}>
+            <button
+              onClick={() => setCurrentStep(1)}
+              style={{
+                background: "#6c757d",
+                color: "white",
+                border: "none",
+                padding: "12px 25px",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontSize: "15px",
+                fontWeight: "600"
+              }}
+            >
+              ← Back to Passengers
+            </button>
+            <button
               onClick={() => setCurrentStep(2)}
               disabled={!canProceedToSeats()}
               style={{
@@ -682,13 +990,13 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
                 color: "white",
                 border: "none",
                 padding: "12px 30px",
-                borderRadius: "4px",
+                borderRadius: "6px",
                 cursor: canProceedToSeats() ? "pointer" : "not-allowed",
-                fontSize: "16px",
+                fontSize: "15px",
                 fontWeight: "600"
               }}
             >
-              Continue to Seat Selection
+              Continue to Seat Selection →
             </button>
           </div>
         </div>
@@ -734,7 +1042,7 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
             borderRadius: "10px",
             padding: "30px",
             boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-            border: "1px solid #e0e0e0"
+            border: "1px solid var(--border)"
           }}>
             <h3 style={{ color: "#0b1220", marginBottom: "20px", fontSize: "22px", fontWeight: "600" }}>
               Seat Selection
@@ -804,10 +1112,10 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
 
             {/* Airplane layout */}
             <div style={{
-              border: "1px solid #e0e0e0",
+              border: "1px solid var(--border)",
               borderRadius: "10px",
               padding: "16px",
-              backgroundColor: "#f8f9fa",
+              backgroundColor: "var(--background)",
               overflowY: "auto",
               maxHeight: "420px"
             }}>
@@ -942,7 +1250,7 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
           borderRadius: "10px",
           padding: "30px",
           boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-          border: "1px solid #e0e0e0"
+          border: "1px solid var(--border)"
         }}>
           <h3 style={{ 
             color: "#0b1220", 
@@ -969,7 +1277,7 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
                 Flight Details
               </h4>
               <div style={{ 
-                backgroundColor: "#f8f9fa",
+                backgroundColor: "var(--background)",
                 padding: "15px",
                 borderRadius: "8px"
               }}>
@@ -1000,7 +1308,7 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
               <div style={{ 
                 maxHeight: "200px", 
                 overflowY: "auto",
-                border: "1px solid #e0e0e0",
+                border: "1px solid var(--border)",
                 borderRadius: "8px"
               }}>
                 {passengers.map((passenger, index) => {
@@ -1009,7 +1317,7 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
                     <div key={passenger.id} style={{
                       padding: "12px",
                       borderBottom: index < passengers.length - 1 ? "1px solid #e0e0e0" : "none",
-                      backgroundColor: "#f8f9fa"
+                      backgroundColor: "var(--background)"
                     }}>
                       <div style={{ 
                         display: "flex", 
@@ -1055,10 +1363,10 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
           </div>
 
           <div style={{
-            backgroundColor: "#f8f9fa",
+            backgroundColor: "var(--background)",
             padding: "20px",
             borderRadius: "8px",
-            border: "1px solid #e0e0e0"
+            border: "1px solid var(--border)"
           }}>
             <div style={{ 
               display: "flex", 
@@ -1226,7 +1534,7 @@ export default function ImprovedMultiPassengerBooking({ flight, onBookingComplet
                     width: "30px",
                     height: "30px",
                     borderRadius: "50%",
-                    background: "#0b1220",
+                    background: "var(--surface)",
                     color: "white",
                     display: "flex",
                     alignItems: "center",

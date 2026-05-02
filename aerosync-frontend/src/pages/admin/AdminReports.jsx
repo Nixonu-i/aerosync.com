@@ -1,6 +1,21 @@
 import { useEffect, useState, useCallback } from "react";
 import API from "../../api/api";
 
+// Force light theme for all admin pages
+function AdminThemeEnforcer() {
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', 'light');
+    return () => {
+      // Restore user preference on unmount
+      const saved = localStorage.getItem('theme') || 'LIGHT';
+      if (saved === 'DARK') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    };
+  }, []);
+  return null;
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function fmtDate(dt) {
@@ -39,7 +54,7 @@ function downloadCSV(filename, headers, rows) {
 function StatCard({ label, value, color }) {
   return (
     <div style={{
-      backgroundColor: "white",
+      backgroundColor: "var(--surface)",
       borderRadius: "12px",
       padding: "20px 24px",
       boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
@@ -68,7 +83,7 @@ function StatusBadge({ status }) {
 }
 
 const TH = ({ children, right }) => (
-  <th style={{ padding: "10px 12px", textAlign: right ? "right" : "left", color: "#495057", fontSize: "12px", fontWeight: "700", borderBottom: "2px solid #dee2e6", whiteSpace: "nowrap", backgroundColor: "#f8f9fa" }}>
+  <th style={{ padding: "10px 12px", textAlign: right ? "right" : "left", color: "#495057", fontSize: "12px", fontWeight: "700", borderBottom: "2px solid #dee2e6", whiteSpace: "nowrap", backgroundColor: "var(--background)" }}>
     {children}
   </th>
 );
@@ -83,19 +98,32 @@ const TD = ({ children, right, mono }) => (
 function BookingsTable({ data }) {
   const [search, setSearch] = useState("");
   const [statusF, setStatusF] = useState("");
+  const [flightFilter, setFlightFilter] = useState("");
+  const [flightsWithBookings, setFlightsWithBookings] = useState([]);
+
+  // Fetch flights with bookings on mount
+  useEffect(() => {
+    API.get('reports/flights-with-bookings/')
+      .then(res => setFlightsWithBookings(res.data || []))
+      .catch(err => console.error('Failed to load flights with bookings:', err));
+  }, []);
 
   const filtered = data.filter((b) => {
     const q = search.toLowerCase();
     const matchQ = !q || b.confirmation_code?.toLowerCase().includes(q) || b.username?.toLowerCase().includes(q) || b.flight_number?.toLowerCase().includes(q);
-    return matchQ && (!statusF || b.booking_status === statusF);
+    const matchStatus = !statusF || b.booking_status === statusF;
+    const matchFlight = !flightFilter || b.flight === flightFilter;
+    return matchQ && matchStatus && matchFlight;
   });
 
   const handleCSV = () => {
     downloadCSV("bookings_report.csv",
-      ["Confirmation Code","Username","Flight","Route","Booking Date","Booking Status","Payment Status","Amount (KES)","Passengers"],
+      ["Confirmation Code","Username","Flight","Route","Route Type","Stopover City","Booking Date","Booking Status","Payment Status","Amount (KES)","Passengers"],
       filtered.map((b) => [
         b.confirmation_code, b.username, b.flight_number,
         `${b.departure_code} → ${b.arrival_code}`,
+        b.flight_route_type || 'DIRECT',
+        b.stopover_city || '—',
         fmtDateOnly(b.booking_date), b.booking_status,
         b.payment_status || "—", b.total_amount,
         b.passengers?.length || 0,
@@ -116,12 +144,21 @@ function BookingsTable({ data }) {
           <option value="">All Statuses</option>
           {["PENDING","CONFIRMED","CANCELLED","FAILED"].map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
-        <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "13px", marginRight: "auto" }}>
+        <select value={flightFilter} onChange={(e) => setFlightFilter(e.target.value)}
+          style={{ padding: "8px 12px", border: "1px solid #ced4da", borderRadius: "6px", fontSize: "13px", minWidth: "200px" }}>
+          <option value="">All Flights</option>
+          {flightsWithBookings.map((f) => (
+            <option key={f.id} value={f.id}>
+              {f.flight_number} ({f.departure_code} → {f.arrival_code}) - {f.booking_count} booking{f.booking_count !== 1 ? 's' : ''}
+            </option>
+          ))}
+        </select>
+        <span style={{ color: "var(--text-secondary)", fontSize: "13px", marginRight: "auto" }}>
           {filtered.length} record{filtered.length !== 1 ? "s" : ""}
         </span>
         <button onClick={handleCSV} style={csvBtnStyle}>⬇ Export CSV</button>
       </div>
-      <div style={{ overflowX: "auto", borderRadius: "10px", boxShadow: "0 2px 10px rgba(0,0,0,0.1)", backgroundColor: "white" }}>
+      <div style={{ overflowX: "auto", borderRadius: "10px", boxShadow: "0 2px 10px rgba(0,0,0,0.1)", backgroundColor: "var(--surface)" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "860px" }}>
           <thead>
             <tr>
@@ -130,6 +167,8 @@ function BookingsTable({ data }) {
               <TH>User</TH>
               <TH>Flight</TH>
               <TH>Route</TH>
+              <TH>Route Type</TH>
+              <TH>Stopover</TH>
               <TH>Booking Date</TH>
               <TH>Booking Status</TH>
               <TH>Payment</TH>
@@ -148,6 +187,14 @@ function BookingsTable({ data }) {
                 <TD>{b.username}</TD>
                 <TD>{b.flight_number}</TD>
                 <TD><strong>{b.departure_code} → {b.arrival_code}</strong></TD>
+                <TD>
+                  {b.flight_route_type === 'VIA' ? (
+                    <span style={{ fontWeight: "600", color: "#d4af37" }}>VIA</span>
+                  ) : (
+                    <span style={{ fontWeight: "600", color: "#28a745" }}>Direct</span>
+                  )}
+                </TD>
+                <TD>{b.stopover_city || <span style={{ color: "#adb5bd" }}>—</span>}</TD>
                 <TD>{fmtDateOnly(b.booking_date)}</TD>
                 <TD><StatusBadge status={b.booking_status} /></TD>
                 <TD><StatusBadge status={b.payment_status} /></TD>
@@ -156,7 +203,7 @@ function BookingsTable({ data }) {
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={10} style={{ padding: "32px", textAlign: "center", color: "#6c757d" }}>No bookings found.</td></tr>
+              <tr><td colSpan={12} style={{ padding: "32px", textAlign: "center", color: "#6c757d" }}>No bookings found.</td></tr>
             )}
           </tbody>
         </table>
@@ -177,13 +224,15 @@ function FlightsTable({ data }) {
 
   const handleCSV = () => {
     downloadCSV("flights_report.csv",
-      ["Flight Number","Airline","Route","Aircraft","Departure","Arrival","Price (KES)","Trip Type","Stops","Status"],
+      ["Flight Number","Airline","Route","Aircraft","Departure","Arrival","Price (KES)","Trip Type","Route Type","Via Cities","Status"],
       filtered.map((f) => [
         f.flight_number, f.airline,
         `${f.departure_airport_code} → ${f.arrival_airport_code}`,
         `${f.aircraft_model} (${f.aircraft_plate})`,
         fmtDate(f.departure_time), fmtDate(f.arrival_time),
-        f.price, f.trip_type, f.stops, f.status,
+        f.price, f.trip_type, f.route_type || 'DIRECT', 
+        f.route_type === 'VIA' ? (f.via_cities?.join(' → ') || '—') : '—',
+        f.status,
       ])
     );
   };
@@ -201,12 +250,12 @@ function FlightsTable({ data }) {
           <option value="">All Statuses</option>
           {["SCHEDULED","ACTIVE","DELAYED","CANCELLED"].map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
-        <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "13px", marginRight: "auto" }}>
+        <span style={{ color: "var(--text-secondary)", fontSize: "13px", marginRight: "auto" }}>
           {filtered.length} record{filtered.length !== 1 ? "s" : ""}
         </span>
         <button onClick={handleCSV} style={csvBtnStyle}>⬇ Export CSV</button>
       </div>
-      <div style={{ overflowX: "auto", borderRadius: "10px", boxShadow: "0 2px 10px rgba(0,0,0,0.1)", backgroundColor: "white" }}>
+      <div style={{ overflowX: "auto", borderRadius: "10px", boxShadow: "0 2px 10px rgba(0,0,0,0.1)", backgroundColor: "var(--surface)" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "900px" }}>
           <thead>
             <tr>
@@ -275,12 +324,12 @@ function UsersTable({ data }) {
           placeholder="Search by username, email, name..."
           style={{ padding: "8px 12px", border: "1px solid #ced4da", borderRadius: "6px", fontSize: "13px", minWidth: "220px" }}
         />
-        <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "13px", marginRight: "auto" }}>
+        <span style={{ color: "var(--text-secondary)", fontSize: "13px", marginRight: "auto" }}>
           {filtered.length} record{filtered.length !== 1 ? "s" : ""}
         </span>
         <button onClick={handleCSV} style={csvBtnStyle}>⬇ Export CSV</button>
       </div>
-      <div style={{ overflowX: "auto", borderRadius: "10px", boxShadow: "0 2px 10px rgba(0,0,0,0.1)", backgroundColor: "white" }}>
+      <div style={{ overflowX: "auto", borderRadius: "10px", boxShadow: "0 2px 10px rgba(0,0,0,0.1)", backgroundColor: "var(--surface)" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "700px" }}>
           <thead>
             <tr>
@@ -389,17 +438,19 @@ export default function AdminReports() {
     );
   };
 
-  const inputStyle = { padding: "8px 12px", border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px", fontSize: "14px", backgroundColor: "rgba(255,255,255,0.12)", color: "white" };
+  const inputStyle = { padding: "8px 12px", border: "1px solid var(--border)", borderRadius: "6px", fontSize: "14px", backgroundColor: "#ffffff", color: "var(--text-primary)" };
 
   return (
-    <div style={{ padding: "28px", maxWidth: "1400px", margin: "0 auto" }}>
+    <>
+      <AdminThemeEnforcer />
+      <div style={{ padding: "28px", maxWidth: "1400px", margin: "0 auto" }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px", flexWrap: "wrap", gap: "16px" }}>
         <div>
-          <h2 style={{ color: "white", fontWeight: "800", fontSize: "28px", margin: 0, textShadow: "0 2px 8px rgba(0,0,0,0.6)" }}>
+          <h2 style={{ color: "var(--text-primary)", fontWeight: "800", fontSize: "28px", margin: 0 }}>
             Reports &amp; Analytics
           </h2>
-          <p style={{ color: "rgba(255,255,255,0.55)", fontSize: "13px", margin: "4px 0 0" }}>
+          <p style={{ color: "var(--text-secondary)", fontSize: "13px", margin: "4px 0 0" }}>
             Export data as CSV or view in table format
           </p>
         </div>
@@ -409,17 +460,17 @@ export default function AdminReports() {
       </div>
 
       {/* Date Range */}
-      <div style={{ backgroundColor: "rgba(255,255,255,0.08)", backdropFilter: "blur(8px)", borderRadius: "12px", padding: "16px 20px", marginBottom: "24px", display: "flex", gap: "14px", flexWrap: "wrap", alignItems: "center" }}>
-        <span style={{ color: "rgba(255,255,255,0.8)", fontSize: "13px", fontWeight: "600" }}>Summary Period:</span>
+      <div style={{ backgroundColor: "var(--background)", border: "1px solid var(--border)", borderRadius: "12px", padding: "16px 20px", marginBottom: "24px", display: "flex", gap: "14px", flexWrap: "wrap", alignItems: "center" }}>
+        <span style={{ color: "var(--text-primary)", fontSize: "13px", fontWeight: "600" }}>Summary Period:</span>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <label style={{ color: "rgba(255,255,255,0.6)", fontSize: "13px" }}>From</label>
+          <label style={{ color: "var(--text-secondary)", fontSize: "13px" }}>From</label>
           <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} style={inputStyle} />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <label style={{ color: "rgba(255,255,255,0.6)", fontSize: "13px" }}>To</label>
+          <label style={{ color: "var(--text-secondary)", fontSize: "13px" }}>To</label>
           <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} style={inputStyle} />
         </div>
-        <button onClick={load} style={{ backgroundColor: "#0b1220", color: "white", border: "1px solid rgba(255,255,255,0.2)", padding: "8px 18px", borderRadius: "6px", fontWeight: "700", fontSize: "13px", cursor: "pointer" }}>
+        <button onClick={load} style={{ backgroundColor: "#d4af37", color: "#0b1220", border: "none", padding: "8px 18px", borderRadius: "6px", fontWeight: "700", fontSize: "13px", cursor: "pointer" }}>
           Apply
         </button>
       </div>
@@ -437,15 +488,15 @@ export default function AdminReports() {
       )}
 
       {loading ? (
-        <div style={{ color: "rgba(255,255,255,0.7)", textAlign: "center", padding: "60px", fontSize: "16px" }}>Loading data...</div>
+        <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "60px", fontSize: "16px" }}>Loading data...</div>
       ) : (
         <>
           {/* Tab bar */}
-          <div style={{ display: "flex", gap: "4px", marginBottom: "20px", borderBottom: "2px solid rgba(255,255,255,0.15)", paddingBottom: "0" }}>
+          <div style={{ display: "flex", gap: "4px", marginBottom: "20px", borderBottom: "2px solid var(--border)", paddingBottom: "0" }}>
             {TABS.map((t) => (
               <button key={t} onClick={() => setTab(t)} style={{
-                backgroundColor: tab === t ? "white" : "transparent",
-                color: tab === t ? TAB_COLORS[t] : "rgba(255,255,255,0.6)",
+                backgroundColor: tab === t ? "var(--surface)" : "transparent",
+                color: tab === t ? TAB_COLORS[t] : "var(--text-secondary)",
                 border: "none",
                 padding: "10px 22px",
                 fontWeight: tab === t ? "700" : "500",
@@ -458,8 +509,8 @@ export default function AdminReports() {
                 {t}
                 <span style={{
                   marginLeft: "8px",
-                  backgroundColor: tab === t ? TAB_COLORS[t] : "rgba(255,255,255,0.2)",
-                  color: tab === t ? "white" : "rgba(255,255,255,0.7)",
+                  backgroundColor: tab === t ? TAB_COLORS[t] : "var(--border)",
+                  color: tab === t ? "white" : "var(--text-secondary)",
                   padding: "1px 7px",
                   borderRadius: "10px",
                   fontSize: "11px",
@@ -478,5 +529,6 @@ export default function AdminReports() {
         </>
       )}
     </div>
+    </>
   );
 }

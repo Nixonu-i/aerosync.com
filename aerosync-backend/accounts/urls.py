@@ -1,6 +1,7 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 <<<<<<< HEAD
+<<<<<<< HEAD
 from .views import RegisterView, MeView, profile_view, protected_media
 
 urlpatterns = [
@@ -12,6 +13,9 @@ urlpatterns = [
     path("media/<path:path>", protected_media, name="protected-media"),
 =======
 from .views import RegisterView, MeView, profile_view, protected_media, VerifyEmailView, ResendVerificationView, oauth_callback, CustomTokenObtainPairView, RequestPasswordResetView, VerifyPasswordResetCodeView, ResetPasswordView
+=======
+from .views import RegisterView, MeView, profile_view, protected_media, VerifyEmailView, ResendVerificationView, oauth_callback, CustomTokenObtainPairView, RequestPasswordResetView, VerifyPasswordResetCodeView, ResetPasswordView, update_theme_preference
+>>>>>>> 1f8170445e5037c8d4a27ddab2757e5b5f376943
 
 urlpatterns = [
     path("register/", RegisterView.as_view()),
@@ -28,5 +32,11 @@ urlpatterns = [
     path("request-password-reset/", RequestPasswordResetView.as_view(), name="request-password-reset"),
     path("verify-password-reset-code/", VerifyPasswordResetCodeView.as_view(), name="verify-password-reset-code"),
     path("reset-password/", ResetPasswordView.as_view(), name="reset-password"),
+<<<<<<< HEAD
 >>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
+=======
+    
+    # Theme preference endpoint
+    path("update-theme/", update_theme_preference, name="update-theme"),
+>>>>>>> 1f8170445e5037c8d4a27ddab2757e5b5f376943
 ]

@@ -124,7 +124,7 @@ def build_boarding_pass_png(booking: Booking, passenger=None) -> bytes:
     seat_no = bp.seat.seat_number            # SEAT shown ONCE
     seat_class = bp.seat.flight_class
     aircraft = flight.aircraft.number_plate
-    flight_no = f"AS-{flight.id:04d}"
+    flight_no = flight.flight_number  # Use actual flight number instead of ID
 
     qr_payload = bp.qr_code_data
 

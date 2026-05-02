@@ -3,11 +3,53 @@ from django.db import models
 from accounts.models import User
 from django.core.validators import RegexValidator
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 
 class Airline(models.Model):
 =======
+=======
+from django.core.exceptions import ValidationError
+>>>>>>> 1f8170445e5037c8d4a27ddab2757e5b5f376943
 import uuid
+import os
+
+# Constants for passenger photo validation
+PASSENGER_PHOTO_MAX_SIZE = 2 * 1024 * 1024  # 2MB
+PASSENGER_PHOTO_ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+
+def passenger_photo_upload_to(instance, filename):
+    """Upload passenger photos for boarding verification"""
+    from django.utils import timezone
+    now = timezone.now()
+    base, ext = os.path.splitext(filename)
+    ext = ext.lower()
+    
+    # Use booking ID and passenger ID if available
+    booking_id = instance.booking.pk if instance.booking else 'unknown'
+    passenger_id = instance.passenger.pk if instance.passenger else 'unknown'
+    
+    return os.path.join(
+        'passenger_photos',
+        f"{now.year}",
+        f"{now.month:02d}",
+        f"booking_{booking_id}_passenger_{passenger_id}_{uuid.uuid4().hex[:8]}{ext}"
+    )
+
+def validate_passenger_photo_size(file):
+    """Validate passenger photo file size"""
+    if file.size > PASSENGER_PHOTO_MAX_SIZE:
+        raise ValidationError(
+            f'File size must be under {PASSENGER_PHOTO_MAX_SIZE // (1024*1024)}MB'
+        )
+
+def validate_passenger_photo_extension(file):
+    """Validate passenger photo file extension"""
+    ext = os.path.splitext(file.name)[1].lower()
+    if ext not in PASSENGER_PHOTO_ALLOWED_EXTENSIONS:
+        raise ValidationError(
+            f'Unsupported file type. Allowed: {", ".join(PASSENGER_PHOTO_ALLOWED_EXTENSIONS)}'
+        )
 
 
 class Airline(models.Model):
@@ -62,6 +104,11 @@ class Flight(models.Model):
         ('ROUND_TRIP', 'Round Trip'),
     ]
     
+    ROUTE_TYPE_CHOICES = [
+        ('DIRECT', 'Direct'),
+        ('VIA', 'Via'),
+    ]
+    
     STATUS_CHOICES = [
         ('SCHEDULED', 'Scheduled'),
         ('DELAYED', 'Delayed'),
@@ -78,8 +125,20 @@ class Flight(models.Model):
     arrival_time = models.DateTimeField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
     trip_type = models.CharField(max_length=20, choices=TRIP_TYPE_CHOICES, default='ONE_WAY')
+    route_type = models.CharField(max_length=20, choices=ROUTE_TYPE_CHOICES, default='DIRECT')
+    via_cities = models.JSONField(default=list, blank=True, help_text="Ordered list of intermediate cities for VIA flights")
     stops = models.IntegerField(default=0)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='SCHEDULED')
+
+    @property
+    def flight_path(self):
+        """Returns complete ordered list: [origin] + via_cities + [destination]"""
+        return [self.departure_airport.city] + self.via_cities + [self.arrival_airport.city]
+    
+    @property
+    def intermediate_cities(self):
+        """Returns only the intermediate cities (for stopover selection)"""
+        return self.via_cities if self.route_type == 'VIA' else []
 
     def _generate_flight_number(self):
         import random, string
@@ -91,6 +150,14 @@ class Flight(models.Model):
     def save(self, *args, **kwargs):
         if not self.flight_number:
             self.flight_number = self._generate_flight_number()
+        
+        # Auto-update stops field based on via_cities for backward compatibility
+        if self.route_type == 'VIA':
+            self.stops = len(self.via_cities)
+        else:
+            self.stops = 0
+            self.via_cities = []
+        
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -151,13 +218,19 @@ class Booking(models.Model):
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     booking_status = models.CharField(max_length=20, choices=BOOKING_STATUS_CHOICES, default='PENDING')
     confirmation_code = models.CharField(max_length=20, unique=True)
+    stopover_city = models.CharField(max_length=100, blank=True, null=True, help_text="Selected stopover city for VIA flights")
     
     def save(self, *args, **kwargs):
+        # Generate confirmation code if not set
         if not self.confirmation_code:
-            # Generate a unique confirmation code
             import random
             import string
             self.confirmation_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+        
+        # Auto-calculate total_amount from flight price if not provided
+        if not self.total_amount and self.flight:
+            self.total_amount = self.flight.price
+        
         super().save(*args, **kwargs)
     
     def __str__(self):
@@ -318,6 +391,13 @@ class BoardingPass(models.Model):
     issued_date = models.DateTimeField(auto_now_add=True)
     qr_code_data = models.TextField(blank=True)
     is_checked_in = models.BooleanField(default=False)  # per-passenger check-in status
+    passenger_photo = models.ImageField(
+        upload_to=passenger_photo_upload_to,
+        blank=True,
+        null=True,
+        validators=[validate_passenger_photo_size, validate_passenger_photo_extension],
+        help_text="Passenger photo for boarding verification (required for adults & children 4+)"
+    )
     
     def __str__(self):
         return f"Boarding Pass - {self.passenger.full_name} - {self.booking.confirmation_code}"
@@ -347,7 +427,9 @@ class ScanLog(models.Model):
     seat_number       = models.CharField(max_length=10, blank=True)
     booking_status    = models.CharField(max_length=20, blank=True)
     already_onboard   = models.BooleanField(default=False)
+    action            = models.CharField(max_length=20, blank=True, default="")  # 'confirm' or 'cancel'
     scanned_at        = models.DateTimeField(auto_now_add=True)
+    additional_data   = models.JSONField(default=dict, blank=True)
 
     class Meta:
         ordering = ["-scanned_at"]
@@ -365,6 +447,7 @@ class UserActivityLog(models.Model):
     
     ACTION_CHOICES = [
         ('login', 'User Login'),
+        ('login_blocked', 'Login Blocked - IP Risk'),
         ('logout', 'User Logout'),
         ('profile_update', 'Profile Update'),
         ('booking_create', 'Booking Created'),

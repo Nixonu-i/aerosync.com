@@ -3,11 +3,36 @@ import API from "../../api/api";
 import { useAdminUI } from "../../hooks/useAdminUI";
 import SearchableSelect from "../../components/SearchableSelect";
 
+// Force light theme for all admin pages
+function AdminThemeEnforcer() {
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', 'light');
+    return () => {
+      // Restore user preference on unmount
+      const saved = localStorage.getItem('theme') || 'LIGHT';
+      if (saved === 'DARK') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    };
+  }, []);
+  return null;
+}
+
 const inputStyle = {
   width: "100%", padding: "10px 12px", border: "1px solid #ced4da",
   borderRadius: "6px", fontSize: "14px", boxSizing: "border-box",
 };
 const labelStyle = { display: "block", marginBottom: "5px", fontWeight: "600", color: "#495057", fontSize: "13px" };
+
+// Helper to format date for datetime-local input (YYYY-MM-DDTHH:MM)
+const toLocalDatetimeLocal = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
 
 function StatusBadge({ status }) {
   const map = { SCHEDULED: ["#d4edda","#155724"], DELAYED: ["#fff3cd","#856404"], CANCELLED: ["#f8d7da","#721c24"], COMPLETED: ["#e2e3e5","#383d41"] };
@@ -15,11 +40,15 @@ function StatusBadge({ status }) {
   return <span style={{ backgroundColor: bg, color: text, padding: "3px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: "600" }}>{status}</span>;
 }
 
-const EMPTY = { airline: "", aircraft: "", departure_airport: "", arrival_airport: "", departure_time: "", arrival_time: "", price: "", trip_type: "ONE_WAY", stops: "0", status: "SCHEDULED" };
+const EMPTY = { airline: "", aircraft: "", departure_airport: "", arrival_airport: "", departure_time: "", arrival_time: "", price: "", trip_type: "ONE_WAY", route_type: "DIRECT", via_cities: [], status: "SCHEDULED" };
 
 const TRIP_TYPE_OPTS = [
   { value: "ONE_WAY", label: "One Way" },
   { value: "ROUND_TRIP", label: "Round Trip" },
+];
+const ROUTE_TYPE_OPTS = [
+  { value: "DIRECT", label: "Direct" },
+  { value: "VIA", label: "Via" },
 ];
 const STATUS_OPTS = [
   { value: "SCHEDULED", label: "Scheduled" },
@@ -48,6 +77,11 @@ export default function AdminFlights() {
   const [genModal, setGenModal]   = useState(false);
   const [genBusy, setGenBusy]     = useState(false);
   const [genResult, setGenResult] = useState(null);
+  // via cities raw input state
+  const [viaCitiesInput, setViaCitiesInput] = useState("");
+  // datetime min values
+  const [departureMin, setDepartureMin] = useState("");
+  const [arrivalMin, setArrivalMin] = useState("");
   const { confirm, notify, ModalUI } = useAdminUI();
 
   // Load first page of flights + supporting data
@@ -133,7 +167,15 @@ export default function AdminFlights() {
 
   const hasFilters = Object.values(filters).some(v => v !== "");
 
-  const openAdd = () => { setForm(EMPTY); setFormErr(""); setModal("add"); };
+  const openAdd = () => { 
+    setForm(EMPTY); 
+    setViaCitiesInput(""); 
+    setFormErr(""); 
+    // Set departure min to current time
+    setDepartureMin(toLocalDatetimeLocal(new Date()));
+    setArrivalMin("");
+    setModal("add"); 
+  };
   const openEdit = (f) => {
     setForm({
       airline: f.airline,
@@ -143,22 +185,85 @@ export default function AdminFlights() {
       departure_time: f.departure_time?.slice(0, 16) || "",
       arrival_time: f.arrival_time?.slice(0, 16) || "",
       price: f.price, trip_type: f.trip_type, stops: f.stops, status: f.status,
+      route_type: f.route_type || 'DIRECT',
+      via_cities: f.via_cities || [],
       _id: f.id,
     });
-    setFormErr(""); setModal("edit");
+    setViaCitiesInput((f.via_cities || []).join(', '));
+    // For editing, set departure min to current time (can't change to past)
+    setDepartureMin(toLocalDatetimeLocal(new Date()));
+    // Set arrival min based on departure time
+    if (f.departure_time) {
+      const depTime = new Date(f.departure_time);
+      const minArrival = new Date(depTime.getTime() + 60000);
+      setArrivalMin(toLocalDatetimeLocal(minArrival));
+    } else {
+      setArrivalMin("");
+    }
+    setFormErr(""); 
+    setModal("edit");
   };
 
   const handleSave = async () => {
     setBusy(true); setFormErr("");
     try {
       const { _id, ...rest } = form;
-      const payload = { ...rest, aircraft: Number(form.aircraft), departure_airport: Number(form.departure_airport), arrival_airport: Number(form.arrival_airport), stops: Number(form.stops), price: form.price };
+      
+      // Validate required fields before sending
+      if (!form.aircraft || !form.departure_airport || !form.arrival_airport) {
+        setFormErr("Please select Aircraft, Departure Airport, and Arrival Airport.");
+        setBusy(false);
+        return;
+      }
+      
+      // Validate departure time is in the future
+      const departureTime = new Date(form.departure_time);
+      const now = new Date();
+      if (departureTime <= now) {
+        setFormErr("Departure date and time must be in the future.");
+        setBusy(false);
+        return;
+      }
+      
+      // Validate arrival time is after departure time
+      const arrivalTime = new Date(form.arrival_time);
+      if (arrivalTime <= departureTime) {
+        setFormErr("Arrival date and time must be after departure date and time.");
+        setBusy(false);
+        return;
+      }
+      
+      const payload = { 
+        ...rest, 
+        aircraft: form.aircraft,  // UUID, keep as string
+        departure_airport: form.departure_airport,  // UUID, keep as string
+        arrival_airport: form.arrival_airport,  // UUID, keep as string
+        stops: Number(form.stops), 
+        price: form.price 
+      };
+      
+      // Remove empty values that shouldn't be sent
+      if (!payload.flight_number) {
+        delete payload.flight_number;
+      }
+      
       if (modal === "add") await API.post("admin/flights/", payload);
       else await API.patch(`admin/flights/${form._id}/`, payload);
       setModal(null);
       await reloadFlights();
       notify(modal === "add" ? "Flight created." : "Flight updated.", "success");
-    } catch (e) { setFormErr(e.normalizedMessage || "Save failed"); }
+    } catch (e) { 
+      // Extract detailed error messages from the response
+      const errorData = e.response?.data;
+      if (errorData && typeof errorData === 'object') {
+        const messages = Object.entries(errorData)
+          .map(([field, errors]) => `${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`)
+          .join('\n');
+        setFormErr(messages || e.normalizedMessage || "Save failed");
+      } else {
+        setFormErr(e.normalizedMessage || "Save failed"); 
+      }
+    }
     finally { setBusy(false); }
   };
 
@@ -170,30 +275,70 @@ export default function AdminFlights() {
   };
 
   const handleGenerate = async () => {
-    setGenBusy(true); setGenResult(null);
+    setGenBusy(true); 
+    setGenResult(null);
+    
     try {
+      // Start the generation task
       const res = await API.post("admin/flights/generate_flights/");
-      setGenResult({ ok: true, data: res.data });
-      await reloadFlights();
+      const taskId = res.data.task_id;
+      
+      // Poll for status updates
+      const pollInterval = setInterval(async () => {
+        try {
+          const statusRes = await API.get(`admin/flights/generation_status/${taskId}/`);
+          const taskData = statusRes.data;
+          
+          if (taskData.status === 'completed') {
+            clearInterval(pollInterval);
+            setGenResult({ ok: true, data: taskData.result });
+            setGenBusy(false);
+            await reloadFlights();
+          } else if (taskData.status === 'failed') {
+            clearInterval(pollInterval);
+            setGenResult({ ok: false, message: taskData.error || "Generation failed" });
+            setGenBusy(false);
+          } else if (taskData.status === 'running') {
+            // Update progress
+            const progress = taskData.progress || 0;
+            const estimatedTotal = taskData.estimated_total || 1;
+            const percentage = Math.min((progress / estimatedTotal) * 100, 100);
+            
+            setGenResult({ 
+              ok: null, 
+              message: `Generating flights... (${progress} created)`,
+              progress: progress,
+              percentage: percentage
+            });
+          }
+        } catch (err) {
+          clearInterval(pollInterval);
+          setGenResult({ ok: false, message: "Failed to check task status" });
+          setGenBusy(false);
+        }
+      }, 1000); // Poll every second
+      
     } catch (e) {
       setGenResult({ ok: false, message: e.response?.data?.detail || e.normalizedMessage || "Generation failed" });
-    } finally { setGenBusy(false); }
+      setGenBusy(false);
+    }
   };
 
   const filtered = flights; // server already returns only matching results
 
   return (
     <>
+      <AdminThemeEnforcer />
       <div style={{ padding: "28px", maxWidth: "1400px", margin: "0 auto" }}>
       {/* ── Page Header ─────────────────────────────────────────────── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", flexWrap: "wrap", gap: "12px" }}>
-        <h2 style={{ color: "white", fontWeight: "800", fontSize: "26px", margin: 0, textShadow: "0 2px 8px rgba(0,0,0,0.6)" }}>Flight Management</h2>
+        <h2 style={{ color: "var(--text-primary)", fontWeight: "800", fontSize: "26px", margin: 0 }}>Flight Management</h2>
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
           <button onClick={() => { setGenResult(null); setGenModal(true); }}
             style={{ backgroundColor: "#17a2b8", color: "white", border: "none", padding: "10px 18px", borderRadius: "6px", fontWeight: "700", cursor: "pointer", fontSize: "14px" }}>
             ⚡ Auto-Generate Flights
           </button>
-          <button onClick={openAdd} style={{ backgroundColor: "#d4af37", color: "#0b1220", border: "none", padding: "10px 20px", borderRadius: "6px", fontWeight: "700", cursor: "pointer", fontSize: "14px" }}>+ Add Flight</button>
+          <button onClick={openAdd} style={{ backgroundColor: "#d4af37", color: "var(--text-primary)", border: "none", padding: "10px 20px", borderRadius: "6px", fontWeight: "700", cursor: "pointer", fontSize: "14px" }}>+ Add Flight</button>
         </div>
       </div>
 
@@ -293,7 +438,7 @@ export default function AdminFlights() {
                 width: "100%",
                 padding: "9px 18px",
                 background: "#d4af37",
-                color: "#0b1220",
+                color: "var(--text-primary)",
                 border: "none",
                 borderRadius: "6px",
                 fontWeight: "700",
@@ -342,8 +487,8 @@ export default function AdminFlights() {
       </div>
 
       {error && <div style={{ background: "#f8d7da", color: "#721c24", padding: "12px", borderRadius: "6px", marginBottom: "16px" }}>{error}</div>}
-      {loading ? <div style={{ color: "rgba(255,255,255,0.7)", textAlign: "center", padding: "60px" }}>Loading...</div> : (
-        <div style={{ backgroundColor: "white", borderRadius: "12px", boxShadow: "0 4px 12px rgba(0,0,0,0.12)", overflow: "hidden" }}>
+      {loading ? <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "60px" }}>Loading...</div> : (
+        <div style={{ backgroundColor: "var(--surface)", borderRadius: "12px", boxShadow: "0 4px 12px rgba(0,0,0,0.12)", overflow: "hidden" }}>
           <div style={{ overflowX: "auto" }}>
             <table className="as-admin-table" style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
@@ -365,11 +510,20 @@ export default function AdminFlights() {
                     <td style={{ padding: "12px 14px", fontSize: "12px", color: "#495057" }}>{new Date(f.departure_time).toLocaleString()}</td>
                     <td style={{ padding: "12px 14px", fontSize: "12px", color: "#495057" }}>{new Date(f.arrival_time).toLocaleString()}</td>
                     <td style={{ padding: "12px 14px", fontWeight: "600", fontSize: "13px" }}>{Number(f.price).toLocaleString()}</td>
-                    <td style={{ padding: "12px 14px", fontSize: "12px" }}>{f.trip_type}</td>
+                    <td style={{ padding: "12px 14px", fontSize: "12px" }}>
+                      {f.route_type === 'VIA' ? (
+                        <div>
+                          <div style={{ fontWeight: "600", color: "#d4af37", marginBottom: "2px" }}>VIA</div>
+                          <div style={{ fontSize: "11px", color: "#6c757d" }}>{f.via_cities?.join(' → ') || 'N/A'}</div>
+                        </div>
+                      ) : (
+                        <span style={{ fontWeight: "600", color: "#28a745" }}>Direct</span>
+                      )}
+                    </td>
                     <td style={{ padding: "12px 14px" }}><StatusBadge status={f.status} /></td>
                     <td style={{ padding: "12px 14px" }}>
                       <div style={{ display: "flex", gap: "6px" }}>
-                        <button onClick={() => openEdit(f)} style={{ backgroundColor: "#0b1220", color: "white", border: "none", padding: "5px 12px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontWeight: "600" }}>Edit</button>
+                        <button onClick={() => openEdit(f)} style={{ backgroundColor: "#d4af37", color: "#0b1220", border: "none", padding: "5px 12px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontWeight: "600" }}>Edit</button>
                         <button onClick={() => handleDelete(f.id)} style={{ backgroundColor: "#dc3545", color: "white", border: "none", padding: "5px 12px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontWeight: "600" }}>Delete</button>
                       </div>
                     </td>
@@ -385,9 +539,9 @@ export default function AdminFlights() {
       {/* Modal */}
       {modal && (
         <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: "20px" }}>
-          <div style={{ backgroundColor: "white", borderRadius: "12px", padding: "28px", width: "100%", maxWidth: "680px", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.4)" }}>
+          <div style={{ backgroundColor: "var(--surface)", borderRadius: "12px", padding: "28px", width: "100%", maxWidth: "680px", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.4)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <h3 style={{ margin: 0, color: "#0b1220", fontSize: "20px", fontWeight: "700" }}>{modal === "add" ? "Add New Flight" : "Edit Flight"}</h3>
+              <h3 style={{ margin: 0, color: "var(--text-primary)", fontSize: "20px", fontWeight: "700" }}>{modal === "add" ? "Add New Flight" : "Edit Flight"}</h3>
               <button onClick={() => setModal(null)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#6c757d" }}>✕</button>
             </div>
             {formErr && <div style={{ background: "#f8d7da", color: "#721c24", padding: "10px", borderRadius: "6px", marginBottom: "14px", fontSize: "13px" }}>{formErr}</div>}
@@ -406,12 +560,12 @@ export default function AdminFlights() {
               <div>
                 <label style={labelStyle}>Flight Number</label>
                 {modal === "add" ? (
-                  <div style={{ padding: "10px 12px", border: "1px dashed #ced4da", borderRadius: "6px", fontSize: "14px", color: "#6c757d", backgroundColor: "#f8f9fa", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <div style={{ padding: "10px 12px", border: "1px dashed #ced4da", borderRadius: "6px", fontSize: "14px", color: "#6c757d", backgroundColor: "var(--background)", display: "flex", alignItems: "center", gap: "8px" }}>
                     <span style={{ fontSize: "16px" }}>⚙️</span>
                     <span>Auto-generated <strong style={{ color: "#d4af37" }}>AS####</strong> on save</span>
                   </div>
                 ) : (
-                  <div style={{ padding: "10px 12px", border: "1px solid #ced4da", borderRadius: "6px", fontSize: "14px", fontFamily: "monospace", fontWeight: "800", color: "#0b1220", backgroundColor: "#f8f9fa", letterSpacing: "1px" }}>
+                  <div style={{ padding: "10px 12px", border: "1px solid #ced4da", borderRadius: "6px", fontSize: "14px", fontFamily: "monospace", fontWeight: "800", color: "var(--text-primary)", backgroundColor: "var(--background)", letterSpacing: "1px" }}>
                     {form.flight_number || "—"}
                   </div>
                 )}
@@ -436,6 +590,45 @@ export default function AdminFlights() {
                   placeholder="Select type…"
                 />
               </div>
+              {/* Route Type */}
+              <div>
+                <label style={labelStyle}>Route Type</label>
+                <SearchableSelect
+                  value={form.route_type}
+                  onChange={v => {
+                    setForm(p => ({ ...p, route_type: v, via_cities: v === 'DIRECT' ? [] : p.via_cities }));
+                    if (v === 'DIRECT') setViaCitiesInput("");
+                  }}
+                  options={ROUTE_TYPE_OPTS}
+                  placeholder="Select route type…"
+                />
+              </div>
+              {/* Via Cities - only show when route_type is VIA */}
+              {form.route_type === 'VIA' && (
+                <div>
+                  <label style={labelStyle}>Via Cities (intermediate stops, comma-separated)</label>
+                  <input
+                    type="text"
+                    value={viaCitiesInput}
+                    onChange={e => setViaCitiesInput(e.target.value)}
+                    onBlur={e => {
+                      const cities = e.target.value.split(',').map(c => c.trim()).filter(c => c);
+                      setForm(p => ({ ...p, via_cities: cities }));
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        const cities = e.target.value.split(',').map(c => c.trim()).filter(c => c);
+                        setForm(p => ({ ...p, via_cities: cities }));
+                      }
+                    }}
+                    style={inputStyle}
+                    placeholder="e.g., Mombasa, Dar es Salaam"
+                  />
+                  <p style={{ fontSize: "11px", color: "#6c757d", marginTop: "4px", marginBottom: 0 }}>
+                    Enter cities in order of the flight path
+                  </p>
+                </div>
+              )}
               {/* Departure Airport */}
               <div>
                 <label style={labelStyle}>Departure Airport</label>
@@ -459,12 +652,35 @@ export default function AdminFlights() {
               {/* Departure Time */}
               <div>
                 <label style={labelStyle}>Departure Time</label>
-                <input type="datetime-local" value={form.departure_time} onChange={e => setForm(p => ({ ...p, departure_time: e.target.value }))} style={inputStyle} />
+                <input 
+                  type="datetime-local" 
+                  value={form.departure_time} 
+                  onChange={e => {
+                    const newDeparture = e.target.value;
+                    setForm(p => ({ ...p, departure_time: newDeparture }));
+                    // Update arrival min to be 1 minute after new departure
+                    if (newDeparture) {
+                      const depTime = new Date(newDeparture);
+                      const minArrival = new Date(depTime.getTime() + 60000);
+                      setArrivalMin(toLocalDatetimeLocal(minArrival));
+                    } else {
+                      setArrivalMin("");
+                    }
+                  }} 
+                  style={inputStyle}
+                  min={departureMin}
+                />
               </div>
               {/* Arrival Time */}
               <div>
                 <label style={labelStyle}>Arrival Time</label>
-                <input type="datetime-local" value={form.arrival_time} onChange={e => setForm(p => ({ ...p, arrival_time: e.target.value }))} style={inputStyle} />
+                <input 
+                  type="datetime-local" 
+                  value={form.arrival_time} 
+                  onChange={e => setForm(p => ({ ...p, arrival_time: e.target.value }))} 
+                  style={inputStyle}
+                  min={arrivalMin}
+                />
               </div>
               {/* Price */}
               <div>
@@ -504,9 +720,9 @@ export default function AdminFlights() {
       {/* Load More footer */}
       {!loading && flights.length > 0 && (
         <div style={{ textAlign: "center", marginTop: "20px", paddingBottom: "8px", padding: "0 28px 20px" }}>
-          <div style={{ color: "rgba(255,255,255,0.65)", fontSize: "13px", marginBottom: "12px" }}>
-            Showing <strong style={{ color: "white" }}>{flights.length}</strong> of{" "}
-            <strong style={{ color: "white" }}>{totalCount}</strong> flight{totalCount !== 1 ? "s" : ""}
+          <div style={{ color: "var(--text-secondary)", fontSize: "13px", marginBottom: "12px" }}>
+            Showing <strong style={{ color: "var(--text-primary)", fontWeight: "700" }}>{flights.length}</strong> of{" "}
+            <strong style={{ color: "var(--text-primary)", fontWeight: "700" }}>{totalCount}</strong> flight{totalCount !== 1 ? "s" : ""}
           </div>
           {nextUrl && (
             <button
@@ -538,11 +754,14 @@ export default function AdminFlights() {
       {/* Auto-Generate Flights Modal */}
       {genModal && (
         <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, padding: "20px" }}>
-          <div style={{ backgroundColor: "white", borderRadius: "14px", padding: "32px", width: "100%", maxWidth: "520px", boxShadow: "0 24px 60px rgba(0,0,0,0.45)" }}>
+          <div style={{ backgroundColor: "var(--surface)", borderRadius: "14px", padding: "32px", width: "100%", maxWidth: "520px", boxShadow: "0 24px 60px rgba(0,0,0,0.45)" }}>
             {/* Header */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>
               <div>
-                <h3 style={{ margin: 0, color: "#0b1220", fontSize: "22px", fontWeight: "800" }}>⚡ Auto-Generate Flights</h3>
+                <h3 style={{ margin: 0, color: "var(--text-primary)", fontSize: "22px", fontWeight: "800", display: "flex", alignItems: "center", gap: "10px" }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                  Auto-Generate Flights
+                </h3>
                 <p style={{ margin: "6px 0 0", color: "#6c757d", fontSize: "13px" }}>Creates a full 30-day schedule from all available resources</p>
               </div>
               <button onClick={() => setGenModal(false)} style={{ background: "none", border: "none", fontSize: "22px", cursor: "pointer", color: "#6c757d", marginLeft: "12px" }}>✕</button>
@@ -551,12 +770,27 @@ export default function AdminFlights() {
             {/* Stats cards */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "20px" }}>
               {[
-                { icon: "✈️", label: "Airports", value: airports.length, color: "#17a2b8" },
-                { icon: "🛫", label: "Aircraft", value: aircraft.length, color: "#6f42c1" },
-                { icon: "🏷️", label: "Airlines", value: airlines.filter(a => a.is_active !== false).length, color: "#d4af37" },
+                { 
+                  icon: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>, 
+                  label: "Airports", 
+                  value: airports.length, 
+                  color: "#17a2b8" 
+                },
+                { 
+                  icon: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>,</svg>, 
+                  label: "Aircraft", 
+                  value: aircraft.length, 
+                  color: "#6f42c1" 
+                },
+                { 
+                  icon: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>, 
+                  label: "Airlines", 
+                  value: airlines.filter(a => a.is_active !== false).length, 
+                  color: "#d4af37" 
+                },
               ].map(({ icon, label, value, color }) => (
                 <div key={label} style={{ background: "#f8f9fa", borderRadius: "10px", padding: "14px", textAlign: "center", border: `2px solid ${color}22` }}>
-                  <div style={{ fontSize: "22px" }}>{icon}</div>
+                  <div style={{ color, marginBottom: "8px" }}>{icon}</div>
                   <div style={{ fontSize: "24px", fontWeight: "800", color }}>{value}</div>
                   <div style={{ fontSize: "12px", color: "#6c757d", fontWeight: "600" }}>{label}</div>
                 </div>
@@ -568,12 +802,12 @@ export default function AdminFlights() {
               <div style={{ fontWeight: "700", marginBottom: "8px", fontSize: "14px" }}>Schedule Rules</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 12px" }}>
                 {[
-                  ["📅", "30 days from tomorrow"],
-                  ["🔁", "All routes within 3 days"],
-                  ["🕐", "06:00, 10:00, 12:00, 14:00"],
-                  ["🕐", "16:00, 18:00, 20:00"],
-                  ["🌍", "Domestic: ~1.5 h / KES 8k"],
-                  ["✈️", "International: ~4 h / KES 35k"],
+                  [<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>, "30 days from tomorrow"],
+                  [<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>, "All routes within 3 days"],
+                  [<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>, "06:00, 10:00, 12:00, 14:00"],
+                  [<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>, "16:00, 18:00, 20:00"],
+                  [<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>, "Domestic: ~1.5 h / KES 8k"],
+                  [<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>, "International: ~4 h / KES 35k"],
                 ].map(([icon, text], i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "3px 0" }}>{icon} {text}</div>
                 ))}
@@ -583,23 +817,61 @@ export default function AdminFlights() {
             {/* Result */}
             {genResult && (
               <div style={{
-                background: genResult.ok ? "#d4edda" : "#f8d7da",
-                color: genResult.ok ? "#155724" : "#721c24",
-                border: `1px solid ${genResult.ok ? "#c3e6cb" : "#f5c6cb"}`,
+                background: genResult.ok === true ? "#d4edda" : genResult.ok === false ? "#f8d7da" : "#cce5ff",
+                color: genResult.ok === true ? "#155724" : genResult.ok === false ? "#721c24" : "#004085",
+                border: `1px solid ${genResult.ok === true ? "#c3e6cb" : genResult.ok === false ? "#f5c6cb" : "#b8daff"}`,
                 borderRadius: "8px", padding: "14px", marginBottom: "16px", fontSize: "13px",
               }}>
-                {genResult.ok ? (
+                {genResult.ok === true ? (
                   <>
-                    <div style={{ fontWeight: "800", fontSize: "15px", marginBottom: "8px" }}>✓ {genResult.data.created} flights generated!</div>
+                    <div style={{ fontWeight: "800", fontSize: "15px", marginBottom: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      {genResult.data.created} flights generated!
+                    </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px", fontSize: "12px" }}>
-                      <span>📅 {genResult.data.days} days covered</span>
-                      <span>🚩 {genResult.data.route_pairs} route pairs</span>
-                      <span>✈️ {genResult.data.aircraft_used} aircraft used</span>
-                      <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> {genResult.data.skipped} skipped (capacity)</span>
+                      <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        {genResult.data.days} days covered
+                      </span>
+                      <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                        {genResult.data.route_pairs} route pairs
+                      </span>
+                      <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+                        {genResult.data.aircraft_used} aircraft used
+                      </span>
+                      <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        {genResult.data.skipped} skipped (capacity)
+                      </span>
                     </div>
                   </>
+                ) : genResult.ok === false ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    {genResult.message}
+                  </div>
                 ) : (
-                  <>✗ {genResult.message}</>
+                  <>
+                    <div style={{ fontWeight: "700", marginBottom: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                      {genResult.message}
+                    </div>
+                    <div style={{ 
+                      background: "rgba(255,255,255,0.5)", 
+                      borderRadius: "4px", 
+                      height: "8px", 
+                      overflow: "hidden" 
+                    }}>
+                      <div style={{ 
+                        background: "#007bff", 
+                        height: "100%", 
+                        width: `${genResult.percentage || 0}%`,
+                        transition: "width 0.3s ease"
+                      }} />
+                    </div>
+                  </>
                 )}
               </div>
             )}

@@ -4,7 +4,11 @@ import string
 =======
 import json
 import time
+<<<<<<< HEAD
 >>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
+=======
+import threading
+>>>>>>> 1f8170445e5037c8d4a27ddab2757e5b5f376943
 from datetime import datetime, date, timedelta, time as dt_time
 from decimal import Decimal
 
@@ -89,7 +93,8 @@ class FlightViewSet(viewsets.ReadOnlyModelViewSet):
         min_price = self.request.query_params.get("min_price")
         max_price = self.request.query_params.get("max_price")
         trip_type = self.request.query_params.get("trip_type")
-        max_stops = self.request.query_params.get("max_stops")
+        route_type = self.request.query_params.get("route_type")
+        via_city = self.request.query_params.get("via_city")
         airline = self.request.query_params.get("airline")
 
         if dep:
@@ -111,8 +116,11 @@ class FlightViewSet(viewsets.ReadOnlyModelViewSet):
             qs = qs.filter(price__lte=max_price)
         if trip_type:
             qs = qs.filter(trip_type=trip_type)
-        if max_stops:
-            qs = qs.filter(stops__lte=max_stops)
+        if route_type:
+            qs = qs.filter(route_type=route_type)
+        if via_city:
+            # Filter flights where via_cities contains the specified city
+            qs = qs.filter(route_type='VIA', via_cities__contains=[via_city])
         if airline:
             qs = qs.filter(airline__icontains=airline)
             
@@ -161,6 +169,16 @@ class FlightViewSet(viewsets.ReadOnlyModelViewSet):
             "all_cities": all_cities
         })
 
+    @action(detail=False, methods=['get'], url_path='via-cities')
+    def via_cities(self, request):
+        """Return unique cities from all VIA flights' via_cities"""
+        via_flights = Flight.objects.filter(route_type='VIA').values_list('via_cities', flat=True)
+        all_cities = set()
+        for cities in via_flights:
+            if cities:
+                all_cities.update(cities)
+        return Response(sorted(list(all_cities)))
+
 
 class BookingViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = BookingSerializer
@@ -173,7 +191,43 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=["post"], url_path="create_booking")
     def create_booking(self, request):
-        ser = CreateBookingSerializer(data=request.data)
+        import json
+        
+        # Prepare data for serializer
+        serializer_data = {}
+        
+        # Copy non-file fields from request.data
+        for key in request.data:
+            if key not in ['passenger_photos']:
+                value = request.data[key]
+                # If it's a list with one element (from FormData), unwrap it
+                # EXCEPT for passengers and seat_assignments which must always be lists
+                if isinstance(value, list) and len(value) == 1 and key not in ['passengers', 'seat_assignments']:
+                    serializer_data[key] = value[0]
+                else:
+                    serializer_data[key] = value
+        
+        # If this is a FormData request (multipart), parse JSON strings
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            try:
+                # Parse passengers JSON string
+                if 'passengers' in serializer_data and isinstance(serializer_data['passengers'], str):
+                    serializer_data['passengers'] = json.loads(serializer_data['passengers'])
+                
+                # Parse seat_assignments JSON string
+                if 'seat_assignments' in serializer_data and isinstance(serializer_data['seat_assignments'], str):
+                    serializer_data['seat_assignments'] = json.loads(serializer_data['seat_assignments'])
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error parsing JSON from FormData: {e}")
+        
+        ser = CreateBookingSerializer(data=serializer_data)
+        if not ser.is_valid():
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"CreateBooking validation errors: {ser.errors}")
+            logger.error(f"Request data: {serializer_data}")
         ser.is_valid(raise_exception=True)
         data = ser.validated_data
 
@@ -187,6 +241,21 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
 =======
         passenger_data = data["passengers"]
         seat_assignments = data["seat_assignments"]
+        stopover_city = data.get("stopover_city", "").strip()
+        
+        # Validate stopover city for VIA flights
+        if flight.route_type == 'VIA':
+            if not stopover_city:
+                return Response({
+                    "detail": "Stopover city is required for VIA flights. Please select a stopover city from the available options."
+                }, status=400)
+            if stopover_city not in flight.via_cities:
+                return Response({
+                    "detail": f"Invalid stopover city '{stopover_city}'. Must be one of: {', '.join(flight.via_cities)}"
+                }, status=400)
+        else:
+            # For DIRECT flights, ignore stopover_city if provided
+            stopover_city = ""
         
         # CONSTRAINT 1: Prevent user from booking the same flight twice (unless multi-passenger)
         # Check if user already has a booking for this flight
@@ -206,23 +275,27 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
                 }, status=400)
         
         # CONSTRAINT 2: Prevent user from booking flights that depart at the same time
-        # Get all active bookings for this user and check for conflicting departure times
-        user_bookings = Booking.objects.filter(
-            user=request.user
-        ).exclude(
-            booking_status='CANCELLED'
-        ).select_related('flight')
+        # Skip this check for multi-passenger bookings (booking for others)
+        is_multi_passenger = len(passenger_data) > 1 or not request.data.get("for_self", False)
         
-        # Check if any existing booking has a flight departing at the same time (within 1 hour window)
-        for existing_booking in user_bookings:
-            existing_flight = existing_booking.flight
-            time_diff = abs((existing_flight.departure_time - flight.departure_time).total_seconds())
+        if not is_multi_passenger:
+            # Get all active bookings for this user and check for conflicting departure times
+            user_bookings = Booking.objects.filter(
+                user=request.user
+            ).exclude(
+                booking_status='CANCELLED'
+            ).select_related('flight')
             
-            # If flights depart within 1 hour of each other, reject the booking
-            if time_diff < 3600:  # 3600 seconds = 1 hour
-                return Response({
-                    "detail": f"You already have a booking for a flight departing around the same time ({existing_flight.departure_time.strftime('%Y-%m-%d %H:%M')}). You cannot book overlapping flights."
-                }, status=400)
+            # Check if any existing booking has a flight departing at the same time (within 1 hour window)
+            for existing_booking in user_bookings:
+                existing_flight = existing_booking.flight
+                time_diff = abs((existing_flight.departure_time - flight.departure_time).total_seconds())
+                
+                # If flights depart within 1 hour of each other, reject the booking
+                if time_diff < 3600:  # 3600 seconds = 1 hour
+                    return Response({
+                        "detail": f"You already have a booking for a flight departing around the same time ({existing_flight.departure_time.strftime('%Y-%m-%d %H:%M')}). You cannot book overlapping flights."
+                    }, status=400)
         
 >>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         # Validate seat assignments
@@ -293,10 +366,26 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
                 user=request.user,
                 flight=flight,
                 booking_status='PENDING',
-                total_amount=0  # Will be calculated after creating passengers
+                total_amount=0,  # Will be calculated after creating passengers
+                stopover_city=stopover_city if stopover_city else None
             )
             
             total_price = 0
+            
+            # Get passenger photos from request files (if any)
+            passenger_photos = request.FILES.getlist('passenger_photos')
+            
+            # Check if this is a self-booking to use user's profile photo
+            is_self_booking = request.data.get('for_self') == True
+            user_profile_photo = None
+            if is_self_booking and hasattr(request.user, 'profile'):
+                try:
+                    user_profile_photo = request.user.profile.profile_photo
+                except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Error getting profile photo: {e}")
+                    pass
             
             # Create passengers and boarding passes
             for i, assignment in enumerate(seat_assignments):
@@ -328,13 +417,23 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
                 
                 total_price += price
                 
+                # Get passenger photo - priority: uploaded file > user profile photo > None
+                passenger_photo = None
+                if i < len(passenger_photos):
+                    # Use uploaded photo (multi-passenger booking)
+                    passenger_photo = passenger_photos[i]
+                elif is_self_booking and user_profile_photo:
+                    # Use user's profile photo for self-booking
+                    passenger_photo = user_profile_photo
+                
                 # Create boarding pass (without QR code yet)
                 BoardingPass.objects.create(
                     booking=booking,
                     seat=seat,
                     passenger=passenger,
                     qr_code_data=f"BP_{booking.id}_{passenger.id}_{seat.seat_number}",
-                    price=price
+                    price=price,
+                    passenger_photo=passenger_photo
                 )
             
             # Update total amount
@@ -611,7 +710,14 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
         booking = self.get_object()
         
         latest_payment = booking.payments.order_by('-created_at').first()
+        
+        # Debug logging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Boarding pass check - Booking {booking.id}: status={booking.booking_status}, payment_exists={latest_payment is not None}, payment_status={latest_payment.status if latest_payment else 'N/A'}")
+        
         if booking.booking_status not in ('CONFIRMED', 'ONBOARD') or not latest_payment or latest_payment.status != 'SUCCESS':
+            logger.warning(f"Boarding pass denied - Booking status: {booking.booking_status}, Has payment: {latest_payment is not None}, Payment status: {latest_payment.status if latest_payment else 'No payment'}")
             return Response({"detail": "Payment required. Complete payment to download boarding passes."}, status=402)
         
         boarding_passes = booking.boarding_passes.all()
@@ -1018,7 +1124,10 @@ class PesapalIPNView(APIView):
                 try:
                     parts = merchant_reference.split('-')
                     if len(parts) >= 2:
-                        booking_id = int(parts[1])
+                        # booking_id is at index 1, but UUID has hyphens so we need to handle that
+                        # Format: AEROSYNC-{uuid}-{timestamp}
+                        # UUID has 5 parts separated by hyphens, so we need indices 1-5
+                        booking_id = '-'.join(parts[1:-1])  # Join all parts except first (AEROSYNC) and last (timestamp)
                 except (ValueError, IndexError):
                     pass
             
@@ -1059,7 +1168,7 @@ class PesapalIPNView(APIView):
                     payment.save()
                 print(f"[{timestamp}] {ip_address} Using payment {payment.id}")
             
-            if payment_status in ['COMPLETED', 'COMPLETE'] or str(status_code) == '1':
+            if payment_status.upper() in ['COMPLETED', 'COMPLETE'] or str(status_code) == '1':
                 payment.status = 'SUCCESS'
                 payment.payment_detail = f"Status: {payment_status} | Code: {status_code}"
                 
@@ -1071,19 +1180,19 @@ class PesapalIPNView(APIView):
                 
                 print(f"[{timestamp}] {ip_address} ✅ SUCCESS - Booking {payment.booking.id} confirmed via signal")
                 
-            elif payment_status == 'FAILED' or str(status_code) == '2':
+            elif payment_status.upper() == 'FAILED' or str(status_code) == '2':
                 payment.status = 'FAILED'
                 payment.payment_detail = f"Status: {payment_status}"
                 payment.save()
                 print(f"[{timestamp}] {ip_address} ❌ FAILED - Booking {payment.booking.id}")
                 
-            elif payment_status in ['INVALID', 'CANCELLED'] or str(status_code) == '0':
+            elif payment_status.upper() in ['INVALID', 'CANCELLED'] or str(status_code) == '0':
                 payment.status = 'CANCELLED'
                 payment.payment_detail = f"Invalid transaction - {status_result.get('description', '')}"
                 payment.save()
                 print(f"⛔ Payment INVALID/CANCELLED for booking {payment.booking.id}")
                 
-            elif payment_status == 'REVERSED' or str(status_code) == '3':
+            elif payment_status.upper() == 'REVERSED' or str(status_code) == '3':
                 payment.status = 'REVERSED'
                 payment.payment_detail = f"Reversed - {status_result.get('description', '')}"
                 payment.save()
@@ -1166,15 +1275,15 @@ class PesapalStatusCheckView(APIView):
             new_payment_status = payment.status
             needs_update = False
             
-            if status_result['status'] in ['COMPLETED', 'COMPLETE'] and payment.status != 'SUCCESS':
+            if status_result['status'].upper() in ['COMPLETED', 'COMPLETE'] and payment.status != 'SUCCESS':
                 new_payment_status = 'SUCCESS'
                 needs_update = True
                 logger.info(f"Payment {payment.id} marked as SUCCESS via polling")
-            elif status_result['status'] == 'FAILED' and payment.status != 'FAILED':
+            elif status_result['status'].upper() == 'FAILED' and payment.status != 'FAILED':
                 # Don't auto-update to FAILED during polling - wait for IPN
                 # This prevents premature modal closure
                 logger.debug(f"Payment {payment.id} shows FAILED but waiting for IPN confirmation")
-            elif status_result['status'] in ['INVALID', 'CANCELLED'] and payment.status not in ['CANCELLED', 'INVALID']:
+            elif status_result['status'].upper() in ['INVALID', 'CANCELLED'] and payment.status not in ['CANCELLED', 'INVALID']:
                 # Don't auto-update to CANCELLED during polling - wait for IPN
                 # Pesapal sandbox often returns CANCELLED prematurely
                 logger.debug(f"Payment {payment.id} shows {status_result['status']} but waiting for IPN confirmation")
@@ -1184,13 +1293,12 @@ class PesapalStatusCheckView(APIView):
                 payment.status = new_payment_status
                 payment.payment_detail = f"Status: {status_result['status']}"
                 
-                # Only update booking status if payment is now SUCCESS
-                if new_payment_status == 'SUCCESS' and payment.booking.booking_status != 'CONFIRMED':
-                    payment.booking.booking_status = 'CONFIRMED'
-                    payment.booking.save(update_fields=['booking_status'])
+                # DO NOT manually update booking status here!
+                # Let the auto_confirm_booking_on_payment_success signal handle it
+                # so it can send boarding pass emails properly
                 
-                payment.save()
-                logger.info(f"Payment {payment.id} status updated to {new_payment_status}")
+                payment.save()  # This will trigger the signal which will update booking and send emails
+                logger.info(f"Payment {payment.id} status updated to {new_payment_status}. Signal will handle booking confirmation.")
             else:
                 logger.debug(f"Payment {payment.id} status unchanged ({payment.status})")
             
@@ -1347,6 +1455,272 @@ class FlightAdminPagination(PageNumberPagination):
     max_page_size = 500
 
 
+DEPART_HOURS = [6, 10, 12, 14, 16, 18, 20]
+
+# Dictionary to track background task status
+_flight_generation_tasks = {}
+
+def _generate_flights_background(task_id):
+    """Background thread function to generate flights - simple and fast"""
+    import itertools
+    import logging
+    import time
+    from django.db import transaction, models
+    from django.db.models import Max
+    from django.utils import timezone
+    
+    logger = logging.getLogger(__name__)
+    logger.info(f"Background task {task_id} starting...")
+    
+    try:
+        _flight_generation_tasks[task_id]['status'] = 'running'
+        _flight_generation_tasks[task_id]['started_at'] = timezone.now().isoformat()
+        logger.info(f"Task {task_id} status set to 'running'")
+        
+        TARGET_FLIGHTS = 1000  # Generate exactly 1000 flights
+        DAYS = 9
+        HOURS = DEPART_HOURS
+
+        airports = list(Airport.objects.all())
+        aircraft_list = list(Aircraft.objects.all())
+        airlines_list = list(Airline.objects.filter(is_active=True))
+
+        if len(airports) < 2:
+            _flight_generation_tasks[task_id]['status'] = 'failed'
+            _flight_generation_tasks[task_id]['error'] = "Need at least 2 airports to generate flights."
+            return
+            
+        if not aircraft_list:
+            _flight_generation_tasks[task_id]['status'] = 'failed'
+            _flight_generation_tasks[task_id]['error'] = "No aircraft available. Please add aircraft first."
+            return
+            
+        if not airlines_list:
+            _flight_generation_tasks[task_id]['status'] = 'failed'
+            _flight_generation_tasks[task_id]['error'] = "No active airlines. Please seed or add airlines first."
+            return
+
+        today = date.today()
+        logger.info(f"Task {task_id}: Starting generation of {TARGET_FLIGHTS} flights")
+        logger.info(f"Task {task_id}: {len(airports)} airports, {len(aircraft_list)} aircraft, {len(airlines_list)} airlines")
+
+        # Get the highest existing flight number to start from there
+        # This ensures we never conflict with existing flights
+        existing_numbers = Flight.objects.filter(
+            flight_number__regex=r'^AS[0-9]+$'
+        ).values_list('flight_number', flat=True)
+        
+        # Parse existing numbers and find max
+        max_num = 0
+        for fn in existing_numbers:
+            try:
+                num = int(fn[2:])  # Remove "AS" prefix
+                if num > max_num:
+                    max_num = num
+            except (ValueError, IndexError):
+                pass
+        
+        fn_counter = max_num + 1  # Start from next number
+        logger.info(f"Task {task_id}: Starting flight numbers from AS{fn_counter:05d}")
+        
+        created = 0
+        skipped = 0
+        n_ac = len(aircraft_list)
+        n_al = len(airlines_list)
+        
+        BATCH_SIZE = 100  # Commit every 100 flights
+        flights_batch = []
+        
+        # Track aircraft time slots to prevent double-booking
+        # Key: (aircraft_id, date, hour) -> True if booked
+        aircraft_schedule = {}
+        
+        # Track aircraft location: which airport is each aircraft at on each date/hour
+        # Key: (aircraft_id, date, hour) -> airport_id where aircraft is located
+        aircraft_location = {}
+        
+        # Load existing aircraft schedules from database
+        existing_flights = Flight.objects.filter(
+            departure_time__date__gte=today + timedelta(days=1),
+            departure_time__date__lte=today + timedelta(days=DAYS),
+        ).select_related('departure_airport', 'arrival_airport').values_list(
+            'aircraft_id', 
+            'departure_time__date', 
+            'departure_time__hour',
+            'departure_airport_id',
+            'arrival_airport_id',
+            'arrival_time'
+        )
+        
+        for ac_id, dep_date, dep_hour, dep_ap_id, arr_ap_id, arr_time in existing_flights:
+            # Mark aircraft as busy at departure time
+            aircraft_schedule[(ac_id, dep_date, dep_hour)] = True
+            
+            # Track aircraft movement
+            # Aircraft is at departure airport before flight
+            aircraft_location[(ac_id, dep_date, dep_hour)] = dep_ap_id
+            
+            # Calculate arrival date and hour
+            arr_date = arr_time.date()
+            arr_hour = arr_time.hour
+            
+            # After arrival, aircraft is at arrival airport
+            # Mark all hours after arrival as being at arrival airport
+            from datetime import timedelta as td
+            current_hour = arr_hour
+            current_date = arr_date
+            for _ in range(24):  # Track for rest of the day and next day
+                aircraft_location[(ac_id, current_date, current_hour)] = arr_ap_id
+                current_hour += 1
+                if current_hour >= 24:
+                    current_hour = 0
+                    current_date += td(days=1)
+        
+        logger.info(f"Task {task_id}: Loaded {len(aircraft_schedule)} existing aircraft slots")
+        
+        # Initialize aircraft locations - assume all aircraft start at a random airport
+        # (or you could set a specific home base for each aircraft)
+        import random
+        for ac in aircraft_list:
+            # Assign each aircraft a starting airport (random or use first airport)
+            start_airport = random.choice(airports)
+            for day_offset in range(DAYS + 1):
+                current_date = today + timedelta(days=day_offset)
+                for hour in range(24):
+                    key = (ac.id, current_date, hour)
+                    if key not in aircraft_location:
+                        aircraft_location[key] = start_airport.id
+        
+        # Simple nested loop to generate flights
+        for day_offset in range(DAYS):
+            if created >= TARGET_FLIGHTS:
+                break
+                
+            current_date = today + timedelta(days=day_offset + 1)
+            
+            # Randomly sample airport pairs instead of all permutations
+            airport_pairs = list(itertools.permutations(airports, 2))
+            random.shuffle(airport_pairs)
+            
+            for dep_ap, arr_ap in airport_pairs:
+                if created >= TARGET_FLIGHTS:
+                    break
+                    
+                for hour in HOURS:
+                    if created >= TARGET_FLIGHTS:
+                        break
+                    
+                    # Find an available aircraft for this time slot
+                    # THAT IS ALSO AT THE CORRECT DEPARTURE AIRPORT
+                    ac_assigned = None
+                    for ac in aircraft_list:
+                        slot_key = (ac.id, current_date, hour)
+                        
+                        # Check if aircraft is available (not booked)
+                        if slot_key in aircraft_schedule:
+                            continue
+                        
+                        # Check if aircraft is at the correct departure airport
+                        ac_current_location = aircraft_location.get(slot_key)
+                        if ac_current_location != dep_ap.id:
+                            continue
+                        
+                        # This aircraft is available AND at the right airport!
+                        ac_assigned = ac
+                        aircraft_schedule[slot_key] = True  # Mark as booked
+                        
+                        # Update aircraft location for the flight duration
+                        dep_dt = timezone.make_aware(
+                            datetime.combine(current_date, dt_time(hour, 0))
+                        )
+                        dur_h = 1.5 if dep_ap.country == arr_ap.country else 4.0
+                        arr_dt = dep_dt + timedelta(hours=dur_h)
+                        arr_date = arr_dt.date()
+                        arr_hour = arr_dt.hour
+                        
+                        # Mark aircraft at arrival airport after flight
+                        from datetime import timedelta as td
+                        current_h = arr_hour
+                        current_d = arr_date
+                        for _ in range(24):  # Mark for rest of day
+                            aircraft_location[(ac.id, current_d, current_h)] = arr_ap.id
+                            current_h += 1
+                            if current_h >= 24:
+                                current_h = 0
+                                current_d += td(days=1)
+                        
+                        break
+                    
+                    if ac_assigned is None:
+                        # No aircraft available at this airport at this time
+                        skipped += 1
+                        continue
+                    
+                    airline = random.choice(airlines_list)
+                    
+                    dep_dt = timezone.make_aware(
+                        datetime.combine(current_date, dt_time(hour, 0))
+                    )
+                    dur_h = 1.5 if dep_ap.country == arr_ap.country else 4.0
+                    arr_dt = dep_dt + timedelta(hours=dur_h)
+
+                    base = 8_000 if dep_ap.country == arr_ap.country else 35_000
+                    price = max(3_000, base + random.randint(-1_000, 5_000))
+                    
+                    # Generate unique flight number (sequential, no collisions)
+                    flight_number = f"AS{fn_counter:05d}"
+                    fn_counter += 1
+
+                    flights_batch.append(Flight(
+                        flight_number=flight_number,
+                        aircraft=ac_assigned,
+                        airline=airline.name,
+                        departure_airport=dep_ap,
+                        arrival_airport=arr_ap,
+                        departure_time=dep_dt,
+                        arrival_time=arr_dt,
+                        price=price,
+                        trip_type="ONE_WAY",
+                        stops=0,
+                        status="SCHEDULED",
+                    ))
+                    created += 1
+                    
+                    # Commit batch
+                    if len(flights_batch) >= BATCH_SIZE:
+                        logger.info(f"Task {task_id}: Committing batch ({created}/{TARGET_FLIGHTS})")
+                        with transaction.atomic():
+                            Flight.objects.bulk_create(flights_batch, batch_size=100)
+                        flights_batch = []
+                    
+                    # Update progress
+                    _flight_generation_tasks[task_id]['progress'] = created
+
+        # Commit remaining flights
+        if flights_batch:
+            logger.info(f"Task {task_id}: Committing final batch")
+            with transaction.atomic():
+                Flight.objects.bulk_create(flights_batch, batch_size=100)
+
+        _flight_generation_tasks[task_id]['status'] = 'completed'
+        _flight_generation_tasks[task_id]['completed_at'] = timezone.now().isoformat()
+        _flight_generation_tasks[task_id]['estimated_total'] = TARGET_FLIGHTS
+        _flight_generation_tasks[task_id]['result'] = {
+            "detail": f"Generated {created} flights over {DAYS} days.",
+            "created": created,
+            "skipped": skipped,
+            "days": DAYS,
+            "airports": len(airports),
+            "aircraft_used": n_ac,
+            "airlines_used": n_al,
+        }
+        logger.info(f"Task {task_id} completed: {created} flights created")
+    except Exception as e:
+        _flight_generation_tasks[task_id]['status'] = 'failed'
+        _flight_generation_tasks[task_id]['error'] = str(e)
+        logger.error(f"Flight generation task {task_id} failed: {e}", exc_info=True)
+
+
 class FlightAdminViewSet(viewsets.ModelViewSet):
     queryset = Flight.objects.select_related("departure_airport", "arrival_airport", "aircraft").all().order_by("-departure_time")
     serializer_class = FlightAdminSerializer
@@ -1360,6 +1734,11 @@ class FlightAdminViewSet(viewsets.ModelViewSet):
         to_code       = self.request.query_params.get("to")
         airline       = self.request.query_params.get("airline")
         status        = self.request.query_params.get("status")
+        
+        # Exclude completed flights by default unless status filter is explicitly provided
+        if not status:
+            qs = qs.exclude(status='COMPLETED')
+        
         if flight_number:
             qs = qs.filter(flight_number__icontains=flight_number)
         if from_code:
@@ -1381,6 +1760,7 @@ class FlightAdminViewSet(viewsets.ModelViewSet):
         mark_completed_flights()
         return super().list(request, *args, **kwargs)
 
+<<<<<<< HEAD
 <<<<<<< HEAD
     # ---- Allowed departure hours ----
 =======
@@ -1537,16 +1917,74 @@ class FlightAdminViewSet(viewsets.ModelViewSet):
 >>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         Flight.objects.bulk_create(flights_to_create, batch_size=500)
 
+=======
+    @action(detail=False, methods=["post"], url_path="generate_flights")
+    def generate_flights(self, request):
+        import uuid
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # Create a new task
+        task_id = str(uuid.uuid4())
+        logger.info(f"Creating flight generation task: {task_id}")
+        
+        _flight_generation_tasks[task_id] = {
+            'status': 'pending',
+            'task_id': task_id,
+            'created_at': timezone.now().isoformat(),
+            'progress': 0,
+            'estimated_total': 0,
+        }
+        
+        # Start background thread
+        thread = threading.Thread(
+            target=_generate_flights_background,
+            args=(task_id,),
+            daemon=True
+        )
+        thread.start()
+        
+        logger.info(f"Flight generation task {task_id} started")
+        
+>>>>>>> 1f8170445e5037c8d4a27ddab2757e5b5f376943
         return Response({
-            "detail": f"Generated {created} flights over {DAYS} days. {skipped} skipped (aircraft fully booked).",
-            "created":       created,
-            "skipped":       skipped,
-            "days":          DAYS,
-            "route_pairs":   len(all_pairs),
-            "airports":      len(airports),
-            "aircraft_used": n_ac,
-            "airlines_used": n_al,
-        })
+            "detail": "Flight generation started. Use the task_id to check status.",
+            "task_id": task_id,
+        }, status=202)
+    
+    @action(detail=False, methods=["get"], url_path="generation_status/(?P<task_id>[^/.]+)")
+    def generation_status(self, request, task_id=None):
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"Checking status for task_id: {task_id}")
+        logger.info(f"Available tasks: {list(_flight_generation_tasks.keys())}")
+        
+        if task_id not in _flight_generation_tasks:
+            logger.warning(f"Task {task_id} not found")
+            return Response({"detail": "Task not found."}, status=404)
+        
+        task_info = _flight_generation_tasks[task_id]
+        logger.info(f"Task status: {task_info.get('status')}")
+        
+        # Return a clean response with all necessary fields
+        response_data = {
+            'task_id': task_id,
+            'status': task_info.get('status', 'unknown'),
+            'created_at': task_info.get('created_at'),
+            'started_at': task_info.get('started_at'),
+            'completed_at': task_info.get('completed_at'),
+            'progress': task_info.get('progress', 0),
+            'estimated_total': task_info.get('estimated_total', 0),
+        }
+        
+        # Add result or error if available
+        if 'result' in task_info:
+            response_data['result'] = task_info['result']
+        if 'error' in task_info:
+            response_data['error'] = task_info['error']
+        
+        return Response(response_data)
 
 
     @action(detail=True, methods=["post"], url_path="generate_seats")
@@ -1604,25 +2042,40 @@ class BookingAdminViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="confirm_payment")
     def confirm_payment(self, request, pk=None):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         booking = self.get_object()
         payment = booking.payments.order_by("-created_at").first()
         if not payment:
             return Response({"detail": "No payment found for this booking."}, status=404)
+        
+        logger.info(f"Admin confirming payment for booking {booking.id}")
         payment.status = "SUCCESS"
-        payment.save(update_fields=["status"])
+        payment.save(update_fields=["status"])  # This triggers broadcast_payment_update signal
+        
         booking.booking_status = "CONFIRMED"
-        booking.save(update_fields=["booking_status"])
+        booking.save(update_fields=["booking_status"])  # This triggers broadcast_booking_update signal
+        
+        logger.info(f"Payment confirmed and booking updated. WebSocket signals should have been triggered.")
         return Response({"detail": "Payment confirmed. Booking is now CONFIRMED."})
 
     @action(detail=True, methods=["post"], url_path="update_status")
     def update_status(self, request, pk=None):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         booking = self.get_object()
         new_status = request.data.get("booking_status")
         valid = ["PENDING", "CONFIRMED", "CANCELLED", "FAILED"]
         if new_status not in valid:
             return Response({"detail": f"Invalid status. Choose from: {valid}"}, status=400)
+        
+        logger.info(f"Admin updating booking {booking.id} status from {booking.booking_status} to {new_status}")
         booking.booking_status = new_status
-        booking.save(update_fields=["booking_status"])
+        booking.save(update_fields=["booking_status"])  # This triggers broadcast_booking_update signal
+        
+        logger.info(f"Booking status updated. WebSocket signal should have been triggered.")
         return Response({"detail": f"Status updated to {new_status}."})
 
 
@@ -1802,6 +2255,43 @@ class SummaryReportView(APIView):
         })
 
 
+class FlightsWithBookingsView(APIView):
+    """Return flights that have at least one booking, with booking count"""
+    permission_classes = [IsAgentOrAdmin]
+
+    def get(self, request):
+        from django.db import models
+        
+        # Get flight IDs that have bookings
+        flight_ids = Booking.objects.values_list('flight_id', flat=True).distinct()
+        
+        # Get those flights with related data
+        flights = Flight.objects.filter(
+            id__in=flight_ids
+        ).select_related(
+            'departure_airport', 'arrival_airport'
+        ).annotate(
+            booking_count=models.Count('booking')
+        ).order_by('departure_time')
+        
+        data = []
+        for flight in flights:
+            data.append({
+                "id": flight.id,
+                "flight_number": flight.flight_number,
+                "departure_code": flight.departure_airport.code,
+                "arrival_code": flight.arrival_airport.code,
+                "departure_city": flight.departure_airport.city,
+                "arrival_city": flight.arrival_airport.city,
+                "route_type": flight.route_type,
+                "via_cities": flight.via_cities,
+                "departure_time": flight.departure_time,
+                "booking_count": flight.booking_count,
+            })
+        
+        return Response(data)
+
+
 # ------------------ AGENT ------------------
 
 class AgentFlightViewSet(viewsets.ReadOnlyModelViewSet):
@@ -1826,7 +2316,7 @@ class AgentFlightViewSet(viewsets.ReadOnlyModelViewSet):
             return (
                 Flight.objects
                 .select_related("departure_airport", "arrival_airport")
-                .filter(flight_number__icontains=search)
+                .filter(flight_number__icontains=search, status="SCHEDULED")
                 .order_by("departure_time")
             )
         from_city = self.request.query_params.get("from_city")
@@ -1984,6 +2474,20 @@ class AgentBookingViewSet(viewsets.ViewSet):
         passengers = request.data.get("passengers", [])
         seat_ids   = request.data.get("seat_ids", [])
 
+        # Parse JSON strings if coming from FormData
+        import json
+        if isinstance(passengers, str):
+            try:
+                passengers = json.loads(passengers)
+            except:
+                passengers = []
+        
+        if isinstance(seat_ids, str):
+            try:
+                seat_ids = json.loads(seat_ids)
+            except:
+                seat_ids = []
+
         if not flight_id:
             return Response({"detail": "flight_id is required"}, status=400)
         if not passengers:
@@ -2043,6 +2547,12 @@ class AgentBookingViewSet(viewsets.ViewSet):
             multiplier = seats[i].price_multiplier if i < len(seats) else Decimal("1.00")
             total_amount += calc_price(p.get("passenger_type", "ADULT"), multiplier)
 
+        # Get passenger photos from request files (if any)
+        passenger_photos = request.FILES.getlist('passenger_photos')
+        print(f"[DEBUG] Passenger photos received: {len(passenger_photos)}")
+        for idx, photo in enumerate(passenger_photos):
+            print(f"[DEBUG] Photo {idx}: {photo.name}, size: {photo.size}, content_type: {photo.content_type}")
+
         with transaction.atomic():
             booking = Booking.objects.create(
                 user=target_user,
@@ -2070,12 +2580,18 @@ class AgentBookingViewSet(viewsets.ViewSet):
                     phone_number=p.get("phone_number", ""),
                 )
                 if seat:
+                    # Get passenger photo if available
+                    passenger_photo = None
+                    if i < len(passenger_photos):
+                        passenger_photo = passenger_photos[i]
+                    
                     BoardingPass.objects.create(
                         booking=booking,
                         passenger=passenger_obj,
                         seat=seat,
                         price=calc_price(passenger_obj.passenger_type, seat.price_multiplier),
                         qr_code_data=f"BP_{booking.id}_{passenger_obj.id}_{seat.seat_number}",
+                        passenger_photo=passenger_photo
                     )
                     seat.is_available = False
                     seat.save(update_fields=["is_available"])
@@ -2129,6 +2645,7 @@ class VerifyQRView(APIView):
 
         already_onboard = bp.is_checked_in
 
+<<<<<<< HEAD
         if not already_onboard:
             bp.is_checked_in = True
             bp.save(update_fields=["is_checked_in"])
@@ -2137,13 +2654,22 @@ class VerifyQRView(APIView):
             if booking.booking_status == "CONFIRMED":
                 booking.booking_status = "ONBOARD"
                 booking.save(update_fields=["booking_status"])
+=======
+        # Build passenger photo URL
+        passenger_photo_url = None
+        if bp.passenger_photo:
+            passenger_photo_url = f"/api/auth/media/{bp.passenger_photo.name}"
+>>>>>>> 1f8170445e5037c8d4a27ddab2757e5b5f376943
 
         payload = {
             "valid": True,
             "already_onboard": already_onboard,
+            "boarding_pass_id": str(bp.id),
             "booking_reference": booking.confirmation_code,
             "status": booking.booking_status,
             "passenger_name": passenger.full_name if passenger else None,
+            "passenger_type": passenger.passenger_type if passenger else None,
+            "passenger_photo_url": passenger_photo_url,
             "flight_number": booking.flight.flight_number if booking.flight else None,
             "departure": booking.flight.departure_airport.code if booking.flight else None,
             "arrival": booking.flight.arrival_airport.code if booking.flight else None,
@@ -2152,6 +2678,7 @@ class VerifyQRView(APIView):
             "flight_id": booking.flight_id,
         }
 
+<<<<<<< HEAD
 <<<<<<< HEAD
         # Persist scan log
 =======
@@ -2167,14 +2694,100 @@ class VerifyQRView(APIView):
             already_onboard=already_onboard,
         )
 
+=======
+>>>>>>> 1f8170445e5037c8d4a27ddab2757e5b5f376943
         return Response(payload)
+
+
+class ConfirmBoardingView(APIView):
+    """Confirm or cancel boarding after agent verifies passenger photo"""
+    permission_classes = [IsAgentOrAdmin]
+
+    def post(self, request):
+        boarding_pass_id = (request.data or {}).get("boarding_pass_id")
+        action = (request.data or {}).get("action")  # 'confirm' or 'cancel'
+
+        if not boarding_pass_id:
+            return Response({"detail": "boarding_pass_id is required"}, status=400)
+        
+        if action not in ['confirm', 'cancel']:
+            return Response({"detail": "action must be 'confirm' or 'cancel'"}, status=400)
+
+        try:
+            bp = BoardingPass.objects.select_related(
+                "booking", "booking__flight",
+                "booking__flight__departure_airport",
+                "booking__flight__arrival_airport",
+                "seat", "passenger",
+            ).get(id=boarding_pass_id)
+        except BoardingPass.DoesNotExist:
+            return Response({"detail": "Boarding pass not found"}, status=404)
+
+        booking = bp.booking
+        passenger = bp.passenger
+
+        if action == 'confirm':
+            # Mark as checked in
+            already_onboard = bp.is_checked_in
+            if not already_onboard:
+                bp.is_checked_in = True
+                bp.save(update_fields=["is_checked_in"])
+
+                if booking.booking_status == "CONFIRMED":
+                    booking.booking_status = "ONBOARD"
+                    booking.save(update_fields=["booking_status"])
+
+            # Log the scan
+            ScanLog.objects.create(
+                scanned_by=request.user,
+                boarding_pass=bp,
+                booking_reference=booking.confirmation_code or "",
+                passenger_name=passenger.full_name if passenger else "",
+                flight_number=booking.flight.flight_number if booking.flight else "",
+                seat_number=bp.seat.seat_number if bp.seat else "",
+                booking_status=booking.booking_status,
+                already_onboard=already_onboard,
+                action="confirm",
+            )
+
+            return Response({
+                "success": True,
+                "action": "confirmed",
+                "already_onboard": already_onboard,
+                "status": booking.booking_status,
+                "message": "Passenger marked as ON BOARD" if not already_onboard else "Passenger was already on board"
+            })
+        
+        else:  # action == 'cancel'
+            # Log the cancellation
+            ScanLog.objects.create(
+                scanned_by=request.user,
+                boarding_pass=bp,
+                booking_reference=booking.confirmation_code or "",
+                passenger_name=passenger.full_name if passenger else "",
+                flight_number=booking.flight.flight_number if booking.flight else "",
+                seat_number=bp.seat.seat_number if bp.seat else "",
+                booking_status=booking.booking_status,
+                already_onboard=bp.is_checked_in,
+                action="cancel",
+            )
+
+            return Response({
+                "success": True,
+                "action": "cancelled",
+                "message": "Boarding cancelled by agent"
+            })
 
 
 class ScanHistoryView(APIView):
     permission_classes = [IsAgentOrAdmin]
 
     def get(self, request):
-        logs = ScanLog.objects.filter(scanned_by=request.user).select_related("boarding_pass")[:200]
+        # Only return confirmed scans (action='confirm')
+        logs = ScanLog.objects.filter(
+            scanned_by=request.user,
+            action="confirm"
+        ).select_related("boarding_pass")[:200]
         data = [
             {
                 "booking_reference": log.booking_reference,

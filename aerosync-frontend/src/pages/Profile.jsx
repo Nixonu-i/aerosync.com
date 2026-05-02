@@ -108,10 +108,27 @@ export default function Profile() {
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Validate file size (max 2MB)
+      const maxSize = 2 * 1024 * 1024; // 2MB
+      if (file.size > maxSize) {
+        setError(`File size must be under 2MB. Current size: ${(file.size / 1024).toFixed(0)}KB`);
+        e.target.value = ''; // Reset file input
+        return;
+      }
+      
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        setError('Unsupported file type. Please use JPG, PNG, GIF, or WebP images.');
+        e.target.value = ''; // Reset file input
+        return;
+      }
+      
       setFormData(prev => ({
         ...prev,
         profile_photo: file
       }));
+      setError(''); // Clear any previous errors
       // Reset saved state when user changes photo
       if (saved) setSaved(false);
     }
@@ -208,7 +225,7 @@ export default function Profile() {
       // Redirect to booking page if user came from flights
       if (flightId) {
         setTimeout(() => {
-          navigate(`/bookings?flight=flightId}&seat=choice`, {
+          navigate(`/bookings?flight=${flightId}&seat=choice`, {
             state: { message: 'Profile completed! Continue with your booking.' }
           });
         }, 1000); // Wait 1 second so user sees success message
@@ -228,38 +245,37 @@ export default function Profile() {
 
   /* ── shared styles ── */
   const CARD = {
-    background: "rgba(11, 18, 32, 0.82)",
-    border: "1px solid rgba(212,175,55,0.18)",
+    background: "var(--surface)",
+    border: "1px solid var(--border)",
     borderRadius: "14px",
-    backdropFilter: "blur(12px)",
-    boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+    boxShadow: "0 8px 24px var(--shadow-md)",
   };
   const locked = !isFirstTime && isProfileComplete;
   // Phone number and profile photo can always be edited
   const phonePhotoEditable = true;
   const inputSt = {
     width: "100%", padding: "11px 14px", borderRadius: "8px",
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: locked ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.07)",
-    color: locked ? "rgba(255,255,255,0.5)" : "#fff",
+    border: "1px solid var(--border)",
+    background: locked ? "var(--background)" : "var(--surface)",
+    color: locked ? "var(--text-primary)" : "var(--text-primary)",
     fontSize: "14px", outline: "none", boxSizing: "border-box",
     cursor: locked ? "not-allowed" : "auto",
   };
   // Input style for always-editable fields (phone number)
   const editableInputSt = {
     ...inputSt,
-    background: "rgba(255,255,255,0.07)",
-    color: "#fff",
+    background: "var(--surface)",
+    color: "var(--text-primary)",
     cursor: "auto",  // Normal text cursor for inputs
   };
   const labelSt = {
     display: "block", marginBottom: "7px",
-    fontWeight: 600, color: "rgba(255,255,255,0.7)", fontSize: "13px",
+    fontWeight: 600, color: "var(--text-secondary)", fontSize: "13px",
   };
 
   if (!user) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", color: "rgba(255,255,255,0.4)", fontSize: "16px" }}>
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", color: "var(--text-secondary)", fontSize: "16px" }}>
         Loading...
       </div>
     );
@@ -287,7 +303,7 @@ export default function Profile() {
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
             ) : (
-              <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.3)" }}>
+              <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)" }}>
                 <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
                 </svg>
@@ -295,17 +311,17 @@ export default function Profile() {
             )}
           </div>
           <div>
-            <h1 style={{ color: "white", fontSize: "28px", fontWeight: 700, margin: "0 0 4px", letterSpacing: "-0.02em" }}>
+            <h1 style={{ color: "var(--text-primary)", fontSize: "28px", fontWeight: 700, margin: "0 0 4px", letterSpacing: "-0.02em" }}>
               My Profile
             </h1>
-            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "13px", margin: 0 }}>
+            <p style={{ color: "var(--text-secondary)", fontSize: "13px", margin: 0 }}>
               {locked ? "Your personal details are locked after initial setup." : "Fill in your personal details — required before booking."}
             </p>
           </div>
         </div>
         
         {/* Upload Button */}
-        <div style={{ display: "flex", gap: "10px" }}>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
           <label htmlFor="profile-photo-upload" style={{
             display: "inline-flex",
             alignItems: "center",
@@ -322,12 +338,15 @@ export default function Profile() {
             <input
               id="profile-photo-upload"
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
               onChange={handlePhotoChange}
               style={{ display: "none" }}
             />
             Update Photo
           </label>
+          <span style={{ color: "var(--text-secondary)", fontSize: "12px" }}>
+            Max 2MB (JPG, PNG, GIF, WebP)
+          </span>
         </div>
       </div>
 
@@ -353,7 +372,7 @@ export default function Profile() {
             type="text"
             value={user.full_name || user.username || ""}
             readOnly
-            style={{ ...inputSt, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", cursor: "default" }}
+            style={{ ...inputSt, background: "var(--background)", color: "var(--text-primary)", cursor: "default" }}
           />
         </div>
 
@@ -366,7 +385,7 @@ export default function Profile() {
             value={formData.date_of_birth}
             onChange={(v) => handleChange({ target: { name: "date_of_birth", value: v } })}
             disabled={locked && name !== "phone_number" && name !== "phone_area_code"}
-            theme="dark"
+            theme="light"
           />
         </div>
 
@@ -381,10 +400,10 @@ export default function Profile() {
             disabled={locked && name !== "phone_number" && name !== "phone_area_code"}
             style={{ ...inputSt, appearance: "none" }}
           >
-            <option value="" style={{ background: "#0b1220" }}>Select Gender</option>
-            <option value="MALE" style={{ background: "#0b1220" }}>Male</option>
-            <option value="FEMALE" style={{ background: "#0b1220" }}>Female</option>
-            <option value="OTHER" style={{ background: "#0b1220" }}>Other</option>
+            <option value="" style={{ background: "var(--surface)" }}>Select Gender</option>
+            <option value="MALE" style={{ background: "var(--surface)" }}>Male</option>
+            <option value="FEMALE" style={{ background: "var(--surface)" }}>Female</option>
+            <option value="OTHER" style={{ background: "var(--surface)" }}>Other</option>
           </select>
         </div>
 
@@ -399,31 +418,31 @@ export default function Profile() {
             disabled={locked && name !== "phone_number" && name !== "phone_area_code"}
             style={{ ...inputSt, appearance: "none" }}
           >
-            <option value="" style={{ background: "#0b1220" }}>Select Nationality</option>
-            <option value="Kenyan" style={{ background: "#0b1220" }}>Kenyan</option>
-            <option value="Tanzanian" style={{ background: "#0b1220" }}>Tanzanian</option>
-            <option value="Ugandan" style={{ background: "#0b1220" }}>Ugandan</option>
-            <option value="Rwandan" style={{ background: "#0b1220" }}>Rwandan</option>
-            <option value="Burundian" style={{ background: "#0b1220" }}>Burundian</option>
-            <option value="Ethiopian" style={{ background: "#0b1220" }}>Ethiopian</option>
-            <option value="Somali" style={{ background: "#0b1220" }}>Somali</option>
-            <option value="Djiboutian" style={{ background: "#0b1220" }}>Djiboutian</option>
-            <option value="South African" style={{ background: "#0b1220" }}>South African</option>
-            <option value="Nigerian" style={{ background: "#0b1220" }}>Nigerian</option>
-            <option value="Ghanaian" style={{ background: "#0b1220" }}>Ghanaian</option>
-            <option value="Egyptian" style={{ background: "#0b1220" }}>Egyptian</option>
-            <option value="Moroccan" style={{ background: "#0b1220" }}>Moroccan</option>
-            <option value="Tunisian" style={{ background: "#0b1220" }}>Tunisian</option>
-            <option value="Algerian" style={{ background: "#0b1220" }}>Algerian</option>
-            <option value="Libyan" style={{ background: "#0b1220" }}>Libyan</option>
-            <option value="Sudanese" style={{ background: "#0b1220" }}>Sudanese</option>
-            <option value="American" style={{ background: "#0b1220" }}>American</option>
-            <option value="British" style={{ background: "#0b1220" }}>British</option>
-            <option value="Canadian" style={{ background: "#0b1220" }}>Canadian</option>
-            <option value="Australian" style={{ background: "#0b1220" }}>Australian</option>
-            <option value="Indian" style={{ background: "#0b1220" }}>Indian</option>
-            <option value="Chinese" style={{ background: "#0b1220" }}>Chinese</option>
-            <option value="Japanese" style={{ background: "#0b1220" }}>Japanese</option>
+            <option value="" style={{ background: "var(--surface)" }}>Select Nationality</option>
+            <option value="Kenyan" style={{ background: "var(--surface)" }}>Kenyan</option>
+            <option value="Tanzanian" style={{ background: "var(--surface)" }}>Tanzanian</option>
+            <option value="Ugandan" style={{ background: "var(--surface)" }}>Ugandan</option>
+            <option value="Rwandan" style={{ background: "var(--surface)" }}>Rwandan</option>
+            <option value="Burundian" style={{ background: "var(--surface)" }}>Burundian</option>
+            <option value="Ethiopian" style={{ background: "var(--surface)" }}>Ethiopian</option>
+            <option value="Somali" style={{ background: "var(--surface)" }}>Somali</option>
+            <option value="Djiboutian" style={{ background: "var(--surface)" }}>Djiboutian</option>
+            <option value="South African" style={{ background: "var(--surface)" }}>South African</option>
+            <option value="Nigerian" style={{ background: "var(--surface)" }}>Nigerian</option>
+            <option value="Ghanaian" style={{ background: "var(--surface)" }}>Ghanaian</option>
+            <option value="Egyptian" style={{ background: "var(--surface)" }}>Egyptian</option>
+            <option value="Moroccan" style={{ background: "var(--surface)" }}>Moroccan</option>
+            <option value="Tunisian" style={{ background: "var(--surface)" }}>Tunisian</option>
+            <option value="Algerian" style={{ background: "var(--surface)" }}>Algerian</option>
+            <option value="Libyan" style={{ background: "var(--surface)" }}>Libyan</option>
+            <option value="Sudanese" style={{ background: "var(--surface)" }}>Sudanese</option>
+            <option value="American" style={{ background: "var(--surface)" }}>American</option>
+            <option value="British" style={{ background: "var(--surface)" }}>British</option>
+            <option value="Canadian" style={{ background: "var(--surface)" }}>Canadian</option>
+            <option value="Australian" style={{ background: "var(--surface)" }}>Australian</option>
+            <option value="Indian" style={{ background: "var(--surface)" }}>Indian</option>
+            <option value="Chinese" style={{ background: "var(--surface)" }}>Chinese</option>
+            <option value="Japanese" style={{ background: "var(--surface)" }}>Japanese</option>
           </select>
         </div>
 
@@ -439,18 +458,18 @@ export default function Profile() {
               disabled={false}
               style={{ ...editableInputSt, width: "auto", minWidth: "110px", flex: "0 0 auto", appearance: "none" }}
             >
-              <option value="+254" style={{ background: "#0b1220" }}>+254 (KE)</option>
-              <option value="+255" style={{ background: "#0b1220" }}>+255 (TZ)</option>
-              <option value="+256" style={{ background: "#0b1220" }}>+256 (UG)</option>
-              <option value="+250" style={{ background: "#0b1220" }}>+250 (RW)</option>
-              <option value="+257" style={{ background: "#0b1220" }}>+257 (BI)</option>
-              <option value="+251" style={{ background: "#0b1220" }}>+251 (ET)</option>
-              <option value="+252" style={{ background: "#0b1220" }}>+252 (SO)</option>
-              <option value="+253" style={{ background: "#0b1220" }}>+253 (DJ)</option>
-              <option value="+27"  style={{ background: "#0b1220" }}>+27 (ZA)</option>
-              <option value="+234" style={{ background: "#0b1220" }}>+234 (NG)</option>
-              <option value="+233" style={{ background: "#0b1220" }}>+233 (GH)</option>
-              <option value="+20"  style={{ background: "#0b1220" }}>+20 (EG)</option>
+              <option value="+254" style={{ background: "var(--surface)" }}>+254 (KE)</option>
+              <option value="+255" style={{ background: "var(--surface)" }}>+255 (TZ)</option>
+              <option value="+256" style={{ background: "var(--surface)" }}>+256 (UG)</option>
+              <option value="+250" style={{ background: "var(--surface)" }}>+250 (RW)</option>
+              <option value="+257" style={{ background: "var(--surface)" }}>+257 (BI)</option>
+              <option value="+251" style={{ background: "var(--surface)" }}>+251 (ET)</option>
+              <option value="+252" style={{ background: "var(--surface)" }}>+252 (SO)</option>
+              <option value="+253" style={{ background: "var(--surface)" }}>+253 (DJ)</option>
+              <option value="+27"  style={{ background: "var(--surface)" }}>+27 (ZA)</option>
+              <option value="+234" style={{ background: "var(--surface)" }}>+234 (NG)</option>
+              <option value="+233" style={{ background: "var(--surface)" }}>+233 (GH)</option>
+              <option value="+20"  style={{ background: "var(--surface)" }}>+20 (EG)</option>
             </select>
             <input
               type="tel"
@@ -480,13 +499,6 @@ export default function Profile() {
             </div>
           )}
         </div>
-
-        {/* locked notice */}
-        {locked && (
-          <div style={{ background: "rgba(212,175,55,0.07)", border: "1px solid rgba(212,175,55,0.2)", borderRadius: "8px", padding: "10px 14px", marginBottom: "20px", fontSize: "12px", color: "rgba(255,255,255,0.45)" }}>
-            Profile details are locked after initial setup.
-          </div>
-        )}
 
         {/* Save button */}
         <button

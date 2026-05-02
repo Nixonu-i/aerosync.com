@@ -1,49 +1,59 @@
 # AeroSync - Technical Documentation
 
 ## Table of Contents
-1. [System Architecture](#system-architecture)
-2. [Backend Structure](#backend-structure)
-3. [Frontend Structure](#frontend-structure)
-4. [Database Models](#database-models)
-5. [API Endpoints](#api-endpoints)
-6. [Key Features](#key-features)
-7. [Authentication & Authorization](#authentication--authorization)
-8. [Real-time Communication](#real-time-communication)
-9. [Payment Processing](#payment-processing)
-10. [Deployment](#deployment)
+1. [Project Overview](#project-overview)
+2. [System Architecture](#system-architecture)
+3. [Technology Stack](#technology-stack)
+4. [Backend Architecture](#backend-architecture)
+5. [Frontend Architecture](#frontend-architecture)
+6. [Database Schema](#database-schema)
+7. [API Endpoints](#api-endpoints)
+8. [Key Features](#key-features)
+9. [Security Implementation](#security-implementation)
+10. [Real-time Communication](#real-time-communication)
+11. [Payment Processing](#payment-processing)
+12. [Theme System](#theme-system)
+13. [Deployment Architecture](#deployment-architecture)
+14. [Performance Optimizations](#performance-optimizations)
+
+---
+
+## Project Overview
+
+AeroSync is a comprehensive, production-ready flight booking and management platform built with Django and React. The system supports three distinct user roles—Customers, Agents, and Administrators—each with dedicated interfaces and capabilities.
+
+### Core Capabilities
+
+**Customer Features:**
+- Browse and search available flights
+- Multi-passenger booking with seat selection
+- Secure payment processing via Pesapal
+- Real-time booking status updates via WebSocket
+- Digital boarding pass generation with QR codes
+- Profile management with photo upload
+- Booking history and management
+
+**Agent Features:**
+- Create bookings on behalf of customers
+- QR code scanning for boarding pass verification
+- Duplicate scan detection and prevention
+- Booking history with boarding pass downloads
+- Flight availability viewing
+- Agent profile management
+
+**Administrator Features:**
+- Complete flight management (CRUD operations)
+- User management across all roles
+- Airline, aircraft, and airport management
+- Real-time analytics and reporting
+- Activity logging and audit trails
+- System monitoring
 
 ---
 
 ## System Architecture
 
-### Overview
-AeroSync is a full-stack flight booking system with real-time WebSocket updates, UUID-based primary keys, externalized media storage, and async task processing.
-
-### Technology Stack
-
-**Backend:**
-- **Django 6.0.2** - Python web framework
-- **Django REST Framework 3.16.1** - RESTful API
-- **Django Channels** - WebSocket support
-- **Daphne** - ASGI server for WebSockets
-- **Gunicorn** - WSGI server for HTTP requests (fast)
-- **PostgreSQL** - Primary database
-- **Celery** - Background task processing (optional)
-- **JWT** - Token-based authentication
-- **Brevo (SendInBlue)** - Email service
-
-**Frontend:**
-- **React 19.2.0** - UI library
-- **Vite** - Build tool
-- **TailwindCSS** - Styling
-- **React Router** - Client-side routing
-
-**Infrastructure:**
-- **Cloudflare Tunnel** - Secure HTTPS without port forwarding
-- **Systemd** - Service management
-- **Nginx** - Reverse proxy (local development)
-
-### Architecture Diagram
+### Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -101,764 +111,657 @@ AeroSync is a full-stack flight booking system with real-time WebSocket updates,
 └─────────────────────────────────────────────────────┘
 ```
 
+### Hybrid Server Architecture
+
+The platform uses a dual-server approach for optimal performance:
+
+- **Gunicorn (WSGI)**: Handles all HTTP API requests on port 8000 with 3 synchronous workers for fast response times
+- **Daphne (ASGI)**: Manages WebSocket connections on port 8001 for real-time updates
+- **Result**: 10-20x faster API responses compared to pure ASGI implementation
+
 ---
 
-## Backend Structure
+## Technology Stack
 
-### `/aerosync-backend/`
+### Backend Technologies
+
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| Django | 6.0.2 | Python web framework |
+| Django REST Framework | 3.16.1 | RESTful API development |
+| Django Channels | 4.2.0 | WebSocket support |
+| Daphne | 4.2.0 | ASGI server for WebSockets |
+| Gunicorn | 25.1.0 | WSGI HTTP server |
+| PostgreSQL | Latest | Primary database |
+| psycopg 3 | 3.3.3 | PostgreSQL adapter |
+| Redis | 5.2.1 | WebSocket channel layer |
+| JWT (djangorestframework-simplejwt) | 5.5.1 | Token authentication |
+| Brevo (SendInBlue) | sib_api_v3_sdk | Email service |
+| Pesapal | API v3 | Payment gateway |
+| QR Code | qrcode 8.2 | Boarding pass generation |
+| Pillow | 12.1.1 | Image processing |
+| WhiteNoise | 6.5.0 | Static file serving |
+
+### Frontend Technologies
+
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| React | 19.2.0 | UI library |
+| Vite | 8.0.0-beta.13 | Build tool |
+| React Router | 7.13.1 | Client-side routing |
+| Axios | 1.13.5 | HTTP client |
+| html5-qrcode | 2.3.8 | QR code scanning |
+
+### Infrastructure
+
+- **Cloudflare Tunnel**: Secure HTTPS without port forwarding
+- **Systemd**: Service management
+- **Nginx**: Reverse proxy (local development)
+
+---
+
+## Backend Architecture
+
+### Project Structure
 
 ```
 aerosync-backend/
-├── aerosync/                  # Django project configuration
-│   ├── __init__.py
-│   ├── settings.py           # ⚙️ Main configuration file
-│   ├── urls.py               # 🌐 Root URL routing
-│   ├── wsgi.py               # 🚀 WSGI application (for Gunicorn)
-│   └── asgi.py               # 🔌 ASGI application (for Daphne/WebSocket)
+├── aerosync/                      # Django project configuration
+│   ├── settings.py               # Main configuration
+│   ├── urls.py                   # Root URL routing
+│   ├── wsgi.py                   # WSGI application (Gunicorn)
+│   └── asgi.py                   # ASGI application (Daphne)
 │
-├── accounts/                  # 👤 User authentication & profiles
-│   ├── migrations/           # Database schema changes
+├── accounts/                      # User authentication & profiles
+│   ├── models.py                 # User & Profile models
+│   ├── views.py                  # Authentication endpoints
+│   ├── serializers.py            # Data serialization
+│   ├── urls.py                   # Account routes
+│   ├── middleware.py             # Request processing
 │   ├── services/
-│   │   └── email_service.py  # 📧 Brevo email integration
-│   ├── templates/emails/     # HTML email templates
-│   ├── models.py             # User & Profile models
-│   ├── views.py              # Authentication endpoints
-│   ├── serializers.py        # Data serialization
-│   ├── urls.py               # Account routes
-│   ├── middleware.py         # Request processing
-│   └── admin.py              # Django admin config
+│   │   └── email_service.py      # Brevo email integration
+│   ├── templates/emails/         # HTML email templates
+│   ├── management/commands/
+│   │   ├── cleanup_unverified_users.py
+│   │   └── fix_profile_completion.py
+│   └── admin.py                  # Django admin config
 │
-├── core/                      # ✈️ Main business logic
-│   ├── management/commands/  # Custom Django commands
-│   │   ├── generate_missing_seats.py
-│   │   └── create_test_data.py
-│   ├── migrations/           # Core app migrations
-│   ├── models.py             # All business models
-│   ├── views.py              # API viewsets & endpoints
-│   ├── serializers.py        # Model serializers
-│   ├── urls.py               # API routes
-│   ├── services.py           # Business logic services
-│   ├── signals.py            # Event handlers & notifications
-│   ├── permissions.py        # Custom permission classes
-│   ├── tasks.py              # Celery background tasks
-│   ├── websocket.py          # WebSocket consumers
-│   ├── flight_generator.py   # 🔄 Async flight generation
-│   └── activity_views.py     # User activity tracking
+├── core/                          # Main business logic
+│   ├── models.py                 # All business models
+│   ├── views.py                  # API viewsets & endpoints
+│   ├── serializers.py            # Model serializers
+│   ├── urls.py                   # API routes
+│   ├── services.py               # Business logic services
+│   ├── signals.py                # Event handlers & notifications
+│   ├── permissions.py            # Custom permission classes
+│   ├── tasks.py                  # Background tasks
+│   ├── websocket.py              # WebSocket consumers
+│   ├── activity_views.py         # User activity tracking
+│   ├── ip_risk_service.py        # IP risk assessment
+│   ├── pesapal_service.py        # Payment processing
+│   ├── db_middleware.py          # Database middleware
+│   ├── middleware.py             # Custom middleware
+│   └── management/commands/
+│       ├── auto_complete_bookings.py
+│       ├── auto_complete_flights.py
+│       ├── generate_missing_seats.py
+│       └── update_booking_statuses.py
 │
-├── media/                     # Legacy media files (deprecated)
-├── ~/aerosync-media/          # ✨ New external media storage
-│
-├── manage.py                  # Django CLI tool
-├── start.sh                   # 🚀 Server startup script
-├── gunicorn_config.py         # Gunicorn configuration
-├── requirements.txt           # Python dependencies
-└── .env                       # Environment variables
+├── media/                         # Media files
+├── staticfiles/                   # Collected static files
+├── manage.py                      # Django CLI tool
+├── start.sh                       # Server startup script
+├── gunicorn_config.py             # Gunicorn configuration
+├── requirements.txt               # Python dependencies
+└── .env                           # Environment variables
 ```
 
----
+### Key Backend Components
 
-## Key Files Explained
+#### 1. Custom User Model
 
-### 1. `aerosync/settings.py`
-
-**Purpose:** Main Django configuration file
-
-**Key Sections:**
-
-```python
-# Database Configuration
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'aerosync',
-        'USER': 'aerosync',
-        'PASSWORD': 'aerosync',
-        'HOST': '127.0.0.1',
-        'PORT': '5432',
-    }
-}
-# Uses PostgreSQL with UUID support for all primary keys
-
-# External Media Storage
-MEDIA_ROOT = os.path.expanduser("~/aerosync-media/")
-# Stores files outside project directory for production safety
-# Organized by date: profile_photos/2026/04/user_uuid_filename.jpg
-
-# Authentication
-AUTH_USER_MODEL = 'accounts.User'
-# Custom User model with UUID primary key
-
-# REST Framework
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ],
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
-    ],
-}
-# JWT authentication required for all endpoints by default
-
-# Channels (WebSocket)
-ASGI_APPLICATION = 'aerosync.asgi.application'
-# Required for real-time booking updates
-
-# Cache Configuration
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-    }
-}
-# Used for async task progress tracking
-```
-
-### 2. `aerosync/asgi.py`
-
-**Purpose:** ASGI application for WebSocket support
-
-```python
-# Initializes Django ASGI application
-django_asgi_app = get_asgi_application()
-
-# Routes WebSocket connections to consumers
-application = ProtocolTypeRouter({
-    "http": django_asgi_app,        # Regular HTTP (not used - Gunicorn handles this)
-    "websocket": AllowedHostsOriginValidator(
-        AuthMiddlewareStack(
-            URLRouter(websocket_urlpatterns)  # WebSocket routes
-        )
-    ),
-})
-```
-
-**How it works:**
-1. Daphne reads this file on startup
-2. Routes HTTP requests to Django (backup)
-3. Routes WebSocket connections to appropriate consumers
-4. Authenticates WebSocket connections using JWT tokens
-
-### 3. `aerosync/wsgi.py`
-
-**Purpose:** WSGI application for fast HTTP requests
-
-```python
-from django.core.wsgi import get_wsgi_application
-application = get_wsgi_application()
-```
-
-**Why separate from ASGI:**
-- WSGI is synchronous → **10-20x faster** for regular API calls
-- ASGI has async overhead → Slower for simple requests
-- Gunicorn (WSGI) handles HTTP, Daphne (ASGI) handles WebSocket
-
-### 4. `start.sh`
-
-**Purpose:** Server startup script
-
-```bash
-# Starts Gunicorn on port 8000 for HTTP (FAST)
-gunicorn \
-    --bind 127.0.0.1:8000 \
-    --workers 3 \              # 3 concurrent workers
-    --worker-class sync \      # Synchronous workers (fastest for CPU-bound)
-    --timeout 300 \            # 5 min timeout for long requests
-    aerosync.wsgi:application
-
-# Starts Daphne on port 8001 for WebSocket only
-daphne \
-    --bind 127.0.0.1:8001 \
-    aerosync.asgi:application
-
-# Starts Cloudflare tunnel
-cloudflared tunnel run aerosync-backend
-```
-
-**Architecture:**
-- **Port 8000**: Gunicorn handles all HTTP API requests
-- **Port 8001**: Daphne handles WebSocket connections
-- **Cloudflare**: Routes external traffic to both ports
-
-### 5. `accounts/models.py`
-
-**Purpose:** User authentication and profile management
+The system uses a custom User model with UUID primary keys for enhanced security:
 
 ```python
 class User(AbstractUser):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
-    phone_number = models.CharField(max_length=20)
-    role = models.CharField(max_length=20, choices=[
+    role = models.CharField(max_length=10, choices=[
         ('ADMIN', 'Admin'),
         ('AGENT', 'Agent'),
-        ('CUSTOMER', 'Customer')
-    ])
-    email_verified = models.BooleanField(default=False)
-    date_of_birth = models.DateField()
+        ('CUST', 'Customer')
+    ], default='CUST')
+    theme_preference = models.CharField(max_length=10, choices=[
+        ('LIGHT', 'Light'),
+        ('DARK', 'Dark'),
+        ('SYSTEM', 'System Default')
+    ], default='LIGHT')
+    staff_id = models.CharField(max_length=20, unique=True, blank=True, null=True)
+    is_email_verified = models.BooleanField(default=False)
+    is_pending_verification = models.BooleanField(default=True)
+    email_verification_code = models.CharField(max_length=6, blank=True, null=True)
+    password_reset_code = models.CharField(max_length=6, blank=True, null=True)
     
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username', 'phone_number', 'role', 'date_of_birth']
+    REQUIRED_FIELDS = ['username']
+```
 
+**Features:**
+- Email-based authentication instead of username
+- Role-based access control (Admin, Agent, Customer)
+- Theme preference storage for UI customization
+- Email verification with OTP codes
+- Password reset functionality
+- Staff ID tracking for agents
+
+#### 2. Profile Model
+
+Extends User with additional personal information:
+
+```python
 class Profile(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    profile_photo = models.ImageField(upload_to=profile_photo_upload_to)
-    phone_number = models.CharField(max_length=20)
-    initial_setup_done = models.BooleanField(default=False)
+    date_of_birth = models.DateField(null=True, blank=True)
+    gender = models.CharField(max_length=20, choices=[...], blank=True, null=True)
+    nationality = models.CharField(max_length=50, blank=True, null=True)
+    phone_area_code = models.CharField(max_length=10, default='+254')
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
+    profile_photo = models.ImageField(upload_to=profile_photo_upload_to, blank=True, null=True)
     # Address fields for boarding passes
     address_line1, city, country, postal_code...
+    initial_setup_done = models.BooleanField(default=False)
 ```
 
-**How it works:**
-1. UUID primary keys → Security, distributed systems friendly
-2. Custom User model → Email instead of username login
-3. Profile extends User → Separate table for profile data
-4. Email verification → Account security
-5. Role-based access → Admin, Agent, Customer permissions
+#### 3. Flight Model
 
-### 6. `core/models.py`
-
-**Purpose:** All business domain models
-
-**Models Hierarchy:**
+Supports both direct and multi-stop flights:
 
 ```python
-Airline
-  └─ name, code, country, is_active
-
-Aircraft
-  └─ tail_number, model, airline (FK→Airline), seat_configuration
-
-Airport
-  └─ iata_code, name, city, country
-
-Flight
-  └─ flight_number, aircraft (FK→Aircraft), airline
-     departure_airport (FK→Airport), arrival_airport (FK→Airport)
-     departure_time, arrival_time, price, status
-
-Seat
-  └─ aircraft (FK→Aircraft), seat_number, seat_class
-     is_booked, is_blocked
-
-Booking
-  └─ user (FK→User), flight (FK→Flight), confirmation_code
-     total_amount, status, booking_type
-
-Passenger
-  └─ booking (FK→Booking), first_name, last_name, date_of_birth
-
-Payment
-  └─ booking (FK→Booking), provider, provider_reference
-     amount, status
-
-BoardingPass
-  └─ booking (FK→Booking), seat (FK→Seat), qr_code_data
-     issued_at, is_scanned
-
-ScanLog
-  └─ boarding_pass (FK→BoardingPass), scanned_by (FK→User)
-     scanned_at, success
-
-UserActivityLog
-  └─ user (FK→User), action, ip_address, user_agent
+class Flight(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    flight_number = models.CharField(max_length=20, unique=True)
+    aircraft = models.ForeignKey(Aircraft, on_delete=models.CASCADE)
+    airline = models.CharField(max_length=100)
+    departure_airport = models.ForeignKey(Airport, on_delete=models.CASCADE, related_name='departures')
+    arrival_airport = models.ForeignKey(Airport, on_delete=models.CASCADE, related_name='arrivals')
+    departure_time = models.DateTimeField()
+    arrival_time = models.DateTimeField()
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    trip_type = models.CharField(max_length=20, choices=[('ONE_WAY', 'One Way'), ('ROUND_TRIP', 'Round Trip')])
+    route_type = models.CharField(max_length=20, choices=[('DIRECT', 'Direct'), ('VIA', 'Via')], default='DIRECT')
+    via_cities = models.JSONField(default=list, blank=True)  # Intermediate cities
+    stops = models.IntegerField(default=0)
+    status = models.CharField(max_length=20, choices=[...], default='SCHEDULED')
 ```
 
-**UUID Primary Keys:**
-```python
-# Every model uses UUID
-id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-```
+**Features:**
+- Direct and multi-stop (VIA) route support
+- JSON field for intermediate cities
+- Auto-calculated stops based on via_cities
+- Flight status tracking (SCHEDULED, DELAYED, CANCELLED, COMPLETED)
 
-**Benefits:**
-- No sequential IDs → Harder to guess booking numbers
-- Globally unique → Safe for distributed systems
-- No ID collision on merges
+#### 4. Booking System
 
-### 7. `core/views.py`
-
-**Purpose:** API endpoints (ViewSet-based)
-
-**Key Endpoints:**
+Multi-passenger booking with comprehensive tracking:
 
 ```python
-class FlightViewSet(viewsets.ModelViewSet):
-    queryset = Flight.objects.all()
-    serializer_class = FlightSerializer
-    
-    # Async flight generation
-    @action(detail=False, methods=["post"], url_path="generate_flights")
-    def generate_flights(self, request):
-        """Returns immediately with job_id (<500ms)"""
-        # 1. Quick validation (<100ms)
-        airports_count = Airport.objects.count()
-        if airports_count < 2:
-            return Response({"error": "Need 2+ airports"}, status=400)
-        
-        # 2. Start background thread
-        job_id = str(uuid.uuid4())
-        cache.set(f'flight_gen_{job_id}', {'status': 'starting'}, 600)
-        
-        thread = threading.Thread(
-            target=generate_flights_async,
-            args=(job_id, self.DEPART_HOURS),
-            daemon=True
-        )
-        thread.start()
-        
-        # 3. Return immediately
-        return Response({
-            "job_id": job_id,
-            "status": "started"
-        }, status=202)
-    
-    # Progress polling
-    @action(detail=False, methods=["get"], url_path="generation_status/(?P<job_id>[^/.]+)")
-    def generation_status(self, request, job_id):
-        """Check async task progress"""
-        status = cache.get(f'flight_gen_{job_id}')
-        return Response(status)
-
-class BookingViewSet(viewsets.ModelViewSet):
-    # CRUD operations
-    # Payment processing
-    # Seat selection
-    # Boarding pass generation
+class Booking(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bookings')
+    flight = models.ForeignKey(Flight, on_delete=models.CASCADE)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)  # Agent/staff
+    confirmation_code = models.CharField(max_length=10, unique=True)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    booking_status = models.CharField(max_length=20, choices=[
+        ('PENDING', 'Pending Payment'),
+        ('CONFIRMED', 'Confirmed'),
+        ('ONBOARD', 'On Board'),
+        ('CANCELLED', 'Cancelled'),
+        ('FAILED', 'Failed')
+    ], default='PENDING')
+    stopover_city = models.CharField(max_length=100, blank=True, null=True)
+    booking_date = models.DateTimeField(auto_now_add=True)
 ```
 
-### 8. `core/flight_generator.py`
+**Features:**
+- Agent/staff can create bookings on behalf of customers
+- Unique confirmation codes
+- Granular status tracking
+- Support for stopover cities on VIA flights
 
-**Purpose:** Async flight generation logic
+#### 5. Passenger Model
 
-**How it works:**
+Individual passenger details per booking:
 
 ```python
-def generate_flights_async(job_id: str, depart_hours: list):
-    """Generate 30 days of flights in background"""
-    
-    # 1. Update progress
-    cache.set(f'flight_gen_{job_id}', {'status': 'processing', 'progress': 0}, 300)
-    
-    # 2. Load data
-    airports = list(Airport.objects.all())
-    aircraft = list(Aircraft.objects.all())
-    airlines = list(Airline.objects.filter(is_active=True))
-    
-    # 3. Generate route cycles
-    pairs = list(permutations(airports, 2))
-    CYCLE = 3
-    buckets = [pairs[i::CYCLE] for i in range(CYCLE)]
-    
-    # 4. Loop through 30 days
-    for day in range(30):
-        current_date = today + timedelta(days=day+1)
-        pairs_today = buckets[day % CYCLE]
-        
-        # 5. For each route pair
-        for dep_ap, arr_ap in pairs_today:
-            # Find available aircraft & hour
-            ac = find_available_aircraft()
-            hour = find_available_hour()
-            
-            # Calculate times
-            dep_dt = make_aware(datetime.combine(current_date, time(hour)))
-            duration = 1.5h if domestic else 4.0h
-            arr_dt = dep_dt + duration
-            
-            # Price calculation
-            base = 8000 if domestic else 35000
-            price = base + random(-1000, 5000)
-            
-            # Add to batch
-            flights.append(Flight(...))
-            
-            # Bulk create every 100 flights
-            if len(flights) >= 100:
-                Flight.objects.bulk_create(flights, batch_size=50)
-                flights = []
-            
-            # Update progress
-            progress = int((day / 30) * 100)
-            cache.set(f'flight_gen_{job_id}', {
-                'status': 'processing',
-                'progress': progress,
-                'created': count
-            }, 300)
-    
-    # 6. Final status
-    cache.set(f'flight_gen_{job_id}', {
-        'status': 'completed',
-        'progress': 100,
-        'created': total
-    }, 300)
+class Passenger(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='passengers')
+    full_name = models.CharField(max_length=200)
+    date_of_birth = models.DateField()
+    nationality = models.CharField(max_length=50)
+    passenger_type = models.CharField(max_length=10, choices=[
+        ('ADULT', 'Adult'),
+        ('CHILD', 'Child'),
+        ('KID', 'Kid')
+    ])
+    gender = models.CharField(max_length=20, blank=True, null=True)
+    passport_number = models.CharField(max_length=50)
+    phone_area_code = models.CharField(max_length=10, default='+254')
+    phone_number = models.CharField(max_length=20)
 ```
 
-**Benefits:**
-- Non-blocking → Returns in <500ms
-- Progress tracking → Client can poll for updates
-- Batch creation → Efficient database inserts
-- Conflict detection → Avoids duplicate flights
+**Features:**
+- Multiple passengers per booking
+- Passenger type categorization (Adult, Child, Kid)
+- International phone number support
+- Passport/ID tracking
 
-### 9. `core/signals.py`
+#### 6. Payment Model
 
-**Purpose:** Event-driven notifications
-
-**Key Signals:**
+Multi-provider payment tracking:
 
 ```python
-@receiver(post_save, sender=Booking)
-def booking_update_signal(sender, instance, created, **kwargs):
-    """Send WebSocket update when booking changes"""
-    channel_layer = get_channel_layer()
-    update_data = {
-        'type': 'booking_updated',  # Must match handler name!
-        'booking_id': str(instance.pk),
-        'status': instance.status,
-    }
-    async_to_sync(channel_layer.group_send)(
-        f"user_{instance.user_id}",
-        update_data
-    )
+class Payment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='payments')
+    provider = models.CharField(max_length=20, choices=[
+        ('MPESA', 'M-Pesa'),
+        ('PESAPAL', 'Pesapal'),
+        ('PAYPAL', 'PayPal'),
+        ('STRIPE', 'Stripe'),
+        ('CARD', 'Credit Card'),
+        ('BANK_TRANSFER', 'Bank Transfer')
+    ])
+    provider_reference = models.CharField(max_length=100, db_index=True)
+    payment_detail = models.CharField(max_length=200, blank=True, null=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=3, default='KES')
+    status = models.CharField(max_length=20, choices=[
+        ('PENDING', 'Pending'),
+        ('SUCCESS', 'Success'),
+        ('FAILED', 'Failed'),
+        ('CANCELLED', 'Cancelled')
+    ])
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
-    # Send boarding pass email if confirmed
-    if instance.status == 'CONFIRMED':
-        send_boarding_pass_email(instance)
-
-@receiver(post_save, sender=Flight)
-def check_and_complete_flights(sender, instance, **kwargs):
-    """Auto-complete flights that have departed"""
-    if instance.departure_time < now() and instance.status == 'SCHEDULED':
-        instance.status = 'COMPLETED'
-        instance.save()
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['booking', 'provider'],
+                name='unique_booking_payment',
+                condition=~models.Q(status='CANCELLED')
+            )
+        ]
 ```
 
-**How it works:**
-1. Django triggers `post_save` signal when model is saved
-2. Signal handler executes asynchronously
-3. Sends WebSocket message to user's channel
-4. Optionally sends email notifications
+**Features:**
+- Multiple payment providers supported
+- Provider-specific details storage
+- Unique constraint prevents duplicate active payments
+- Comprehensive status tracking
 
-### 10. `core/websocket.py`
+#### 7. Boarding Pass Model
 
-**Purpose:** WebSocket consumers for real-time updates
+Per-passenger boarding passes with QR codes:
 
 ```python
-class BookingUpdatesConsumer(AsyncWebsocketConsumer):
-    async def connect(self):
-        """Join user-specific group"""
-        self.group_name = f"user_{self.scope['user'].pk}"
-        await self.channel_layer.group_add(self.group_name, self.channel_name)
-        await self.accept()
-    
-    async def disconnect(self, close_code):
-        """Leave group"""
-        await self.channel_layer.group_discard(self.group_name, self.channel_name)
-    
-    async def booking_updated(self, event):
-        """Send booking update to client"""
-        await self.send(text_data=json.dumps({
-            'type': 'booking_updated',
-            'data': event
-        }))
-    
-    async def payment_completed(self, event):
-        """Send payment notification"""
-        await self.send(text_data=json.dumps(event))
+class BoardingPass(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='boarding_passes')
+    passenger = models.ForeignKey(Passenger, on_delete=models.CASCADE)
+    seat = models.ForeignKey(Seat, on_delete=models.CASCADE)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    issued_date = models.DateTimeField(auto_now_add=True)
+    qr_code_data = models.TextField()
+    is_checked_in = models.BooleanField(default=False)
 ```
 
-**Message Flow:**
-```
-1. Client connects to ws://api.aerosync.live/ws/bookings/
-2. Consumer joins user-specific group
-3. Django signal triggers when booking changes
-4. Signal sends message to group via channel_layer
-5. Consumer receives message and sends to client
-6. Client updates UI in real-time
-```
+**Features:**
+- Individual boarding pass per passenger
+- QR code data generation
+- Check-in status tracking
+- Linked to specific seat assignment
 
-### 11. `core/services.py`
+#### 8. Scan Log Model
 
-**Purpose:** Business logic services
+Tracks all QR code scanning attempts:
 
 ```python
-def ensure_boarding_pass(booking: Booking, seat) -> BoardingPass:
-    """Create boarding pass if doesn't exist"""
-    # Check for existing
-    bp = booking.boarding_passes.filter(seat=seat).first()
-    if bp:
-        return bp
-    
-    # Create new
-    passenger = booking.passengers.first()
-    qr_data = f"AEROSYNC|REF={booking.confirmation_code}|FLIGHT={booking.flight_id}|SEAT={seat.seat_number}|PAX={passenger.full_name}"
-    
-    bp = BoardingPass.objects.create(
-        booking=booking,
-        seat=seat,
-        qr_code_data=qr_data,
-    )
-    return bp
-
-def send_boarding_pass_email(booking: Booking):
-    """Send HTML email with boarding pass attachment"""
-    # Generate boarding pass PDF/HTML
-    # Send via Brevo API
-    # Include QR code
+class ScanLog(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    scanned_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    boarding_pass = models.ForeignKey(BoardingPass, on_delete=models.SET_NULL, null=True)
+    booking_reference = models.CharField(max_length=20)
+    passenger_name = models.CharField(max_length=200)
+    flight_number = models.CharField(max_length=20)
+    seat_number = models.CharField(max_length=10)
+    booking_status = models.CharField(max_length=20)
+    already_onboard = models.BooleanField(default=False)
+    action = models.CharField(max_length=20, blank=True, null=True)
+    additional_data = models.JSONField(default=dict, blank=True)
+    scanned_at = models.DateTimeField(auto_now_add=True)
 ```
 
-### 12. `core/permissions.py`
+**Features:**
+- Complete audit trail of all scans
+- Duplicate detection (already_onboard flag)
+- Action tracking (confirm/cancel)
+- Additional metadata storage
 
-**Purpose:** Custom access control
+#### 9. User Activity Log
+
+Comprehensive activity tracking:
 
 ```python
-class IsAdminOrReadOnly(permissions.BasePermission):
-    """Only admins can modify, everyone can read"""
-    def has_permission(self, request, view):
-        if request.method in permissions.SAFE_METHODS:
-            return True
-        return request.user.role == 'ADMIN'
-
-class IsAdminUser(permissions.BasePermission):
-    """Only admins"""
-    def has_permission(self, request, view):
-        return request.user.role == 'ADMIN'
-
-class IsAgentOrAdmin(permissions.BasePermission):
-    """Agents and admins"""
-    def has_permission(self, request, view):
-        return request.user.role in ['ADMIN', 'AGENT']
-```
-
-**Usage in views:**
-```python
-class FlightViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAdminOrReadOnly]  # Public read, admin write
+class UserActivityLog(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    action = models.CharField(max_length=50, choices=[
+        ('login', 'User Login'),
+        ('login_blocked', 'Login Blocked - IP Risk'),
+        ('logout', 'User Logout'),
+        ('profile_update', 'Profile Update'),
+        ('booking_create', 'Booking Created'),
+        ('booking_cancel', 'Booking Cancelled'),
+        ('payment', 'Payment Processed'),
+        ('api_access', 'API Access'),
+        ('admin_action', 'Admin Action'),
+        ('file_upload', 'File Upload'),
+        ('other', 'Other Action')
+    ])
+    ip_address = models.GenericIPAddressField()
+    user_agent = models.TextField()
+    path = models.CharField(max_length=500)
+    method = models.CharField(max_length=10)
+    status_code = models.IntegerField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    additional_data = models.JSONField(default=dict, blank=True)
     
-class BookingViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]  # Only authenticated users
+    class Meta:
+        indexes = [
+            models.Index(fields=['user', '-timestamp']),
+            models.Index(fields=['ip_address', '-timestamp']),
+            models.Index(fields=['action', '-timestamp']),
+        ]
 ```
+
+**Features:**
+- All user actions logged
+- IP address and user agent tracking
+- Indexed for fast queries
+- Additional metadata in JSON field
 
 ---
 
-## Frontend Structure
+## Frontend Architecture
 
-### `/aerosync-frontend/`
+### Project Structure
 
 ```
 aerosync-frontend/
 ├── src/
 │   ├── api/
-│   │   └── api.js              # 🔌 API client with JWT
-│   ├── components/             # Reusable UI components
+│   │   └── api.js                  # Axios client with JWT interceptors
+│   ├── components/                 # Reusable UI components
+│   │   ├── AdminNavbar.jsx        # Admin navigation
+│   │   ├── AgentNavbar.jsx        # Agent navigation
+│   │   ├── Navbar.jsx             # Customer navigation
+│   │   ├── ThemeToggle.jsx        # Light/Dark mode toggle
+│   │   ├── PesapalPaymentModal.jsx # Payment integration
+│   │   ├── MultiPassengerBooking.jsx
+│   │   ├── ImprovedMultiPassengerBooking.jsx
+│   │   ├── SearchableSelect.jsx   # Dropdown with search
+│   │   ├── DateOfBirthPicker.jsx  # DOB input component
+│   │   └── ProtectedImage.jsx     # Secure image loading
 │   ├── context/
-│   │   ├── AuthContext.jsx     # Authentication state
-│   │   └── WebSocketContext.jsx # Real-time connection
+│   │   ├── AuthContext.jsx        # Authentication state & hooks
+│   │   └── BookingRealtimeContext.jsx  # WebSocket booking updates
 │   ├── hooks/
-│   │   ├── useAuth.js          # Auth hook
-│   │   └── useWebSocket.js     # WebSocket hook
+│   │   ├── useAdminUI.jsx         # Admin feature flags
+│   │   └── useBookingUpdates.jsx  # WebSocket connection hook
 │   ├── pages/
-│   │   ├── auth/               # Login/Register
-│   │   ├── admin/              # Admin dashboard
-│   │   ├── Home.jsx            # Landing page
-│   │   ├── BookFlight.jsx      # Booking flow
-│   │   └── MyBookings.jsx      # User bookings
+│   │   ├── admin/                 # Admin dashboard & management
+│   │   │   ├── AdminDashboard.jsx
+│   │   │   ├── AdminFlights.jsx
+│   │   │   ├── AdminBookings.jsx
+│   │   │   ├── AdminUsers.jsx
+│   │   │   ├── AdminAirlines.jsx
+│   │   │   ├── AdminAircraft.jsx
+│   │   │   ├── AdminAirports.jsx
+│   │   │   ├── AdminActivityLogs.jsx
+│   │   │   └── AdminReports.jsx
+│   │   ├── agent/                 # Agent portal
+│   │   │   ├── AgentDashboard.jsx
+│   │   │   ├── AgentBookings.jsx
+│   │   │   ├── AgentCreateBooking.jsx
+│   │   │   ├── AgentFlights.jsx
+│   │   │   ├── AgentProfile.jsx
+│   │   │   └── AgentVerifyQR.jsx  # QR scanner
+│   │   ├── Dashboard.jsx          # Customer dashboard
+│   │   ├── Flights.jsx            # Flight search & listing
+│   │   ├── Booking.jsx            # Booking flow & management
+│   │   ├── Seats.jsx              # Seat selection
+│   │   ├── Profile.jsx            # User profile management
+│   │   ├── Login.jsx
+│   │   ├── Register.jsx
+│   │   ├── VerifyEmail.jsx
+│   │   └── ForgotPassword.jsx
 │   ├── utils/
-│   │   └── helpers.js          # Utility functions
-│   ├── App.jsx                 # Main app component
-│   └── index.css               # Global styles (Tailwind)
+│   │   └── errorFormatter.js      # Error message formatting
+│   ├── App.jsx                    # Main app with routing
+│   ├── index.css                  # Global styles with theme variables
+│   ├── App.css                    # Component styles
+│   └── responsive.css             # Responsive design utilities
 │
-├── public/                     # Static assets
-├── dist/                       # Production build
-├── package.json                # Dependencies
-└── vite.config.js              # Vite configuration
+├── public/                        # Static assets & manifest
+├── dist/                          # Production build
+├── package.json                   # Dependencies
+├── vite.config.js                 # Vite configuration
+└── .env                           # Environment variables
 ```
 
-### Key Frontend Files
+### Key Frontend Features
 
-#### `src/api/api.js`
+#### 1. Authentication Context
+
+Centralized authentication state management:
 
 ```javascript
-// Axios instance with JWT
-const api = axios.create({
-  baseURL: 'https://api.aerosync.live/api/',
-  timeout: 200000,  // 200 seconds for long requests
-});
+const AuthContext = createContext();
 
-// Request interceptor - attach token
-api.interceptors.request.use(config => {
-  const token = localStorage.getItem('access_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Response interceptor - handle token refresh
-api.interceptors.response.use(
-  response => response,
-  async error => {
-    if (error.response?.status === 401) {
-      // Token expired, try refresh
-      await refreshToken();
-    }
-    return Promise.reject(error);
-  }
-);
-
-export default api;
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [profileComplete, setProfileComplete] = useState(false);
+  
+  // JWT token management
+  // Auto-refresh on expiry
+  // Profile completion tracking
+  // Theme preference synchronization
+}
 ```
 
-#### `src/context/WebSocketContext.jsx`
+#### 2. Real-time Booking Updates
+
+WebSocket integration for live updates:
 
 ```javascript
-// WebSocket connection management
-const WebSocketProvider = ({ children }) => {
-  const wsRef = useRef(null);
+const BookingRealtimeContext = createContext();
+
+export function BookingRealtimeProvider({ children }) {
+  const [ws, setWs] = useState(null);
   
-  const connect = () => {
-    const ws = new WebSocket('wss://api.aerosync.live/ws/bookings/');
-    
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      
-      if (data.type === 'booking_updated') {
-        // Update bookings in real-time
-        updateBookings(data.booking_id);
-      }
-      
-      if (data.type === 'payment_completed') {
-        // Show payment success notification
-        showNotification('Payment successful!');
-      }
-    };
-    
-    wsRef.current = ws;
-  };
+  // Auto-connect with exponential backoff
+  // Subscribe to specific bookings
+  // Handle booking updates
+  // Handle payment updates
+  // Heartbeat management
+}
+```
+
+#### 3. Theme System
+
+Complete light/dark mode support with CSS variables:
+
+```css
+:root {
+  --primary: #2563eb;
+  --background: #f8fafc;
+  --surface: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --border: #e2e8f0;
+}
+
+[data-theme='dark'] {
+  --primary: #3b82f6;
+  --background: #0a0e17;
+  --surface: #111827;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --border: #1f2937;
+}
+```
+
+**Features:**
+- System-wide theme switching
+- User preference persistence
+- Backend synchronization
+- All components theme-aware
+
+#### 4. Protected Image Component
+
+Secure media loading via authenticated API:
+
+```javascript
+function ProtectedImage({ src, alt, ...props }) {
+  const [imageSrc, setImageSrc] = useState(null);
   
-  return (
-    <WebSocketContext.Provider value={{ connect, ws: wsRef.current }}>
-      {children}
-    </WebSocketContext.Provider>
-  );
-};
+  useEffect(() => {
+    // Fetch image with JWT token
+    // Convert blob to object URL
+    // Handle errors gracefully
+  }, [src]);
+  
+  return <img src={imageSrc} alt={alt} {...props} />;
+}
+```
+
+#### 5. QR Code Scanner
+
+Agent boarding pass verification:
+
+```javascript
+function AgentVerifyQR() {
+  const [scanning, setScanning] = useState(false);
+  const [result, setResult] = useState(null);
+  const [scanHistory, setScanHistory] = useState([]);
+  
+  // Camera access via html5-qrcode
+  // QR code verification API call
+  // Duplicate scan detection
+  // Passenger photo display
+  // Scan history tracking
+}
 ```
 
 ---
 
-## Database Models
+## Database Schema
 
-### Complete Schema
+### Complete Model Relationships
 
 ```
 accounts_user (UUID PK)
-├─ id (UUID, PK)
-├─ email (VARCHAR, UNIQUE)
-├─ username (VARCHAR)
-├─ phone_number (VARCHAR)
-├─ role (VARCHAR: ADMIN/AGENT/CUSTOMER)
-├─ email_verified (BOOLEAN)
-├─ date_of_birth (DATE)
-└─ password (VARCHAR, hashed)
-
-accounts_profile (UUID PK)
-├─ id (UUID, PK)
-├─ user (OneToOne → accounts_user)
-├─ profile_photo (VARCHAR, path)
-├─ initial_setup_done (BOOLEAN)
-├─ address_line1 (VARCHAR)
-├─ city (VARCHAR)
-├─ country (VARCHAR)
-└─ postal_code (VARCHAR)
+├─ id, email, username, role, theme_preference
+├─ staff_id, is_email_verified, created_at
+└─ Relationships:
+   └─ 1:1 → accounts_profile
+   └─ 1:N → core_booking (as user)
+   └─ 1:N → core_booking (as created_by)
+   └─ 1:N → core_scanlog
+   └─ 1:N → core_useractivitylog
 
 core_airline (UUID PK)
-├─ id (UUID, PK)
-├─ name (VARCHAR)
-├─ code (VARCHAR)
-├─ country (VARCHAR)
-└─ is_active (BOOLEAN)
+├─ id, name, iata_code, country, is_active
+└─ Implicit: 1:N → core_flight
 
 core_aircraft (UUID PK)
-├─ id (UUID, PK)
-├─ tail_number (VARCHAR)
-├─ model (VARCHAR)
-├─ airline (FK → core_airline)
-└─ seat_configuration (JSON)
+├─ id, model, total_seats, number_plate
+└─ Implicit: 1:N → core_flight, core_seat
 
 core_airport (UUID PK)
-├─ id (UUID, PK)
-├─ iata_code (VARCHAR)
-├─ name (VARCHAR)
-├─ city (VARCHAR)
-└─ country (VARCHAR)
+├─ id, code (IATA), name, city, country
+└─ Implicit: 1:N → core_flight (departures/arrivals)
 
 core_flight (UUID PK)
-├─ id (UUID, PK)
-├─ flight_number (VARCHAR)
-├─ aircraft (FK → core_aircraft)
-├─ airline (VARCHAR)
-├─ departure_airport (FK → core_airport)
-├─ arrival_airport (FK → core_airport)
-├─ departure_time (TIMESTAMP)
-├─ arrival_time (TIMESTAMP)
-├─ price (DECIMAL)
-├─ status (VARCHAR: SCHEDULED/COMPLETED/CANCELLED)
-├─ trip_type (VARCHAR: ONE_WAY/ROUND_TRIP)
-└─ stops (INTEGER)
+├─ id, flight_number, airline
+├─ departure_airport, arrival_airport
+├─ departure_time, arrival_time
+├─ price, trip_type, route_type
+├─ via_cities (JSON), stops, status
+└─ Relationships:
+   ├─ FK → core_aircraft
+   └─ 1:N → core_booking
 
 core_seat (UUID PK)
-├─ id (UUID, PK)
-├─ aircraft (FK → core_aircraft)
-├─ seat_number (VARCHAR)
-├─ seat_class (VARCHAR: FIRST/BUSINESS/ECONOMY)
-├─ is_booked (BOOLEAN)
-└─ is_blocked (BOOLEAN)
+├─ id, seat_number, flight_class
+├─ is_available, price_multiplier
+└─ Relationships:
+   ├─ FK → core_aircraft
+   └─ 1:N → core_boardingpass
 
 core_booking (UUID PK)
-├─ id (UUID, PK)
-├─ user (FK → accounts_user)
-├─ flight (FK → core_flight)
-├─ confirmation_code (VARCHAR)
-├─ total_amount (DECIMAL)
-├─ status (VARCHAR: PENDING/CONFIRMED/CANCELLED)
-├─ booking_type (VARCHAR)
-└─ created_at (TIMESTAMP)
+├─ id, confirmation_code, total_amount
+├─ booking_status, stopover_city, booking_date
+└─ Relationships:
+   ├─ FK → accounts_user (user)
+   ├─ FK → accounts_user (created_by, nullable)
+   ├─ FK → core_flight
+   ├─ 1:N → core_passenger
+   ├─ 1:N → core_payment
+   └─ 1:N → core_boardingpass
 
 core_passenger (UUID PK)
-├─ id (UUID, PK)
-├─ booking (FK → core_booking)
-├─ first_name (VARCHAR)
-├─ last_name (VARCHAR)
-└─ date_of_birth (DATE)
+├─ id, full_name, date_of_birth, nationality
+├─ passenger_type, gender, passport_number
+├─ phone_area_code, phone_number
+└─ Relationships:
+   ├─ FK → core_booking
+   └─ 1:N → core_boardingpass
 
 core_payment (UUID PK)
-├─ id (UUID, PK)
-├─ booking (FK → core_booking)
-├─ provider (VARCHAR: PESAPAL)
-├─ provider_reference (VARCHAR)
-├─ amount (DECIMAL)
-└─ status (VARCHAR: PENDING/COMPLETED/FAILED)
+├─ id, provider, provider_reference
+├─ payment_detail, amount, currency, status
+└─ Relationships:
+   └─ FK → core_booking
 
 core_boardingpass (UUID PK)
-├─ id (UUID, PK)
-├─ booking (FK → core_booking)
-├─ seat (FK → core_seat)
-├─ qr_code_data (TEXT)
-├─ issued_at (TIMESTAMP)
-└─ is_scanned (BOOLEAN)
+├─ id, price, issued_date
+├─ qr_code_data, is_checked_in
+└─ Relationships:
+   ├─ FK → core_booking
+   ├─ FK → core_passenger
+   └─ FK → core_seat
 
 core_scanlog (UUID PK)
-├─ id (UUID, PK)
-├─ boarding_pass (FK → core_boardingpass)
-├─ scanned_by (FK → accounts_user)
-├─ scanned_at (TIMESTAMP)
-└─ success (BOOLEAN)
+├─ id, booking_reference, passenger_name
+├─ flight_number, seat_number
+├─ booking_status, already_onboard
+├─ action, additional_data (JSON), scanned_at
+└─ Relationships:
+   ├─ FK → accounts_user (scanned_by, nullable)
+   └─ FK → core_boardingpass (nullable)
 
 core_useractivitylog (UUID PK)
-├─ id (UUID, PK)
-├─ user (FK → accounts_user)
-├─ action (VARCHAR)
-├─ ip_address (VARCHAR)
-├─ user_agent (TEXT)
-└─ timestamp (TIMESTAMP)
+├─ id, action, ip_address, user_agent
+├─ path, method, status_code
+├─ timestamp, additional_data (JSON)
+└─ Relationships:
+   └─ FK → accounts_user (nullable)
 ```
 
 ---
@@ -867,109 +770,243 @@ core_useractivitylog (UUID PK)
 
 ### Authentication
 ```
-POST   /api/auth/register/          # Create user
-POST   /api/auth/login/             # Login, get JWT
-POST   /api/auth/verify-email/      # Verify email
-POST   /api/auth/resend-otp/        # Resend verification
-POST   /api/auth/refresh/           # Refresh JWT
-POST   /api/auth/forgot-password/   # Request reset
-POST   /api/auth/reset-password/    # Reset with code
+POST   /api/auth/register/              # Create user account
+POST   /api/auth/login/                 # Login with email/username
+POST   /api/auth/verify-email/          # Verify email with OTP
+POST   /api/auth/resend-otp/            # Resend verification code
+POST   /api/auth/refresh/               # Refresh JWT token
+POST   /api/auth/forgot-password/       # Request password reset
+POST   /api/auth/reset-password/        # Reset password with OTP
+PATCH  /api/auth/update-theme/          # Update theme preference
 ```
 
 ### User Profile
 ```
-GET    /api/profile/                # Get profile
-PUT    /api/profile/                # Update profile
-POST   /api/profile/photo/          # Upload photo
-GET    /api/profile/completion/     # Check completion %
-POST   /api/profile/initial-setup/  # Complete setup
+GET    /api/profile/                    # Get user profile
+PUT    /api/profile/                    # Update profile
+POST   /api/profile/photo/              # Upload profile photo
+GET    /api/profile/completion/         # Check completion percentage
+POST   /api/profile/initial-setup/      # Complete initial setup
 ```
 
 ### Flights
 ```
-GET    /api/flights/                # List flights
-POST   /api/flights/                # Create flight (admin)
-GET    /api/flights/{id}/           # Get flight
-PUT    /api/flights/{id}/           # Update flight
-DELETE /api/flights/{id}/           # Delete flight
-POST   /api/flights/generate_flights/        # Start generation (async)
-GET    /api/flights/generation_status/{job_id}/  # Check progress
+GET    /api/flights/                    # List/search flights
+GET    /api/flights/{id}/               # Get flight details
+GET    /api/flights/{id}/seats/         # Get available seats
+POST   /api/admin/flights/              # Create flight (admin)
+PUT    /api/admin/flights/{id}/         # Update flight (admin)
+DELETE /api/admin/flights/{id}/         # Delete flight (admin)
+POST   /api/admin/flights/generate_flights/        # Generate flights (async)
+GET    /api/admin/flights/generation_status/{task_id}/  # Check generation progress
 ```
 
 ### Bookings
 ```
-GET    /api/bookings/               # User's bookings
-POST   /api/bookings/               # Create booking
-GET    /api/bookings/{id}/          # Get booking
-PUT    /api/bookings/{id}/          # Update booking
-POST   /api/bookings/{id}/select-seats/   # Select seats
-POST   /api/bookings/{id}/cancel/   # Cancel booking
-GET    /api/bookings/{id}/boarding-pass/  # Get boarding pass
+GET    /api/bookings/                   # User's bookings
+POST   /api/bookings/                   # Create booking
+GET    /api/bookings/{id}/              # Get booking details
+PUT    /api/bookings/{id}/              # Update booking
+POST   /api/bookings/{id}/select-seats/ # Select seats
+POST   /api/bookings/{id}/cancel/       # Cancel booking
+GET    /api/bookings/{id}/boarding-pass/ # Get boarding pass
+GET    /api/bookings/{id}/boarding-pass-png/ # Download boarding pass PNG
+POST   /api/bookings/{id}/initiate_payment/ # Initiate payment
 ```
 
-### Payments
+### Agent Portal
 ```
-POST   /api/payments/initiate/      # Start Pesapal payment
-POST   /api/payments/ipn/           # Pesapal callback
-GET    /api/payments/{id}/status/   # Check payment status
+GET    /api/agent/flights/              # View available flights
+GET    /api/agent/bookings/             # View all bookings
+POST   /api/agent/bookings/create_for_customer/ # Create booking for customer
+GET    /api/agent/bookings/{id}/        # Get booking details
+GET    /api/agent/bookings/{id}/boarding-pass-png/ # Download boarding pass
+GET    /api/agent/scan-history/         # Get QR scan history
+POST   /api/verify/qr/                  # Verify boarding pass QR
+POST   /api/verify/confirm-boarding/    # Confirm/cancel boarding
 ```
 
 ### Admin
 ```
-GET    /api/admin/users/            # List all users
-GET    /api/admin/bookings/         # All bookings
-GET    /api/admin/activity/         # Activity logs
-GET    /api/admin/analytics/        # Dashboard stats
+GET    /api/admin/users/                # List all users
+PUT    /api/admin/users/{id}/           # Update user
+GET    /api/admin/bookings/             # All bookings
+GET    /api/admin/flights/              # All flights
+GET    /api/admin/airlines/             # Airlines CRUD
+GET    /api/admin/aircraft/             # Aircraft CRUD
+GET    /api/admin/airports/             # Airports CRUD
+GET    /api/admin/activity/             # Activity logs
+GET    /api/admin/analytics/            # Dashboard statistics
+GET    /api/admin/reports/              # Generate reports
+```
+
+### Payments
+```
+GET    /api/payment-providers/          # List available providers
+POST   /api/payments/initiate/          # Start Pesapal payment
+POST   /api/payments/ipn/               # Pesapal IPN callback
+GET    /api/payments/{id}/status/       # Check payment status
 ```
 
 ### WebSocket
 ```
-WS     /ws/bookings/                # Real-time booking updates
+WS     /ws/bookings/                    # Real-time booking updates
 ```
 
 ---
 
-## Authentication & Authorization
+## Key Features
 
-### JWT Flow
+### 1. Multi-Passenger Booking
 
-```
-1. User registers
-   POST /api/auth/register/
-   ↓
-   Returns: {access_token, refresh_token}
+Customers and agents can book flights for multiple passengers in a single transaction:
 
-2. User makes API request
-   Headers: {Authorization: "Bearer <access_token>"}
-   ↓
-   JWTAuthentication validates token
+- **Passenger Types**: Adult (18+), Child (5-17), Kid (0-4)
+- **Photo Requirements**: Mandatory for passengers 4+ years old
+- **Individual Boarding Passes**: Each passenger receives a unique boarding pass
+- **Seat Selection**: Visual airplane seat map with real-time availability
+- **Passenger Details**: Full name, DOB, nationality, passport/ID, phone
 
-3. Token expires (5 minutes)
-   POST /api/auth/refresh/
-   Headers: {Authorization: "Bearer <refresh_token>"}
-   ↓
-   Returns: {new_access_token}
-```
+### 2. VIA Routes (Multi-Stop Flights)
 
-### Role-Based Access
+Support for flights with intermediate stops:
 
-```python
-# Admin: Full access
-- Manage flights, airlines, aircraft
-- View all bookings
-- Manage users
-- Analytics
+- **Route Types**: DIRECT or VIA
+- **Via Cities**: JSON array of intermediate cities
+- **Auto-calculated Stops**: Based on via_cities length
+- **Stopover Selection**: Passengers can select stopover city during booking
+- **Pricing**: Dynamic based on route complexity
 
-# Agent: Limited admin
-- Create bookings
-- View bookings
-- Cannot delete flights
+### 3. Agent Portal
 
-# Customer: Personal access
-- View own bookings
-- Make payments
-- View boarding passes
-```
+Dedicated interface for travel agents:
+
+- **Create Bookings**: Book flights on behalf of registered customers
+- **QR Verification**: Camera-based boarding pass scanning
+- **Duplicate Detection**: Prevents same passenger boarding twice
+- **Booking Management**: View and manage all bookings
+- **Boarding Pass Downloads**: Generate PNG boarding passes for passengers
+- **Flight Viewing**: Browse available flights
+
+### 4. Real-time Updates
+
+WebSocket-powered live updates:
+
+- **Booking Status Changes**: Instant notification when booking status changes
+- **Payment Confirmations**: Real-time payment status updates
+- **Auto-reconnection**: Exponential backoff (3s → 6s → 12s → 24s → 48s)
+- **Heartbeat**: Keeps connections alive
+- **Graceful Degradation**: Shows error after 5 failed attempts
+
+### 5. QR Code Boarding Passes
+
+Digital boarding passes with secure QR codes:
+
+- **Unique QR Data**: Encodes booking reference, flight, seat, passenger
+- **PNG Generation**: Server-side rendering
+- **Email Delivery**: Sent as attachment via Brevo
+- **Agent Scanning**: Camera-based verification with html5-qrcode
+- **Scan Logging**: Complete audit trail of all scans
+- **Duplicate Prevention**: Detects and prevents re-boarding
+
+### 6. Payment Processing
+
+Multi-provider payment gateway integration:
+
+- **Pesapal Integration**: Primary payment provider (API v3)
+- **Supported Methods**: Cards, mobile money
+- **IPN Callbacks**: Instant Payment Notification handling
+- **Token Caching**: Access tokens cached for 57 minutes
+- **IPN ID Persistence**: Cached for 30 days
+- **Status Tracking**: PENDING → SUCCESS/FAILED/CANCELLED
+- **Automatic Booking Update**: Booking status changes with payment
+
+### 7. Email Service
+
+Transaction email via Brevo API:
+
+- **Email Verification**: 6-digit OTP codes
+- **Password Reset**: OTP-based recovery
+- **Boarding Pass Delivery**: PNG attachment with HTML email
+- **Template System**: Professional HTML email templates
+- **Fallback Support**: Gmail OAuth if Brevo unavailable
+
+### 8. Profile Management
+
+Comprehensive user profile system:
+
+- **Photo Upload**: Secure upload with validation
+- **Initial Setup**: Mandatory profile completion on first login
+- **Theme Preference**: Light/Dark/System mode selection
+- **Address Storage**: For boarding pass information
+- **Completion Tracking**: Percentage-based progress
+
+### 9. Activity Logging
+
+Complete audit trail:
+
+- **All Actions Tracked**: Login, logout, bookings, payments, admin actions
+- **IP Risk Logging**: Blocked login attempts with reason
+- **Metadata Storage**: IP address, user agent, path, method, status code
+- **JSON Additional Data**: Flexible metadata storage
+- **Indexed Queries**: Fast filtering by user, IP, action, timestamp
+
+### 10. IP Risk Assessment
+
+Fraud prevention via Fraudlogix API:
+
+- **Real-time Checks**: Every login attempt assessed
+- **Blocking Criteria**: High risk, TOR, VPN, proxy
+- **Caching**: 1-hour cache to reduce API calls
+- **Fail-open**: Allows login if API unavailable
+- **Activity Logging**: All blocked attempts logged
+- **Admin Monitoring**: View blocked attempts in activity logs
+
+---
+
+## Security Implementation
+
+### Authentication & Authorization
+
+1. **JWT Tokens**: 60-minute access tokens, 7-day refresh tokens
+2. **Email Verification**: 6-digit OTP, 15-minute expiry
+3. **Password Reset**: OTP-based recovery
+4. **Role-Based Access**: Admin, Agent, Customer permissions
+5. **UUID Primary Keys**: Prevents ID enumeration
+6. **Profile Completion Middleware**: Forces setup on first login
+
+### Data Protection
+
+1. **Password Hashing**: Django's PBKDF2 algorithm
+2. **CORS Configuration**: Restricted to frontend domains
+3. **CSRF Protection**: Enabled for session auth
+4. **Input Validation**: DRF serializers with field-level validation
+5. **HTTPS Enforcement**: Via Cloudflare
+6. **Media Access Protection**: Custom middleware blocks direct access
+
+### IP Risk & Fraud Prevention
+
+1. **Fraudlogix Integration**: Real-time IP assessment
+2. **Blocking Rules**: High risk, TOR, VPN, proxy
+3. **Activity Logging**: Complete audit trail
+4. **Admin Monitoring**: View and export blocked attempts
+5. **Graceful Degradation**: Fail-open on API failure
+
+### QR Code Security
+
+1. **Unique Codes**: Each boarding pass has unique QR data
+2. **Scan Logging**: All attempts logged
+3. **Duplicate Detection**: Prevents re-boarding
+4. **Agent Verification**: Dedicated portal with authentication
+5. **Check-in Tracking**: Per-passenger status
+
+### Media Security
+
+1. **External Storage**: Files outside project directory
+2. **Protected Access**: Custom middleware blocks direct URLs
+3. **Authenticated Loading**: ProtectedImage component uses API
+4. **File Validation**: Size and type checks on upload
+5. **Organized Structure**: Date-based folder organization
 
 ---
 
@@ -979,21 +1016,41 @@ WS     /ws/bookings/                # Real-time booking updates
 
 ```
 Client Browser
-    ↓ connects to wss://api.aerosync.live/ws/bookings/
+    ↓ Connects to ws://api.aerosync.live/ws/bookings/?token={jwt}
 Daphne (ASGI Server, port 8001)
-    ↓ routes to BookingUpdatesConsumer
+    ↓ Routes to BookingUpdatesConsumer
 Consumer joins group: "user_{user_id}"
     ↓
-Django Signal triggers (booking created/updated)
+Django Signal triggers (booking/payment changes)
     ↓
-channel_layer.group_send("user_{id}", message)
+channel_layer.group_send("user_{id}", message) via Redis
     ↓
 Consumer receives message
     ↓
 Sends JSON to client via WebSocket
     ↓
-Client updates UI in real-time
+BookingRealtimeContext processes update
+    ↓
+Custom event dispatched: 'booking-update' or 'payment-update'
+    ↓
+Components update UI in real-time
 ```
+
+### Connection Management
+
+**Hook: `useBookingUpdates.jsx`**
+- Auto-connects when token available
+- Exponential backoff reconnection
+- Maximum 5 retry attempts
+- Heartbeat messages every 30 seconds
+- Disconnects on logout
+
+**Context: `BookingRealtimeContext.jsx`**
+- Centralized state management
+- Pub/sub pattern using CustomEvent
+- Subscribe to specific booking or all
+- Payment update handling
+- Automatic booking status sync
 
 ### Message Types
 
@@ -1001,24 +1058,23 @@ Client updates UI in real-time
 // Booking updated
 {
   type: "booking_updated",
-  booking_id: "uuid",
-  status: "CONFIRMED",
-  flight: {number: "AS12345"}
+  booking: { id, booking_status, flight, ... },
+  changed_fields: ["booking_status", "updated_at"]
 }
 
-// Payment completed
+// Payment update
 {
-  type: "payment_completed",
+  type: "payment_update",
+  payment: { id, status, provider, amount },
   booking_id: "uuid",
-  payment_id: "uuid",
-  amount: 15000
+  booking_status: "CONFIRMED",
+  changed_fields: ["status", "updated_at"]
 }
 
-// Seat availability
+// Heartbeat
 {
-  type: "seat_availability",
-  flight_id: "uuid",
-  seats: [{number: "1A", class: "FIRST", booked: false}]
+  type: "heartbeat",
+  timestamp: "2026-04-18T10:30:00Z"
 }
 ```
 
@@ -1026,66 +1082,173 @@ Client updates UI in real-time
 
 ## Payment Processing
 
-### Pesapal Integration
+### Pesapal Integration Flow
+
+1. **User Initiates Payment**
+   - POST `/api/bookings/{id}/initiate_payment/`
+   - Body: `{ provider, amount, currency, email, phone }`
+
+2. **Backend Creates Order**
+   - Get/renew access token (cached 57 minutes)
+   - Register IPN URL (cached 30 days)
+   - Submit order with billing details
+   - Returns: `{ order_tracking_id, redirect_url }`
+
+3. **User Completes Payment**
+   - Redirected to Pesapal payment page
+   - Enters card/mobile money details
+   - Pesapal processes payment
+
+4. **IPN Callback**
+   - Pesapal POSTs to `/api/payments/ipn/`
+   - Body: `{ OrderTrackingId, OrderMerchantReference, PaymentStatusDescription, ... }`
+
+5. **Backend Processes IPN**
+   - Validates order reference
+   - Updates Payment.status
+   - Updates Booking.booking_status
+   - Triggers WebSocket notification
+   - Sends boarding pass email (if SUCCESS)
+
+### Payment Status Flow
 
 ```
-1. User initiates payment
-   POST /api/payments/initiate/
-   Body: {booking_id, email, phone}
+PENDING → User initiated payment
    ↓
-
-2. Backend creates Pesapal order
-   → Calls Pesapal API
-   ← Returns order_id + redirect_url
+SUCCESS → Payment completed
+   → Booking status → CONFIRMED
+   → Boarding pass generated & emailed
    ↓
-
-3. User redirected to Pesapal
-   → User enters card/mobile money
-   ← Pesapal processes payment
+FAILED → Payment declined
+   → Booking status → FAILED
+   → User can retry
    ↓
-
-4. IPN Callback
-   Pesapal → POST /api/payments/ipn/
-   Body: {order_id, status, amount}
-   ↓
-
-5. Backend updates payment
-   → Updates Payment.status = "COMPLETED"
-   → Updates Booking.status = "CONFIRMED"
-   → Triggers WebSocket notification
-   → Sends boarding pass email
+CANCELLED → User cancelled
+   → Booking status → CANCELLED
+   → Allows retry
 ```
+
+### Supported Providers
+
+1. **PESAPAL**: Primary gateway (cards, mobile money) - Active
+2. **MPESA**: Direct M-Pesa - Future
+3. **PAYPAL**: PayPal payments - Future
+4. **STRIPE**: Stripe payments - Future
+5. **CARD**: Direct credit card - Future
+6. **BANK_TRANSFER**: Bank transfer - Future
 
 ---
 
-## Deployment
+## Theme System
 
-### Local Development
+### Implementation
 
-```bash
-# Start backend
-cd aerosync-backend
-source venv/bin/activate
-bash start.sh
+Complete light/dark mode support using CSS custom properties:
 
-# Start frontend
-cd aerosync-frontend
-npm run dev
+```css
+/* Light Mode (Default) */
+:root {
+  --background: #f8fafc;
+  --surface: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --border: #e2e8f0;
+  --primary: #2563eb;
+}
 
-# Access
-Frontend: http://localhost:5173
-Backend:  http://127.0.0.1:8000
+/* Dark Mode */
+[data-theme='dark'] {
+  --background: #0a0e17;
+  --surface: #111827;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --border: #1f2937;
+  --primary: #3b82f6;
+}
 ```
 
-### Production Deployment
+### Theme Toggle Component
+
+```javascript
+function ThemeToggle() {
+  const { user, updateUserTheme } = useContext(AuthContext);
+  const [theme, setTheme] = useState('LIGHT');
+  
+  // Apply theme to document
+  const applyTheme = (themeName) => {
+    if (themeName === 'DARK') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+    localStorage.setItem('theme', themeName);
+  };
+  
+  // Save to backend
+  const toggleTheme = async () => {
+    const newTheme = theme === 'LIGHT' ? 'DARK' : 'LIGHT';
+    await API.patch('auth/update-theme/', { theme_preference: newTheme });
+    updateUserTheme(newTheme);
+  };
+}
+```
+
+### Features
+
+- **System-wide Application**: All components use CSS variables
+- **User Persistence**: Preference saved to backend
+- **Local Storage**: Fallback for non-authenticated users
+- **Dynamic Switching**: Instant theme change without reload
+- **Admin Pages**: Force light mode for consistency
+- **Agent Portal**: Full theme support
+
+---
+
+## Deployment Architecture
+
+### Production Setup
+
+```
+User Browser
+    ↓ HTTPS
+Cloudflare Edge (SSL, DDoS Protection, CDN)
+    ↓ Encrypted Tunnel
+Cloudflare Tunnel Daemon (cloudflared)
+    ↓
+    ├─→ Port 8000: Gunicorn (WSGI, 3 workers)
+    └─→ Port 8001: Daphne (ASGI, WebSocket)
+         ↓
+    Django Application
+         ↓
+    PostgreSQL Database
+         ↓
+    Redis (WebSocket channel layer)
+         ↓
+    External Media Storage (~/aerosync-media/)
+```
+
+### Service Management
 
 ```bash
-# 1. Pull latest code
+# Systemd service
+sudo systemctl start aerosync
+sudo systemctl stop aerosync
+sudo systemctl restart aerosync
+sudo systemctl status aerosync
+
+# View logs
+journalctl -u aerosync -f
+journalctl -u aerosync --since "1 hour ago"
+```
+
+### Deployment Process
+
+```bash
+# 1. Update code
 git pull origin main
 
 # 2. Install dependencies
 pip install -r requirements.txt
-npm install
 
 # 3. Run migrations
 python manage.py migrate
@@ -1097,65 +1260,30 @@ python manage.py collectstatic --noinput
 sudo systemctl restart aerosync
 
 # 6. Rebuild frontend
+cd aerosync-frontend
+npm install
 npm run build
 ```
 
-### Service Management
+### Environment Configuration
 
+**Backend (.env):**
 ```bash
-# Start/stop/restart
-sudo systemctl start aerosync
-sudo systemctl stop aerosync
-sudo systemctl restart aerosync
-
-# Check status
-sudo systemctl status aerosync
-journalctl -u aerosync -f
-
-# View logs
-journalctl -u aerosync --since "1 hour ago"
-```
-
----
-
-## Environment Variables
-
-### `.env` (Backend)
-
-```bash
-# Django
-SECRET_KEY=your-secret-key
+DJANGO_SECRET=your-secret-key
 DEBUG=False
-ALLOWED_HOSTS=api.aerosync.live,127.0.0.1
-
-# Database
 DB_NAME=aerosync
 DB_USER=aerosync
-DB_PASSWORD=aerosync
-DB_HOST=127.0.0.1
-DB_PORT=5432
-
-# Email (Brevo)
-BREVO_API_KEY=your-brevo-api-key
-BREVO_SENDER_EMAIL=noreply@aerosync.live
-BREVO_SENDER_NAME=AeroSync
-
-# Pesapal
+DB_PASSWORD=your-password
+BREVO_API_KEY=your-brevo-key
 PESAPAL_CONSUMER_KEY=your-key
 PESAPAL_CONSUMER_SECRET=your-secret
-PESAPAL_CALLBACK_URL=https://api.aerosync.live/api/payments/ipn/
-
-# JWT
-JWT_SECRET_KEY=your-jwt-secret
-JWT_ACCESS_TOKEN_LIFETIME=5
-JWT_REFRESH_TOKEN_LIFETIME=7
+FRAUDLOGIX_API_KEY=your-api-key
+REDIS_URL=redis://localhost:6379/0
 ```
 
-### `.env` (Frontend)
-
+**Frontend (.env):**
 ```bash
 VITE_API_URL=https://api.aerosync.live/api/
-VITE_WS_URL=wss://api.aerosync.live/ws/
 ```
 
 ---
@@ -1163,153 +1291,60 @@ VITE_WS_URL=wss://api.aerosync.live/ws/
 ## Performance Optimizations
 
 ### 1. Hybrid Server Architecture
-- **Gunicorn (WSGI)**: Fast HTTP responses (~50-100ms)
-- **Daphne (ASGI)**: WebSocket support only
+- **Gunicorn**: Fast HTTP responses (~50-100ms)
+- **Daphne**: WebSocket support only
 - **Result**: 10-20x faster than pure ASGI
 
-### 2. Async Task Processing
-- Flight generation runs in background thread
+### 2. Background Task Processing
+- Flight generation in background threads
 - Progress tracked via Django cache
 - Client polls for status
-- **Result**: No Cloudflare 524 timeouts
+- Prevents Cloudflare 524 timeouts
 
 ### 3. Database Optimizations
 - UUID primary keys (indexed)
 - `bulk_create` for batch operations
-- `select_related` and `prefetch_related` for query optimization
+- `select_related` and `prefetch_related`
 - Database-level unique constraints
+- Partial indexes on UserActivityLog
 
-### 4. Caching
-- Local memory cache for async task progress
-- JWT token caching (implicit via client storage)
-- Static files via Cloudflare CDN
+### 4. Caching Strategy
+- **Redis**: WebSocket channel layer
+- **Local Memory**: Pesapal tokens (57 min), IPN IDs (30 days)
+- **JWT**: Client-side localStorage
+- **Static Files**: WhiteNoise + Cloudflare CDN
 
 ### 5. Media Storage
-- Files stored outside project directory
-- Organized by date: `~/aerosync-media/profile_photos/2026/04/`
-- Easy migration to cloud storage (S3, etc.)
+- External directory (`~/aerosync-media/`)
+- Date-based organization
+- Custom middleware blocks direct access
+- ProtectedImage component for authenticated loading
+- Easy migration to cloud storage (S3)
+
+### 6. WebSocket Optimization
+- Redis channel layer for horizontal scaling
+- Exponential backoff reconnection (3s → 48s)
+- Heartbeat messages (30-second intervals)
+- Maximum 5 retries before error
+- Automatic disconnect on logout
+
+### 7. Email Service
+- Brevo API for fast delivery
+- Server-side HTML template rendering
+- In-memory boarding pass generation
+- Base64 encoding for attachments
+- Fallback to Gmail OAuth
+
+### 8. Frontend Optimizations
+- **React 19**: Latest with concurrent features
+- **Vite 8**: Fast HMR and optimized builds
+- **Axios Interceptors**: Automatic JWT refresh
+- **Context API**: Centralized state management
+- **Custom Events**: Pub/sub for booking updates
+- **Code Splitting**: Lazy loading for routes
 
 ---
 
-## Security Features
-
-1. **JWT Authentication**: Token-based, stateless
-2. **Email Verification**: Confirms user identity
-3. **Role-Based Access Control**: Admin, Agent, Customer
-4. **UUID Primary Keys**: Prevents ID enumeration attacks
-5. **CORS Configuration**: Restricted to frontend domain
-6. **CSRF Protection**: Enabled for session auth
-7. **Password Hashing**: Django's PBKDF2
-8. **HTTPS Only**: Enforced via Cloudflare
-9. **Input Validation**: DRF serializers
-10. **Rate Limiting**: (Optional via DRF throttling)
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-**524 Timeout Error:**
-```
-Cause: Cloudflare timeout (100s) waiting for origin
-Fix: Now using async generation with progress polling
-```
-
-**WebSocket Not Connecting:**
-```bash
-# Check Daphne is running on port 8001
-ps aux | grep daphne
-
-# Check firewall
-sudo ufw status
-
-# Test WebSocket
-wscat -c ws://127.0.0.1:8001/ws/bookings/
-```
-
-**Database Connection Error:**
-```bash
-# Check PostgreSQL is running
-sudo systemctl status postgresql
-
-# Check credentials
-cat .env | grep DB_
-
-# Test connection
-PGPASSWORD=aerosync psql -h 127.0.0.1 -U aerosync -d aerosync
-```
-
-**Media Files Not Found:**
-```bash
-# Check external storage exists
-ls -la ~/aerosync-media/
-
-# Check permissions
-chmod 755 ~/aerosync-media/
-```
-
----
-
-## Future Enhancements
-
-1. **Celery/RQ Integration**: More robust background tasks
-2. **Redis Cache**: Distributed caching
-3. **S3 Media Storage**: Cloud storage for media files
-4. **Elasticsearch**: Advanced flight search
-5. **Mobile App**: React Native client
-6. **Multi-language Support**: i18n
-7. **Advanced Analytics**: Data warehouse integration
-8. **Push Notifications**: FCM integration
-9. **Email Templates**: Markdown-based templates
-10. **API Versioning**: `/api/v1/`, `/api/v2/`
-
----
-
-## Development Guidelines
-
-### Code Style
-- Follow PEP 8 for Python
-- Use ESLint for JavaScript
-- Consistent naming: snake_case (Python), camelCase (JS)
-
-### Git Workflow
-```bash
-# Create feature branch
-git checkout -b feature/new-feature
-
-# Commit changes
-git add .
-git commit -m "feat: add new feature"
-
-# Push and create PR
-git push origin feature/new-feature
-```
-
-### Testing
-```bash
-# Run tests
-python manage.py test
-
-# Test specific app
-python manage.py test core
-
-# With coverage
-coverage run manage.py test
-coverage report
-```
-
----
-
-## Contributors
-
-- Backend: Django + PostgreSQL
-- Frontend: React + Vite + TailwindCSS
-- Infrastructure: Cloudflare + Systemd
-- Documentation: This file
-
----
-
-*Last Updated: April 3, 2026*  
-*Version: 2.0*  
-*Status: Production Ready*
+*Last Updated: April 18, 2026*  
+*Version: 5.0 - Production Ready with Complete Theme Support*  
+*Status: Active Development*

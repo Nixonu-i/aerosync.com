@@ -106,6 +106,7 @@ class MeSerializer(serializers.ModelSerializer):
         fields = ["id", "username", "email", "full_name", "role", "is_admin", "is_agent", "staff_id", "created_at"]
 =======
     profile = serializers.SerializerMethodField()
+    theme_preference = serializers.CharField(read_only=True)
     
     def get_is_admin(self, obj):
         return obj.role == 'ADMIN' or obj.is_staff or obj.is_superuser
@@ -131,7 +132,7 @@ class MeSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             "id", "username", "email", "full_name", "role", "is_admin", 
-            "is_agent", "staff_id", "created_at", "profile"
+            "is_agent", "staff_id", "created_at", "profile", "theme_preference"
         ]
 >>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
 
@@ -177,6 +178,12 @@ class ProfileSerializer(serializers.ModelSerializer):
             # Handle any potential errors accessing the profile photo URL
             pass
         return None
+
+
+class ThemePreferenceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['theme_preference']
         
         
 class ProfileDetailSerializer(serializers.ModelSerializer):

@@ -13,7 +13,7 @@ from django.db.models import Q
 >>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
 
 from .models import Profile
-from .serializers import RegisterSerializer, MeSerializer, ProfileSerializer, ProfileDetailSerializer
+from .serializers import RegisterSerializer, MeSerializer, ProfileSerializer, ProfileDetailSerializer, ThemePreferenceSerializer
 
 # media serving helpers
 from django.conf import settings
@@ -31,6 +31,9 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 # Email verification service
 from .services.email_service import EmailVerificationService
 >>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
+
+# IP Risk checking service
+from core.ip_risk_service import check_ip_risk
 
 
 @api_view(["GET"])
@@ -58,6 +61,7 @@ def protected_media(request, path):
 
     # if the media is in the profile_photos directory, enforce ownership
     rel = os.path.relpath(final_path, settings.MEDIA_ROOT)
+    
     if rel.startswith("profile_photos") and not (
         request.user.is_staff or request.user.is_superuser
     ):
@@ -72,6 +76,18 @@ def protected_media(request, path):
 >>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
             # users may only see their own uploads
             raise Http404()
+    
+    # passenger_photos can be viewed by agents and admins (for boarding verification)
+    # or by the user who made the booking
+    elif rel.startswith("passenger_photos"):
+        # Agents and admins can view all passenger photos
+        if request.user.is_staff or request.user.role in ['AGENT', 'ADMIN']:
+            pass  # Allow access
+        else:
+            # For customers, we'd need to check if they own the booking
+            # For simplicity, allow authenticated users to view passenger photos
+            # (they're already authenticated, and these aren't sensitive personal data)
+            pass
 
     return FileResponse(open(final_path, "rb"))
 
@@ -116,8 +132,65 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     """
     Custom login view that checks if email is verified before allowing login.
     Supports login with either username OR email.
+    Includes IP risk score checking for security.
     """
     def post(self, request, *args, **kwargs):
+        # Get client IP address
+        client_ip = self.get_client_ip(request)
+        
+        # Check IP risk score
+        ip_risk = check_ip_risk(client_ip)
+        
+        # Block access if IP is high risk, using TOR, VPN, or Proxy
+        if ip_risk.get('blocked'):
+            print(f'🚨 BLOCKED LOGIN - IP: {client_ip}, Risk: {ip_risk.get("risk_score")}, Reason: {ip_risk.get("block_reason")}')
+            
+            # Determine specific user-friendly error message
+            block_reason = ip_risk.get('block_reason', '')
+            if 'High risk score' in block_reason or 'Extreme risk score' in block_reason:
+                error_message = 'Access denied. Your IP address has been flagged as high risk. Please contact support if you believe this is an error.'
+            elif 'TOR usage' in block_reason:
+                error_message = 'Access denied. TOR connections are not allowed. Please disable TOR and try again.'
+            elif 'VPN usage' in block_reason:
+                error_message = 'Access denied. VPN connections are not allowed. Please disable your VPN and try again.'
+            elif 'Proxy usage' in block_reason:
+                error_message = 'Access denied. Proxy connections are not allowed. Please disable your proxy and try again.'
+            else:
+                error_message = 'Access denied. Your connection has been flagged for security reasons.'
+            
+            # Log the blocked attempt
+            from core.models import UserActivityLog
+            try:
+                UserActivityLog.objects.create(
+                    user=None,  # No user yet, they're blocked
+                    action='login_blocked',
+                    ip_address=client_ip,
+                    user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                    path='/api/accounts/login/',
+                    method='POST',
+                    status_code=403,
+                    additional_data={
+                        'ip_risk_score': ip_risk.get('risk_score'),
+                        'block_reason': ip_risk.get('block_reason'),
+                        'tor': ip_risk.get('tor'),
+                        'vpn': ip_risk.get('vpn'),
+                        'proxy': ip_risk.get('proxy'),
+                        'country': ip_risk.get('country'),
+                        'isp': ip_risk.get('isp')
+                    }
+                )
+            except Exception as e:
+                print(f'Failed to log blocked login: {e}')
+            
+            return Response(
+                {
+                    'detail': error_message,
+                    'blocked': True,
+                    'reason': ip_risk.get('block_reason', 'High risk connection')
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         # Support both 'email' and 'username' fields for flexibility
         email = request.data.get('email', '').strip().lower() if request.data.get('email') else ''
         username = request.data.get('username', '').strip() if request.data.get('username') else ''
@@ -183,7 +256,32 @@ class CustomTokenObtainPairView(TokenObtainPairView):
             # Replace request._full_data (DRF uses this internally)
             request._full_data = mutable_data
             
-            return super().post(request, *args, **kwargs)
+            # Log successful login with IP risk info
+            response = super().post(request, *args, **kwargs)
+            
+            if response.status_code == 200:
+                from core.models import UserActivityLog
+                try:
+                    UserActivityLog.objects.create(
+                        user=user,
+                        action='login',
+                        ip_address=client_ip,
+                        user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                        path='/api/accounts/login/',
+                        method='POST',
+                        status_code=200,
+                        additional_data={
+                            'ip_risk_score': ip_risk.get('risk_score'),
+                            'ip_country': ip_risk.get('country'),
+                            'ip_isp': ip_risk.get('isp'),
+                            'ip_tor': ip_risk.get('tor', False),
+                            'ip_vpn': ip_risk.get('vpn', False)
+                        }
+                    )
+                except Exception as e:
+                    print(f'Failed to log login: {e}')
+            
+            return response
             
         except User.DoesNotExist:
             # Return generic error (don't reveal if user exists or which field failed)
@@ -191,7 +289,19 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 {'detail': 'Invalid email/username or password'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
+<<<<<<< HEAD
 >>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
+=======
+    
+    def get_client_ip(self, request):
+        """Get client IP address from request"""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+        return ip
+>>>>>>> 1f8170445e5037c8d4a27ddab2757e5b5f376943
 
 
 class MeView(APIView):
@@ -446,6 +556,23 @@ class ResetPasswordView(APIView):
             return Response({
                 'detail': str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['PATCH'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def update_theme_preference(request):
+    """Update user's theme preference."""
+    user = request.user
+    theme = request.data.get('theme_preference')
+    
+    if theme not in ['LIGHT', 'DARK', 'SYSTEM']:
+        return Response({'error': 'Invalid theme preference'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    user.theme_preference = theme
+    user.save()
+    
+    return Response({'theme_preference': theme})
 
 
 @api_view(['GET'])

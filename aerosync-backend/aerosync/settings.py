@@ -280,6 +280,11 @@ import os
 MEDIA_ROOT = os.path.expanduser("~/aerosync-media/")  # Outside project
 >>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
 
+# File upload limits
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
+
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # -------------------------------------------------------------------

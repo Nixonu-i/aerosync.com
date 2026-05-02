@@ -192,7 +192,7 @@ export default function VerifyEmail() {
       animation: 'fadeIn 0.3s ease-in'
     }}>
       <div style={{
-        background: 'linear-gradient(135deg, #0b1220 0%, #1a2744 100%)',
+        background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%)',
         borderRadius: '20px',
         padding: '50px 40px',
         maxWidth: '420px',
@@ -395,7 +395,7 @@ export default function VerifyEmail() {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: linear-gradient(135deg, #0b1220 0%, #1a2744 100%);
+          background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
           padding: 20px;
         }
 

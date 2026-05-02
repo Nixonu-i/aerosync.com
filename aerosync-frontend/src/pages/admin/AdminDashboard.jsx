@@ -2,6 +2,21 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../../api/api";
 
+// Force light theme for all admin pages
+function AdminThemeEnforcer() {
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', 'light');
+    return () => {
+      // Restore user preference on unmount
+      const saved = localStorage.getItem('theme') || 'LIGHT';
+      if (saved === 'DARK') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    };
+  }, []);
+  return null;
+}
+
 function StatusBadge({ status }) {
   const map = {
     CONFIRMED: { bg: "#d4edda", text: "#155724" },
@@ -24,7 +39,7 @@ function StatusBadge({ status }) {
 function StatCard({ label, value, color, icon }) {
   return (
     <div style={{
-      backgroundColor: "white",
+      backgroundColor: "var(--surface)",
       borderRadius: "12px",
       padding: "24px 20px",
       boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
@@ -69,13 +84,15 @@ export default function AdminDashboard() {
   }, []);
 
   return (
-    <div style={{ padding: "28px", maxWidth: "1300px", margin: "0 auto" }}>
-      <h2 style={{ color: "white", fontWeight: "800", fontSize: "28px", marginBottom: "28px", textShadow: "0 2px 8px rgba(0,0,0,0.6)" }}>
+    <>
+      <AdminThemeEnforcer />
+      <div style={{ padding: "28px", maxWidth: "1300px", margin: "0 auto" }}>
+      <h2 style={{ color: "var(--text-primary)", fontWeight: "800", fontSize: "28px", marginBottom: "28px" }}>
         Dashboard Overview
       </h2>
 
       {loading ? (
-        <div style={{ color: "rgba(255,255,255,0.7)", textAlign: "center", padding: "60px" }}>Loading...</div>
+        <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "60px" }}>Loading...</div>
       ) : (
         <>
           {/* Stats row */}
@@ -90,7 +107,7 @@ export default function AdminDashboard() {
           {/* Quick links */}
           <div className="as-btn-group" style={{ marginBottom: "28px" }}>
             {[
-              { label: "Manage Flights", path: "/admin/flights", color: "#0b1220" },
+              { label: "Manage Flights", path: "/admin/flights", color: "var(--text-primary)" },
               { label: "Manage Bookings", path: "/admin/bookings", color: "#17a2b8" },
               { label: "Manage Airports", path: "/admin/airports", color: "#6f42c1" },
               { label: "Manage Aircraft", path: "/admin/aircraft", color: "#d4af37" },
@@ -107,8 +124,8 @@ export default function AdminDashboard() {
           </div>
 
           {/* Recent bookings */}
-          <div style={{ backgroundColor: "white", borderRadius: "12px", boxShadow: "0 4px 12px rgba(0,0,0,0.12)", overflow: "hidden" }}>
-            <div style={{ padding: "16px 20px", backgroundColor: "#0b1220", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ backgroundColor: "var(--surface)", borderRadius: "12px", boxShadow: "0 4px 12px rgba(0,0,0,0.12)", overflow: "hidden" }}>
+            <div style={{ padding: "16px 20px", backgroundColor: "#0b1220", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #d4af37" }}>
               <h3 style={{ margin: 0, color: "#d4af37", fontSize: "16px", fontWeight: "700" }}>Recent Bookings</h3>
               <button onClick={() => nav("/admin/bookings")} style={{
                 backgroundColor: "transparent", color: "#d4af37", border: "1px solid #d4af37",
@@ -118,7 +135,7 @@ export default function AdminDashboard() {
             <div style={{ overflowX: "auto" }}>
               <table className="as-admin-table" style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
-                  <tr style={{ backgroundColor: "#f8f9fa" }}>
+                  <tr style={{ backgroundColor: "var(--background)" }}>
                     {["Code", "User", "Route", "Date", "Booking Status", "Payment", "Amount (KES)"].map(h => (
                       <th key={h} style={{ padding: "11px 14px", textAlign: "left", color: "#495057", fontSize: "12px", fontWeight: "700", borderBottom: "2px solid #dee2e6", whiteSpace: "nowrap" }}>{h}</th>
                     ))}
@@ -151,5 +168,6 @@ export default function AdminDashboard() {
         </>
       )}
     </div>
+    </>
   );
 }

@@ -1,6 +1,7 @@
 import { useContext, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import ThemeToggle from './ThemeToggle';
 
 const LINKS = [
   { to: "/agent",               label: "Dashboard",      end: true },
@@ -19,6 +20,18 @@ export default function AgentNavbar() {
   const doLogout = () => { logout(); nav("/login"); };
 
   if (!user) return null;
+
+  // Style function for mobile nav links
+  const getMobileLinkStyle = (isActive) => ({
+    color: isActive ? '#20c997' : 'var(--text-primary)',
+    textDecoration: 'none',
+    fontWeight: isActive ? 700 : 500,
+    backgroundColor: isActive ? 'rgba(32,201,151,0.15)' : 'transparent',
+    display: 'block',
+    padding: '12px 24px',
+    fontSize: '15px',
+    borderBottom: '1px solid var(--border)',
+  });
 
   return (
     <nav className="as-agent-navbar">
@@ -45,6 +58,7 @@ export default function AgentNavbar() {
 
         {/* Desktop user area */}
         <div className="as-agent-user-desktop">
+          <ThemeToggle />
           <span className="as-agent-badge">{user.staff_id || "AGENT"}</span>
           <span className="as-agent-username">{user.username}</span>
           <button className="as-btn-logout" onClick={doLogout}>Logout</button>
@@ -69,6 +83,7 @@ export default function AgentNavbar() {
             end={l.end}
             className={({ isActive }) => `as-agent-mobile-link${isActive ? " active" : ""}`}
             onClick={() => setOpen(false)}
+            style={({ isActive }) => getMobileLinkStyle(isActive)}
           >
             {l.label}
           </NavLink>
@@ -78,11 +93,12 @@ export default function AgentNavbar() {
           display: "flex",
           alignItems: "center",
           gap: "10px",
-          borderTop: "1px solid rgba(255,255,255,0.08)",
+          borderTop: "1px solid var(--border)",
           marginTop: "4px",
         }}>
+          <ThemeToggle />
           <span className="as-agent-badge">{user.staff_id || "AGENT"}</span>
-          <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "13px", flex: 1 }}>
+          <span style={{ color: "var(--text-secondary)", fontSize: "13px", flex: 1 }}>
             {user.username}
           </span>
           <button

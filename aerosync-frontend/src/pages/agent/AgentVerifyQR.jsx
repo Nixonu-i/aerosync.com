@@ -2,12 +2,134 @@ import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import API from "../../api/api";
 
-const teal   = "#20c997";
+/* ─── Passenger Photo Component with Auth ─── */
+function PassengerPhoto({ photoUrl, passengerName }) {
+  const [imageSrc, setImageSrc] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const fetchImage = async () => {
+      try {
+        const fullUrl = photoUrl.startsWith('http') 
+          ? photoUrl 
+          : `${window.location.origin}${photoUrl}`;
+        
+        const response = await fetch(fullUrl, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (!response.ok) throw new Error('Failed to fetch');
+        
+        const blob = await response.blob();
+        setImageSrc(URL.createObjectURL(blob));
+        setLoading(false);
+      } catch (err) {
+        console.error('[PassengerPhoto] Failed to load passenger photo:', err);
+        setError(true);
+        setLoading(false);
+      }
+    };
+
+    if (photoUrl) {
+      fetchImage();
+    }
+  }, [photoUrl]);
+
+  if (loading) {
+    return (
+      <div style={{
+        background: "rgba(0,0,0,0.4)",
+        borderRadius: "12px",
+        padding: "16px",
+        marginBottom: "20px",
+        textAlign: "center"
+      }}>
+        <div style={{
+          width: "200px",
+          height: "200px",
+          margin: "0 auto",
+          borderRadius: "12px",
+          border: "3px solid teal",
+          background: "rgba(32,201,151,0.1)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center"
+        }}>
+          <div style={{ color: teal, fontSize: "13px" }}>Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !imageSrc) {
+    return (
+      <div style={{
+        background: "rgba(0,0,0,0.4)",
+        borderRadius: "12px",
+        padding: "16px",
+        marginBottom: "20px",
+        textAlign: "center"
+      }}>
+        <div style={{
+          width: "200px",
+          height: "200px",
+          margin: "0 auto",
+          borderRadius: "12px",
+          border: "3px solid #6c757d",
+          background: "rgba(108,117,125,0.2)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexDirection: "column",
+          gap: "8px"
+        }}>
+          <Icons.User size={48} color="#6c757d" />
+          <div style={{ color: "#6c757d", fontSize: "12px" }}>Photo unavailable</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      background: "rgba(0,0,0,0.4)",
+      borderRadius: "12px",
+      padding: "16px",
+      marginBottom: "20px",
+      textAlign: "center"
+    }}>
+      <img
+        src={imageSrc}
+        alt={passengerName || "Passenger"}
+        style={{
+          width: "200px",
+          height: "200px",
+          objectFit: "cover",
+          borderRadius: "12px",
+          border: "3px solid teal",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.5)"
+        }}
+      />
+      <div style={{ marginTop: "12px", color: "rgba(255,255,255,0.7)", fontSize: "13px" }}>
+        {passengerName}
+      </div>
+    </div>
+  );
+}
+
+const teal  = "#20c997";
 const green  = "#28a745";
 const red    = "#dc3545";
 const amber  = "#fd7e14";
-const DARK   = "rgba(5, 19, 30, 0.92)";
-const CARD   = { background: DARK, border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", padding: "20px" };
+const CARD   = { 
+  background: "var(--surface)", 
+  border: "1px solid var(--border)", 
+  borderRadius: "12px", 
+  padding: "20px" 
+};
 
 const Icons = {
   Warning: ({ size = 36, color = amber }) => (
@@ -47,6 +169,37 @@ const Icons = {
       <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
       <polyline points="7 23 3 19 7 15"/>
       <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+    </svg>
+  ),
+  UserCheck: ({ size = 40, color = teal }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="8.5" cy="7" r="4"/>
+      <polyline points="17 11 19 13 23 9"/>
+    </svg>
+  ),
+  User: ({ size = 48, color = "#6c757d" }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+      <circle cx="12" cy="7" r="4"/>
+    </svg>
+  ),
+  AlertCircle: ({ size = 16, color = amber }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="8" x2="12" y2="12"/>
+      <line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+  ),
+  Check: ({ size = 20 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12"/>
+    </svg>
+  ),
+  X: ({ size = 20 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18"/>
+      <line x1="6" y1="6" x2="18" y2="18"/>
     </svg>
   ),
 };
@@ -163,6 +316,50 @@ export default function AgentVerifyQR() {
 
   const reset = () => { setResult(null); setVerifyErr(""); setManualQR(""); setScanErr(""); };
 
+  const [confirming, setConfirming] = useState(false);
+  const [confirmErr, setConfirmErr] = useState("");
+
+  const handleConfirmBoarding = async () => {
+    if (!result?.boarding_pass_id) return;
+    setConfirming(true);
+    setConfirmErr("");
+    try {
+      const res = await API.post("verify/confirm-boarding/", {
+        boarding_pass_id: result.boarding_pass_id,
+        action: "confirm"
+      });
+      // Update result with new status
+      setResult(prev => ({
+        ...prev,
+        status: res.data.status,
+        already_onboard: res.data.already_onboard
+      }));
+      // Update scan history
+      fetchHistory();
+    } catch (e) {
+      setConfirmErr(e?.response?.data?.detail || "Failed to confirm boarding");
+    } finally {
+      setConfirming(false);
+    }
+  };
+
+  const handleCancelBoarding = async () => {
+    if (!result?.boarding_pass_id) return;
+    setConfirming(true);
+    setConfirmErr("");
+    try {
+      await API.post("verify/confirm-boarding/", {
+        boarding_pass_id: result.boarding_pass_id,
+        action: "cancel"
+      });
+      reset();
+    } catch (e) {
+      setConfirmErr(e?.response?.data?.detail || "Failed to cancel boarding");
+    } finally {
+      setConfirming(false);
+    }
+  };
+
   const isDoubleBoard = result?.already_onboard;
 
   return (
@@ -170,8 +367,8 @@ export default function AgentVerifyQR() {
 
       {/* ── Page Header ── */}
       <div style={{ marginBottom: "24px" }}>
-        <h2 style={{ color: "#fff", fontWeight: 800, margin: "0 0 6px" }}>Verify Boarding Pass</h2>
-        <p style={{ color: "rgba(255,255,255,0.55)", fontSize: "14px", margin: 0, lineHeight: 1.6 }}>
+        <h2 style={{ color: "#0f172a", fontWeight: 800, margin: "0 0 6px", fontSize: "28px" }}>Verify Boarding Pass</h2>
+        <p style={{ color: "var(--text-secondary)", fontSize: "14px", margin: 0, lineHeight: 1.6 }}>
           Scan the passenger's QR code or paste it manually.&nbsp;
           <strong style={{ color: "#17a2b8" }}>CONFIRMED</strong> bookings are marked&nbsp;
           <strong style={{ color: green }}>ON BOARD</strong> automatically.
@@ -181,26 +378,27 @@ export default function AgentVerifyQR() {
       {/* ── Double-Scan Alert (prominent) ── */}
       {isDoubleBoard && (
         <div style={{
-          background: "rgba(253,126,20,0.15)",
-          border: `2px solid ${amber}`,
+          background: "#fd7e14",
+          border: `2px solid #e6730a`,
           borderRadius: "14px",
           padding: "20px 24px",
           marginBottom: "20px",
           display: "flex",
           gap: "14px",
           alignItems: "flex-start",
+          boxShadow: "0 4px 12px rgba(253,126,20,0.4)",
         }}>
-          <Icons.Warning size={36} color={amber} />
+          <Icons.Warning size={36} color="#fff" />
           <div>
-            <div style={{ color: amber, fontWeight: 800, fontSize: "18px", marginBottom: "4px" }}>
+            <div style={{ color: "#fff", fontWeight: 800, fontSize: "18px", marginBottom: "4px" }}>
               DUPLICATE SCAN — Passenger Already On Board!
             </div>
-            <div style={{ color: "rgba(255,255,255,0.85)", fontSize: "14px", lineHeight: 1.5 }}>
-              <strong style={{ color: "#fff" }}>{result.passenger_name}</strong> was previously scanned
-              and is already marked as <strong style={{ color: amber }}>ON BOARD</strong>.
+            <div style={{ color: "#fff", fontSize: "14px", lineHeight: 1.5 }}>
+              <strong style={{ color: "#fff", textDecoration: "underline" }}>{result.passenger_name}</strong> was previously scanned
+              and is already marked as <strong style={{ color: "#fff", backgroundColor: "rgba(0,0,0,0.3)", padding: "2px 8px", borderRadius: "4px", fontWeight: 800 }}>ON BOARD</strong>.
               Do not allow re-boarding without supervisor approval.
             </div>
-            <div style={{ marginTop: "10px", display: "flex", gap: "8px", flexWrap: "wrap", fontSize: "13px", color: "rgba(255,255,255,0.7)" }}>
+            <div style={{ marginTop: "10px", display: "flex", gap: "8px", flexWrap: "wrap", fontSize: "13px", color: "#fff" }}>
               <span>Ref: <strong style={{ color: "#fff" }}>{result.booking_reference}</strong></span>
               <span>·</span>
               <span>Flight: <strong style={{ color: "#fff" }}>{result.flight_number}</strong></span>
@@ -216,8 +414,8 @@ export default function AgentVerifyQR() {
         <div style={{ ...CARD, marginBottom: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <div>
-              <div style={{ color: "#fff", fontWeight: 700, fontSize: "15px" }}>Scan History</div>
-              <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "12px", marginTop: "2px" }}>
+              <div style={{ color: "var(--text-primary)", fontWeight: 700, fontSize: "15px" }}>Scan History</div>
+              <div style={{ color: "var(--text-secondary)", fontSize: "12px", marginTop: "2px" }}>
                 {historyLoading ? "Loading…" : `${scanHistory.length} passenger(s) scanned`}
               </div>
             </div>
@@ -226,9 +424,9 @@ export default function AgentVerifyQR() {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.12)" }}>
-                  {["Time", "Passenger", "Ref", "Flight", "Seat", "Status"].map(h => (
-                    <th key={h} style={{ textAlign: "left", padding: "8px 10px", color: "rgba(255,255,255,0.45)", fontWeight: 700, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", whiteSpace: "nowrap" }}>{h}</th>
+                <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                  { ["Time", "Passenger", "Ref", "Flight", "Seat", "Status"].map(h => (
+                    <th key={h} style={{ textAlign: "left", padding: "8px 10px", color: "var(--text-secondary)", fontWeight: 700, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -237,17 +435,52 @@ export default function AgentVerifyQR() {
                   const isOb = entry.already_onboard;
                   const s = STATUS_BADGE[entry.status] || { color: "#aaa" };
                   return (
-                    <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", background: isOb ? "rgba(253,126,20,0.06)" : "transparent" }}>
-                      <td style={{ padding: "9px 10px", color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>{entry.scannedAtFmt}</td>
-                      <td style={{ padding: "9px 10px", color: "#fff", fontWeight: 600, whiteSpace: "nowrap" }}>
+                    <tr key={i} style={{ 
+                      borderBottom: "1px solid var(--border)", 
+                      background: isOb ? "rgba(253,126,20,0.08)" : "transparent"
+                    }}>
+                      <td style={{ 
+                        padding: "9px 10px", 
+                        color: "var(--text-secondary)", 
+                        whiteSpace: "nowrap",
+                        fontSize: "13px"
+                      }}>{entry.scannedAtFmt}</td>
+                      <td style={{ 
+                        padding: "9px 10px", 
+                        color: "var(--text-primary)", 
+                        fontWeight: 600, 
+                        whiteSpace: "nowrap",
+                        fontSize: "14px"
+                      }}>
                         {entry.passenger_name || "—"}
                         {isOb && <span style={{ marginLeft: "6px", display: "inline-flex", verticalAlign: "middle" }}><Icons.Warning size={13} color={amber} /></span>}
                       </td>
-                      <td style={{ padding: "9px 10px", color: "rgba(255,255,255,0.7)", fontFamily: "monospace", fontSize: "12px" }}>{entry.booking_reference}</td>
-                      <td style={{ padding: "9px 10px", color: "rgba(255,255,255,0.7)" }}>{entry.flight_number || "—"}</td>
-                      <td style={{ padding: "9px 10px", color: "rgba(255,255,255,0.7)" }}>{entry.seat_number || "—"}</td>
+                      <td style={{ 
+                        padding: "9px 10px", 
+                        color: "var(--text-secondary)", 
+                        fontFamily: "monospace", 
+                        fontSize: "13px"
+                      }}>{entry.booking_reference}</td>
+                      <td style={{ 
+                        padding: "9px 10px", 
+                        color: "var(--text-secondary)",
+                        fontSize: "13px"
+                      }}>{entry.flight_number || "—"}</td>
+                      <td style={{ 
+                        padding: "9px 10px", 
+                        color: "var(--text-secondary)",
+                        fontSize: "13px"
+                      }}>{entry.seat_number || "—"}</td>
                       <td style={{ padding: "9px 10px" }}>
-                        <span style={{ color: s.color, fontWeight: 700, fontSize: "12px" }}>{entry.status}</span>
+                        <span style={{ 
+                          color: s.color, 
+                          fontWeight: 700, 
+                          fontSize: "12px",
+                          backgroundColor: s.bg,
+                          padding: "3px 8px",
+                          borderRadius: "4px",
+                          border: `1px solid ${s.border}`
+                        }}>{entry.status}</span>
                       </td>
                     </tr>
                   );
@@ -261,16 +494,16 @@ export default function AgentVerifyQR() {
       {/* ── Camera Selector ── */}
       {cameras.length > 1 && !scanning && !result && (
         <div style={{ ...CARD, marginBottom: "16px" }}>
-          <label style={{ display: "block", color: "rgba(255,255,255,0.7)", fontSize: "12px", fontWeight: 700, marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+          <label style={{ display: "block", color: "var(--text-secondary)", fontSize: "12px", fontWeight: 700, marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
             Camera
           </label>
           <select
             value={selectedCam}
             onChange={e => setSelectedCam(e.target.value)}
-            style={{ width: "100%", padding: "9px 14px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.2)", background: "rgba(5,19,30,0.9)", color: "#fff", fontSize: "14px", outline: "none" }}
+            style={{ width: "100%", padding: "9px 14px", borderRadius: "8px", border: "1px solid var(--border)", background: "var(--background)", color: "var(--text-primary)", fontSize: "14px", outline: "none" }}
           >
             {cameras.map(c => (
-              <option key={c.id} value={c.id} style={{ background: "#0b1220" }}>{c.label || c.id}</option>
+              <option key={c.id} value={c.id} style={{ background: "var(--surface)" }}>{c.label || c.id}</option>
             ))}
           </select>
         </div>
@@ -301,8 +534,19 @@ export default function AgentVerifyQR() {
 
       {/* ── Scan Error ── */}
       {scanErr && (
-        <div style={{ background: "rgba(220,53,69,0.15)", border: `1px solid ${red}`, color: "#ff8891", borderRadius: "8px", padding: "12px 16px", marginBottom: "14px", fontSize: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
-          <Icons.XCircle size={18} color="#ff8891" />
+        <div style={{ 
+          background: "rgba(220,53,69,0.15)", 
+          border: `1px solid ${red}`, 
+          color: "#ff6b6b", 
+          borderRadius: "8px", 
+          padding: "12px 16px", 
+          marginBottom: "14px", 
+          fontSize: "14px", 
+          display: "flex", 
+          alignItems: "center", 
+          gap: "8px" 
+        }}>
+          <Icons.XCircle size={18} color="#ff6b6b" />
           {scanErr}
         </div>
       )}
@@ -332,7 +576,7 @@ export default function AgentVerifyQR() {
       {!result && !scanning && (
         <form onSubmit={e => { e.preventDefault(); verifyCode(manualQR); }}>
           <div style={{ ...CARD, marginBottom: "20px" }}>
-            <div style={{ color: "rgba(255,255,255,0.7)", fontSize: "12px", fontWeight: 700, marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            <div style={{ color: "var(--text-primary)", fontSize: "12px", fontWeight: 700, marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
               Or paste QR code manually
             </div>
             <div style={{ display: "flex", gap: "10px" }}>
@@ -341,7 +585,7 @@ export default function AgentVerifyQR() {
                 placeholder="Paste QR code string here…"
                 value={manualQR}
                 onChange={e => setManualQR(e.target.value)}
-                style={{ flex: 1, padding: "10px 14px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.07)", color: "#fff", fontSize: "14px", outline: "none" }}
+                style={{ flex: 1, padding: "10px 14px", borderRadius: "8px", border: "1px solid var(--border)", background: "var(--background)", color: "var(--text-primary)", fontSize: "14px", outline: "none" }}
               />
               <button
                 type="submit"
@@ -357,15 +601,30 @@ export default function AgentVerifyQR() {
 
       {/* ── Verify Error ── */}
       {verifyErr && !result && (
-        <div style={{ background: "rgba(220,53,69,0.15)", border: `1px solid ${red}`, borderRadius: "12px", padding: "20px", marginBottom: "20px" }}>
+        <div style={{ 
+          background: "rgba(220,53,69,0.15)", 
+          border: `1px solid ${red}`, 
+          borderRadius: "12px", 
+          padding: "20px", 
+          marginBottom: "20px" 
+        }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "14px" }}>
-            <Icons.XCircle size={32} color="#ff6b78" />
+            <Icons.XCircle size={32} color="#ff6b6b" />
             <div>
-              <div style={{ color: "#ff6b78", fontWeight: 700, fontSize: "16px" }}>Invalid QR Code</div>
-              <div style={{ color: "rgba(255,255,255,0.75)", fontSize: "13px", marginTop: "4px" }}>{verifyErr}</div>
+              <div style={{ color: "#ff6b6b", fontWeight: 700, fontSize: "16px" }}>Invalid QR Code</div>
+              <div style={{ color: "var(--text-secondary)", fontSize: "13px", marginTop: "4px" }}>{verifyErr}</div>
             </div>
           </div>
-          <button onClick={reset} style={{ background: "rgba(255,255,255,0.1)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "7px", padding: "8px 20px", cursor: "pointer", fontSize: "14px", fontWeight: 600 }}>
+          <button onClick={reset} style={{ 
+            background: "rgba(255,255,255,0.1)", 
+            color: "var(--text-primary)", 
+            border: "1px solid var(--border)", 
+            borderRadius: "7px", 
+            padding: "8px 20px", 
+            cursor: "pointer", 
+            fontSize: "14px", 
+            fontWeight: 600 
+          }}>
             Try Again
           </button>
         </div>
@@ -374,38 +633,56 @@ export default function AgentVerifyQR() {
       {/* ── Success Result ── */}
       {result && (
         <div style={{
-          background: isDoubleBoard ? "rgba(253,126,20,0.10)" : "rgba(40,167,69,0.12)",
-          border: `2px solid ${isDoubleBoard ? amber : green}`,
+          background: "var(--surface)",
+          border: `2px solid ${isDoubleBoard ? amber : teal}`,
           borderRadius: "14px",
           padding: "24px",
           marginBottom: "20px",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "20px" }}>
-            {isDoubleBoard ? <Icons.Repeat size={40} color={amber} /> : <Icons.CheckCircle size={40} color={green} />}
+            <Icons.UserCheck size={40} color={teal} />
             <div>
-              <div style={{ fontWeight: 800, fontSize: "18px", color: isDoubleBoard ? amber : green }}>
-                {isDoubleBoard ? "Already Boarded — Duplicate Scan" : "Boarding Pass Verified!"}
+              <div style={{ fontWeight: 800, fontSize: "18px", color: teal }}>
+                Passenger Verified
               </div>
-              <div style={{ color: "rgba(255,255,255,0.75)", fontSize: "13px", marginTop: "3px" }}>
-                {isDoubleBoard
-                  ? "This passenger was already marked as ON BOARD. Check with supervisor."
-                  : "Status updated to ON BOARD successfully."}
+              <div style={{ color: "var(--text-secondary)", fontSize: "13px", marginTop: "3px" }}>
+                Compare the photo below with the passenger before confirming
               </div>
             </div>
           </div>
 
+          {/* Passenger Photo */}
+          {result.passenger_photo_url ? (
+            <PassengerPhoto photoUrl={result.passenger_photo_url} passengerName={result.passenger_name} />
+          ) : (
+            <div style={{
+              background: "rgba(253,126,20,0.1)",
+              border: `1px solid ${amber}`,
+              borderRadius: "8px",
+              padding: "12px",
+              marginBottom: "20px",
+              color: amber,
+              fontSize: "13px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px"
+            }}>
+              <Icons.AlertCircle size={16} />
+              No passenger photo available for verification
+            </div>
+          )}
+
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "10px", marginBottom: "20px" }}>
             {[
               ["Booking Ref",  result.booking_reference],
-              ["Passenger",    result.passenger_name || "—"],
               ["Flight",       result.flight_number  || "—"],
               ["Route",        result.departure && result.arrival ? `${result.departure} → ${result.arrival}` : "—"],
               ["Departure",    fmtTime(result.departure_time)],
               ["Seat",         result.seat_number || "—"],
             ].map(([lbl, val]) => (
-              <div key={lbl} style={{ background: "rgba(5,19,30,0.75)", borderRadius: "8px", padding: "11px 14px" }}>
-                <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: "4px" }}>{lbl}</div>
-                <div style={{ color: "#fff", fontWeight: 600, fontSize: "14px", wordBreak: "break-word" }}>{val}</div>
+              <div key={lbl} style={{ background: "var(--background)", borderRadius: "8px", padding: "11px 14px", border: "1px solid var(--border)" }}>
+                <div style={{ color: "var(--text-secondary)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: "4px" }}>{lbl}</div>
+                <div style={{ color: "var(--text-primary)", fontWeight: 600, fontSize: "14px", wordBreak: "break-word" }}>{val}</div>
               </div>
             ))}
           </div>
@@ -415,7 +692,7 @@ export default function AgentVerifyQR() {
             const s = STATUS_BADGE[result.status] || { bg: "rgba(108,117,125,0.2)", color: "#aaa", border: "#6c757d66" };
             return (
               <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px" }}>
-                <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "13px" }}>Status:</span>
+                <span style={{ color: "var(--text-secondary)", fontSize: "13px" }}>Status:</span>
                 <span style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}`, borderRadius: "20px", padding: "4px 14px", fontWeight: 700, fontSize: "13px" }}>
                   {result.status}
                 </span>
@@ -423,9 +700,105 @@ export default function AgentVerifyQR() {
             );
           })()}
 
+          {/* Error message */}
+          {confirmErr && (
+            <div style={{
+              background: "rgba(220,53,69,0.15)",
+              border: `1px solid ${red}`,
+              color: "#ff8891",
+              borderRadius: "8px",
+              padding: "12px 16px",
+              marginBottom: "14px",
+              fontSize: "14px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px"
+            }}>
+              <Icons.XCircle size={18} color="#ff8891" />
+              {confirmErr}
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          {!isDoubleBoard && (
+            <div style={{ display: "flex", gap: "12px", marginBottom: "12px" }}>
+              <button
+                onClick={handleConfirmBoarding}
+                disabled={confirming}
+                style={{
+                  flex: 1,
+                  background: green,
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "9px",
+                  padding: "13px 0",
+                  fontWeight: 800,
+                  cursor: confirming ? "not-allowed" : "pointer",
+                  fontSize: "15px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  opacity: confirming ? 0.6 : 1
+                }}
+              >
+                {confirming ? "Processing..." : <><Icons.Check size={20} /> Confirm Boarding</>}
+              </button>
+              <button
+                onClick={handleCancelBoarding}
+                disabled={confirming}
+                style={{
+                  flex: 1,
+                  background: "rgba(220,53,69,0.2)",
+                  color: "#ff6b78",
+                  border: `1px solid ${red}`,
+                  borderRadius: "9px",
+                  padding: "13px 0",
+                  fontWeight: 800,
+                  cursor: confirming ? "not-allowed" : "pointer",
+                  fontSize: "15px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px"
+                }}
+              >
+                <Icons.X size={20} /> Cancel
+              </button>
+            </div>
+          )}
+
+          {isDoubleBoard && (
+            <div style={{
+              background: "rgba(253,126,20,0.10)",
+              border: `1px solid ${amber}`,
+              borderRadius: "8px",
+              padding: "12px 16px",
+              marginBottom: "12px",
+              color: amber,
+              fontSize: "14px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px"
+            }}>
+              <Icons.Repeat size={18} />
+              This passenger was already marked as ON BOARD
+            </div>
+          )}
+
           <button
             onClick={reset}
-            style={{ background: teal, color: "#fff", border: "none", borderRadius: "8px", padding: "11px 28px", cursor: "pointer", fontWeight: 700, fontSize: "15px" }}
+            style={{
+              width: "100%",
+              background: teal,
+              color: "#fff",
+              border: "none",
+              borderRadius: "8px",
+              padding: "11px 28px",
+              cursor: "pointer",
+              fontWeight: 700,
+              fontSize: "15px"
+            }}
           >
             Scan Next Passenger
           </button>

@@ -264,12 +264,12 @@ export default function Seats() {
         padding: "10px",
         border: "2px solid #dee2e6",
         borderRadius: "8px",
-        backgroundColor: "#f8f9fa",
+        backgroundColor: "var(--background)",
         position: "relative",
         maxWidth: "100%",
         overflowX: "auto"
       }}>
-        <div style={{ marginBottom: "20px", fontWeight: "bold", fontSize: "18px", color: "#0b1220" }}>Aircraft Cabin Layout</div>
+        <div style={{ marginBottom: "20px", fontWeight: "bold", fontSize: "18px", color: "var(--text-primary)" }}>Aircraft Cabin Layout</div>
         
         {/* Front of plane indicator */}
         <div style={{ 
@@ -316,7 +316,7 @@ export default function Seats() {
           zIndex: "1000"
         }}>
           <div style={{
-            backgroundColor: "white",
+            backgroundColor: "var(--surface)",
             padding: "25px",
             borderRadius: "10px",
             boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
@@ -325,7 +325,7 @@ export default function Seats() {
             maxWidth: "500px",
             textAlign: "center"
           }}>
-            <h3 style={{ margin: "0 0 15px 0", color: "#0b1220", fontSize: "24px" }}>Confirm Your Selection</h3>
+            <h3 style={{ margin: "0 0 15px 0", color: "var(--text-primary)", fontSize: "24px" }}>Confirm Your Selection</h3>
             <div style={{ fontSize: "18px", fontWeight: "600", color: "#28a745", marginBottom: "5px" }}>{selectedSeat?.seat_number} ({selectedSeat?.seat_class})</div>
             <div style={{ fontSize: "16px", color: "#6c757d", marginBottom: "20px" }}>Row {selectedSeat?.seat_number.replace(/[^0-9]/g, '')}</div>
             
@@ -380,7 +380,7 @@ export default function Seats() {
         position: "fixed",
         top: "100px",
         right: "20px",
-        backgroundColor: "white",
+        backgroundColor: "var(--surface)",
         padding: "15px",
         borderRadius: "8px",
         boxShadow: "0 2px 8px rgba(0,0,0,0.1)",

@@ -7,10 +7,14 @@ from .views import (
     AircraftAdminViewSet, BookingAdminViewSet, UserAdminViewSet,
     AirlineAdminViewSet, AirlinePublicViewSet,
     AgentFlightViewSet, AgentBookingViewSet,
+<<<<<<< HEAD
     SummaryReportView, VerifyQRView, ScanHistoryView,
 <<<<<<< HEAD
     PaymentProviderView
 =======
+=======
+    SummaryReportView, FlightsWithBookingsView, VerifyQRView, ConfirmBoardingView, ScanHistoryView,
+>>>>>>> 1f8170445e5037c8d4a27ddab2757e5b5f376943
     PaymentProviderView,
     PesapalInitiatePaymentView, PesapalCallbackView, PesapalIPNView, PesapalStatusCheckView
 >>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
@@ -41,18 +45,20 @@ urlpatterns = [
     path("agent/", include(agent_router.urls)),
 
     path("reports/summary/", SummaryReportView.as_view()),
+    path("reports/flights-with-bookings/", FlightsWithBookingsView.as_view()),
     path("verify/qr/",       VerifyQRView.as_view()),
+    path("verify/confirm-boarding/", ConfirmBoardingView.as_view()),
     path("agent/scan-history/", ScanHistoryView.as_view()),
     path("payment-providers/", PaymentProviderView.as_view()),
     
 <<<<<<< HEAD
 =======
     # Pesapal Payment Gateway Endpoints
-    path("payments/pesapal/initiate/<int:booking_id>/", PesapalInitiatePaymentView.as_view()),
+    path("payments/pesapal/initiate/<uuid:booking_id>/", PesapalInitiatePaymentView.as_view()),
     path("payments/pesapal/callback/", PesapalCallbackView.as_view()),
     path("payments/pesapal/ipn/", PesapalIPNView.as_view()),  # With trailing slash
     path("payments/pesapal/ipn", PesapalIPNView.as_view()),   # Without trailing slash
-    path("payments/pesapal/status/<int:payment_id>/", PesapalStatusCheckView.as_view()),
+    path("payments/pesapal/status/<uuid:payment_id>/", PesapalStatusCheckView.as_view()),
     
 >>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     # User Activity Logging Endpoints

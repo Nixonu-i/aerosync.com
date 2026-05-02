@@ -1,6 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import API from '../../api/api';
 
+// Force light theme for all admin pages
+function AdminThemeEnforcer() {
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', 'light');
+    return () => {
+      // Restore user preference on unmount
+      const saved = localStorage.getItem('theme') || 'LIGHT';
+      if (saved === 'DARK') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    };
+  }, []);
+  return null;
+}
+
 const AdminActivityLogs = () => {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -17,25 +32,30 @@ const AdminActivityLogs = () => {
 
   useEffect(() => {
     fetchActivities();
-  }, [currentPage, filters]);
+  }, [currentPage]);
 
   const fetchActivities = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({
-        page: currentPage,
-        limit: 20,
-        ...filters
-      }).toString();
+      
+      // Build params object, only including non-empty filters
+      const params = new URLSearchParams();
+      params.append('page', currentPage);
+      params.append('limit', '20');
+      
+      if (filters.user_id) params.append('user_id', filters.user_id);
+      if (filters.action) params.append('action', filters.action);
+      if (filters.ip_address) params.append('ip_address', filters.ip_address);
+      if (filters.search) params.append('search', filters.search);
 
-      const response = await API.get(`/admin/user-activities/?${params}`);
+      const url = `/admin/user-activities/?${params.toString()}`;
+      const response = await API.get(url);
       const { activities: fetchedActivities, pagination } = response.data;
 
       setActivities(fetchedActivities);
       setTotalPages(pagination.total_pages);
       setError(null);
     } catch (err) {
-      console.error('Error fetching activity logs:', err);
       setError('Failed to fetch activity logs');
     } finally {
       setLoading(false);
@@ -48,7 +68,12 @@ const AdminActivityLogs = () => {
       ...prev,
       [name]: value
     }));
-    setCurrentPage(1); // Reset to first page when filters change
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setCurrentPage(1);
+    fetchActivities();
   };
 
   const handleClearFilters = () => {
@@ -128,25 +153,27 @@ const AdminActivityLogs = () => {
   };
 
   return (
-    <div className="as-admin-container">
+    <>
+      <AdminThemeEnforcer />
+      <div className="as-admin-container" style={{ background: 'var(--background)' }}>
       <div className="as-admin-content">
-        <div className="as-card">
+        <div className="as-card" style={{ background: 'var(--surface)' }}>
           {/* Header */}
-          <div className="as-card-header">
+          <div className="as-card-header" style={{ background: '#0b1220', borderBottom: '2px solid #d4af37' }}>
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-semibold text-gray-800">User Activity Logs</h2>
-                <p className="text-sm text-gray-600 mt-1">Monitor user activities and system interactions</p>
+                <h2 className="text-xl font-semibold" style={{ color: 'white', fontWeight: '800', letterSpacing: '0.04em' }}>USER ACTIVITY LOGS</h2>
+                <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.85)' }}>Monitor user activities and system interactions</p>
               </div>
-              <div className="flex space-x-2">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <button 
                   onClick={exportToCSV}
                   disabled={activities.length === 0}
-                  className="as-btn as-btn-sm as-btn-outline-secondary"
+                  className="as-btn as-btn-sm" style={{ background: 'linear-gradient(135deg, #d4af37 0%, #f4d03f 100%)', color: '#0b1220', border: 'none', fontWeight: '600' }}
                 >
                   Export CSV
                 </button>
-                <span className="as-badge as-badge-secondary">
+                <span className="as-badge" style={{ background: '#334155', color: '#d4af37', fontWeight: '600' }}>
                   {activities.length} records
                 </span>
               </div>
@@ -155,9 +182,10 @@ const AdminActivityLogs = () => {
 
           {/* Filters */}
           <div className="as-card-body">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-4">
+            <form onSubmit={handleSearch}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-4">
               <div>
-                <label className="as-label">Search</label>
+                <label className="as-label" style={{ color: 'var(--text-primary)', fontWeight: '600' }}>Search</label>
                 <input
                   type="text"
                   name="search"
@@ -165,10 +193,15 @@ const AdminActivityLogs = () => {
                   onChange={handleFilterChange}
                   placeholder="Search users, IPs..."
                   className="as-input"
+                  style={{
+                    background: '#ffffff',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border)'
+                  }}
                 />
               </div>
               <div>
-                <label className="as-label">User ID</label>
+                <label className="as-label" style={{ color: 'var(--text-primary)', fontWeight: '600' }}>User ID</label>
                 <input
                   type="text"
                   name="user_id"
@@ -176,18 +209,29 @@ const AdminActivityLogs = () => {
                   onChange={handleFilterChange}
                   placeholder="User ID"
                   className="as-input"
+                  style={{
+                    background: '#ffffff',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border)'
+                  }}
                 />
               </div>
               <div>
-                <label className="as-label">Action</label>
+                <label className="as-label" style={{ color: 'var(--text-primary)', fontWeight: '600' }}>Action</label>
                 <select
                   name="action"
                   value={filters.action}
                   onChange={handleFilterChange}
                   className="as-select"
+                  style={{
+                    background: '#ffffff',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border)'
+                  }}
                 >
                   <option value="">All Actions</option>
                   <option value="login">Login</option>
+                  <option value="login_blocked">Login Blocked</option>
                   <option value="logout">Logout</option>
                   <option value="profile_update">Profile Update</option>
                   <option value="booking_create">Booking Create</option>
@@ -200,7 +244,7 @@ const AdminActivityLogs = () => {
                 </select>
               </div>
               <div>
-                <label className="as-label">IP Address</label>
+                <label className="as-label" style={{ color: 'var(--text-primary)', fontWeight: '600' }}>IP Address</label>
                 <input
                   type="text"
                   name="ip_address"
@@ -208,93 +252,201 @@ const AdminActivityLogs = () => {
                   onChange={handleFilterChange}
                   placeholder="IP Address"
                   className="as-input"
+                  style={{
+                    background: '#ffffff',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border)'
+                  }}
                 />
               </div>
-              <div className="flex items-end">
+              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-end', gap: '12px', marginTop: '24px' }}>
                 <button
+                  type="submit"
+                  className="as-btn as-btn-primary"
+                  style={{ fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flex: 1 }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                  </svg>
+                  Search
+                </button>
+                <button
+                  type="button"
                   onClick={handleClearFilters}
-                  className="as-btn as-btn-secondary w-full"
+                  className="as-btn"
+                  style={{ 
+                    fontWeight: '600', 
+                    flex: 1,
+                    background: '#fee2e2',
+                    color: '#991b1b',
+                    border: '1px solid #fecaca'
+                  }}
                 >
                   Clear
                 </button>
               </div>
             </div>
+            </form>
           </div>
 
           {/* Activity Table */}
-          <div className="overflow-x-auto">
-            <table className="as-table">
+          <div className="overflow-x-auto" style={{ 
+            background: 'var(--surface)',
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            msOverflowStyle: '-ms-autohiding-scrollbar'
+          }}>
+            <div style={{ minWidth: '1200px' }}>
+            <table className="as-table" style={{ width: '100%' }}>
               <thead>
-                <tr>
-                  <th>User</th>
-                  <th>Action</th>
-                  <th>IP Address</th>
-                  <th>Method</th>
-                  <th>Path</th>
-                  <th>Status</th>
-                  <th>Time</th>
-                  <th>Details</th>
+                <tr style={{ background: '#0b1220' }}>
+                  <th style={{ color: 'white', borderBottom: '2px solid var(--accent)', fontSize: '12px' }}>User</th>
+                  <th style={{ color: 'white', borderBottom: '2px solid var(--accent)', fontSize: '12px' }}>Action</th>
+                  <th style={{ color: 'white', borderBottom: '2px solid var(--accent)', fontSize: '12px' }}>IP Address</th>
+                  <th style={{ color: 'white', borderBottom: '2px solid var(--accent)', fontSize: '12px' }}>Method</th>
+                  <th style={{ color: 'white', borderBottom: '2px solid var(--accent)', fontSize: '12px' }}>Path</th>
+                  <th style={{ color: 'white', borderBottom: '2px solid var(--accent)', fontSize: '12px' }}>Status</th>
+                  <th style={{ color: 'white', borderBottom: '2px solid var(--accent)', fontSize: '12px' }}>Time</th>
+                  <th style={{ color: 'white', borderBottom: '2px solid var(--accent)', fontSize: '12px' }}>Details</th>
                 </tr>
               </thead>
               <tbody>
                 {activities.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500">
+                    <td colSpan="8" className="px-6 py-12 text-center" style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+                      <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'center' }}>
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
+                          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                          <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                          <path d="M9 12h6"></path>
+                          <path d="M9 16h6"></path>
+                          <path d="M9 8h6"></path>
+                        </svg>
+                      </div>
                       No activity logs found
                     </td>
                   </tr>
                 ) : (
-                  activities.map((activity) => (
-                    <tr key={activity.id} className="as-table-row">
+                  activities.map((activity, index) => (
+                    <tr key={activity.id} className="as-table-row" style={{ 
+                      background: index % 2 === 0 ? 'var(--surface)' : 'var(--background)',
+                      borderBottom: '1px solid var(--border)'
+                    }}>
                       <td className="as-table-cell">
-                        <div className="font-medium text-gray-900" title={activity.username || 'Anonymous'}>
+                        <div className="font-medium" style={{ color: 'var(--text-primary)', fontWeight: '700' }} title={activity.username || 'Anonymous'}>
                           {activity.username || 'Anonymous'}
                         </div>
                         {activity.user_id && (
-                          <div className="text-xs text-gray-500" title={`ID: ${activity.user_id}`}>
-                            ID: {activity.user_id}
+                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }} title={`ID: ${activity.user_id}`}>
+                            ID: {String(activity.user_id).substring(0, 8)}...
                           </div>
                         )}
                       </td>
                       <td className="as-table-cell">
-                        <span className={`as-badge ${activity.action === 'login' ? 'as-badge-success' :
-                            activity.action === 'logout' ? 'as-badge-info' :
-                            activity.action === 'profile_update' ? 'as-badge-warning' :
-                            activity.action === 'booking_create' ? 'as-badge-primary' :
-                            activity.action === 'payment' ? 'as-badge-indigo' :
-                            activity.action === 'admin_action' ? 'as-badge-danger' :
-                            activity.action === 'file_upload' ? 'as-badge-teal' :
-                            'as-badge-secondary'}`}>
-                          {activity.action.replace('_', ' ').toUpperCase()}
+                        <span style={{ 
+                          display: 'inline-block',
+                          padding: '6px 12px',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          borderRadius: '12px',
+                          textTransform: 'uppercase',
+                          background: activity.action === 'api_access' ? '#fef3c7' :
+                                 activity.action === 'admin_action' ? '#fee2e2' :
+                                 activity.action === 'login_blocked' ? '#fee2e2' :
+                                 activity.action === 'login' ? '#d1fae5' :
+                                 activity.action === 'logout' ? '#e0f2fe' :
+                                 activity.action === 'profile_update' ? '#fef3c7' :
+                                 activity.action === 'booking_create' ? '#dbeafe' :
+                                 activity.action === 'payment' ? '#e0e7ff' :
+                                 activity.action === 'file_upload' ? '#ccfbf1' :
+                                 '#f3f4f6',
+                          color: activity.action === 'api_access' ? '#92400e' :
+                                 activity.action === 'admin_action' ? '#991b1b' :
+                                 activity.action === 'login_blocked' ? '#991b1b' :
+                                 activity.action === 'login' ? '#065f46' :
+                                 activity.action === 'logout' ? '#075985' :
+                                 activity.action === 'profile_update' ? '#92400e' :
+                                 activity.action === 'booking_create' ? '#1e40af' :
+                                 activity.action === 'payment' ? '#3730a3' :
+                                 activity.action === 'file_upload' ? '#115e59' :
+                                 '#4b5563'
+                        }}>
+                          {activity.action.replace('_', ' ')}
                         </span>
                       </td>
                       <td className="as-table-cell">
-                        <span className="font-mono text-xs">
+                        <span style={{ 
+                          fontFamily: 'monospace', 
+                          fontSize: '13px',
+                          fontWeight: '700',
+                          color: 'var(--text-primary)',
+                          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                          padding: '4px 8px',
+                          borderRadius: '4px'
+                        }}>
                           {activity.ip_address}
                         </span>
                       </td>
                       <td className="as-table-cell">
-                        <span className={`as-badge ${activity.method === 'GET' ? 'as-badge-success' :
-                            activity.method === 'POST' ? 'as-badge-info' :
-                            activity.method === 'PUT' ? 'as-badge-warning' :
-                            activity.method === 'DELETE' ? 'as-badge-danger' :
-                            activity.method === 'PATCH' ? 'as-badge-purple' :
-                            'as-badge-secondary'}`}>
+                        <span style={{ 
+                          display: 'inline-block',
+                          padding: '6px 12px',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          borderRadius: '12px',
+                          background: activity.method === 'GET' ? '#d1fae5' :
+                                 activity.method === 'POST' ? '#dbeafe' :
+                                 activity.method === 'PUT' ? '#fef3c7' :
+                                 activity.method === 'DELETE' ? '#fee2e2' :
+                                 activity.method === 'PATCH' ? '#e0e7ff' :
+                                 '#f3f4f6',
+                          color: activity.method === 'GET' ? '#065f46' :
+                                 activity.method === 'POST' ? '#1e40af' :
+                                 activity.method === 'PUT' ? '#92400e' :
+                                 activity.method === 'DELETE' ? '#991b1b' :
+                                 activity.method === 'PATCH' ? '#3730a3' :
+                                 '#4b5563'
+                        }}>
                           {activity.method}
                         </span>
                       </td>
                       <td className="as-table-cell">
-                        <div className="truncate max-w-xs" title={activity.path}>{activity.path}</div>
+                        <div style={{ 
+                          maxWidth: '300px', 
+                          overflow: 'hidden', 
+                          textOverflow: 'ellipsis', 
+                          whiteSpace: 'nowrap',
+                          color: 'var(--text-primary)',
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          fontFamily: 'monospace',
+                          backgroundColor: 'rgba(139, 92, 246, 0.08)',
+                          padding: '4px 8px',
+                          borderRadius: '4px'
+                        }} title={activity.path}>
+                          {activity.path}
+                        </div>
                       </td>
                       <td className="as-table-cell">
-                        <span className={`font-mono ${getStatusColor(activity.status_code) === 'red' ? 'text-red-600' : getStatusColor(activity.status_code) === 'orange' ? 'text-orange-500' : getStatusColor(activity.status_code) === 'green' ? 'text-green-600' : 'text-gray-600'}`}>
+                        <span style={{ 
+                          fontFamily: 'monospace',
+                          fontWeight: '600',
+                          fontSize: '13px',
+                          color: activity.status_code >= 500 ? '#dc2626' : 
+                                 activity.status_code >= 400 ? '#ea580c' : 
+                                 activity.status_code >= 200 ? '#16a34a' : '#6b7280'
+                        }}>
                           {activity.status_code}
                         </span>
                       </td>
                       <td className="as-table-cell">
-                        <div className="text-xs">
-                          {new Date(activity.timestamp).toLocaleDateString()}<br />
-                          <span className="text-gray-400">
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                          <strong style={{ fontWeight: '700', color: 'var(--text-primary)' }}>
+                            {new Date(activity.timestamp).toLocaleDateString()}
+                          </strong>
+                          <br />
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
                             {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
@@ -302,13 +454,31 @@ const AdminActivityLogs = () => {
                       <td className="as-table-cell">
                         <button 
                           onClick={() => toggleDetails(activity.id)}
-                          className="as-btn as-btn-sm as-btn-outline-primary"
+                          className="as-btn as-btn-sm"
+                          style={{ 
+                            background: showDetails === activity.id ? '#3b82f6' : 'transparent',
+                            color: showDetails === activity.id ? 'white' : '#3b82f6',
+                            border: '1px solid #3b82f6',
+                            fontSize: '11px',
+                            padding: '4px 10px'
+                          }}
                         >
                           {showDetails === activity.id ? 'Hide' : 'Show'}
                         </button>
                         {showDetails === activity.id && (
-                          <div className="mt-2 p-3 bg-gray-50 rounded border border-gray-200 text-xs font-mono max-h-40 overflow-auto">
-                            <pre>{JSON.stringify({
+                          <div style={{ 
+                            marginTop: '8px', 
+                            padding: '12px', 
+                            background: '#f8fafc', 
+                            borderRadius: '6px', 
+                            border: '1px solid #e2e8f0',
+                            fontSize: '11px', 
+                            fontFamily: 'monospace', 
+                            maxHeight: '300px', 
+                            overflow: 'auto',
+                            color: '#334155'
+                          }}>
+                            <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{JSON.stringify({
                               id: activity.id,
                               user_id: activity.user_id,
                               username: activity.username,
@@ -329,6 +499,7 @@ const AdminActivityLogs = () => {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
 
           {/* Pagination */}
@@ -359,6 +530,7 @@ const AdminActivityLogs = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

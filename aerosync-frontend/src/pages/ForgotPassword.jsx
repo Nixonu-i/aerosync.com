@@ -133,7 +133,7 @@ export default function ForgotPassword() {
       </button>
       
       <div style={{
-        backgroundColor: "white",
+        backgroundColor: "var(--surface)",
         borderRadius: "16px",
         boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
         padding: "40px",
@@ -145,7 +145,7 @@ export default function ForgotPassword() {
           <h1 style={{
             fontSize: "28px",
             fontWeight: "700",
-            color: "#0b1220",
+            color: "var(--text-primary)",
             marginBottom: "8px"
           }}>
             Reset Password
@@ -202,7 +202,7 @@ export default function ForgotPassword() {
                   display: "block",
                   fontSize: "14px",
                   fontWeight: "600",
-                  color: "#0b1220",
+                  color: "var(--text-primary)",
                   marginBottom: "8px"
                 }}>Email or Username</label>
                 <input
@@ -263,7 +263,7 @@ export default function ForgotPassword() {
                   display: "block",
                   fontSize: "14px",
                   fontWeight: "600",
-                  color: "#0b1220",
+                  color: "var(--text-primary)",
                   marginBottom: "8px"
                 }}>Verification Code</label>
                 <input
@@ -347,7 +347,7 @@ export default function ForgotPassword() {
                   display: "block",
                   fontSize: "14px",
                   fontWeight: "600",
-                  color: "#0b1220",
+                  color: "var(--text-primary)",
                   marginBottom: "8px"
                 }}>New Password</label>
                 <input
@@ -376,7 +376,7 @@ export default function ForgotPassword() {
                   display: "block",
                   fontSize: "14px",
                   fontWeight: "600",
-                  color: "#0b1220",
+                  color: "var(--text-primary)",
                   marginBottom: "8px"
                 }}>Confirm Password</label>
                 <input

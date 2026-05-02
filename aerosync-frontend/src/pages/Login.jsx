@@ -1,4 +1,4 @@
-import { useContext, useState } from "react";
+import { useContext, useState, useEffect } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { formatErrorMessage } from "../utils/errorFormatter";
@@ -7,6 +7,18 @@ export default function Login() {
   const { login } = useContext(AuthContext);
   const nav = useNavigate();
   const location = useLocation();
+
+  // Force light theme for login page
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', 'light');
+    return () => {
+      // Restore user preference on unmount
+      const saved = localStorage.getItem('theme') || 'LIGHT';
+      if (saved === 'DARK') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    };
+  }, []);
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -77,9 +89,9 @@ export default function Login() {
           position: "absolute",
           top: "20px",
           left: "20px",
-          background: "rgba(255,255,255,0.1)",
-          border: "1px solid rgba(255,255,255,0.2)",
-          color: "white",
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          color: "var(--text-primary)",
           padding: "10px 20px",
           borderRadius: "8px",
           fontSize: "14px",
@@ -88,25 +100,34 @@ export default function Login() {
           transition: "all 0.3s",
           display: "flex",
           alignItems: "center",
-          gap: "8px"
+          gap: "8px",
+          boxShadow: "0 2px 4px var(--shadow)"
         }}
-        onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.2)"}
-        onMouseLeave={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = "var(--primary)";
+          e.currentTarget.style.color = "white";
+          e.currentTarget.style.borderColor = "var(--primary)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = "var(--surface)";
+          e.currentTarget.style.color = "var(--text-primary)";
+          e.currentTarget.style.borderColor = "var(--border)";
+        }}
       >
         ← Back to Flights
       </button>
       
       <div style={{
-        backgroundColor: "white",
+        backgroundColor: "var(--surface)",
         padding: "30px",
-        borderRadius: "10px",
-        boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+        borderRadius: "12px",
+        boxShadow: "0 4px 6px -1px var(--shadow), 0 2px 4px -2px var(--shadow)",
         width: "100%",
         maxWidth: "420px"
       }}>
         <h2 style={{
           textAlign: "center",
-          color: "#0b1220",
+          color: "var(--text-primary)",
           marginBottom: "25px",
           fontSize: "28px",
           fontWeight: "700"
@@ -187,7 +208,7 @@ export default function Login() {
           <Link 
             to="/register"
             style={{
-              color: "#0b1220",
+              color: "var(--text-primary)",
               fontWeight: "600",
               textDecoration: "underline"
             }}

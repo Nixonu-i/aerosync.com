@@ -36,12 +36,27 @@ export const BookingRealtimeProvider = ({ children }) => {
         
         // Notify all subscribers
         notifySubscribers(booking, changed_fields);
-      } else if (latestUpdate.type === 'payment_updated') {
-        const { payment, booking_id, changed_fields } = latestUpdate;
+      } else if (latestUpdate.type === 'payment_update') {
+        const { payment, booking_id, booking_status, changed_fields } = latestUpdate;
+        
+        // If booking status is provided, also dispatch a booking update event
+        // This ensures the UI updates booking status when payment succeeds
+        if (booking_status && booking_id) {
+          const bookingEvent = new CustomEvent('booking-update', {
+            detail: { 
+              booking: { 
+                id: booking_id, 
+                booking_status: booking_status 
+              }, 
+              changedFields: ['booking_status'] 
+            }
+          });
+          window.dispatchEvent(bookingEvent);
+        }
         
         // Dispatch custom event for payment updates
         const event = new CustomEvent('payment-update', {
-          detail: { payment, bookingId: booking_id, changedFields: changed_fields }
+          detail: { payment, bookingId: booking_id, bookingStatus: booking_status, changedFields: changed_fields }
         });
         window.dispatchEvent(event);
       }

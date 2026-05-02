@@ -2,6 +2,21 @@ import { useEffect, useState } from "react";
 import API from "../../api/api";
 import { useAdminUI } from "../../hooks/useAdminUI";
 
+// Force light theme for all admin pages
+function AdminThemeEnforcer() {
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', 'light');
+    return () => {
+      // Restore user preference on unmount
+      const saved = localStorage.getItem('theme') || 'LIGHT';
+      if (saved === 'DARK') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    };
+  }, []);
+  return null;
+}
+
 const inputStyle = { width: "100%", padding: "10px 12px", border: "1px solid #ced4da", borderRadius: "6px", fontSize: "14px", boxSizing: "border-box" };
 const labelStyle = { display: "block", marginBottom: "5px", fontWeight: "600", color: "#495057", fontSize: "13px" };
 const EMPTY = { code: "", name: "", city: "", country: "" };
@@ -103,20 +118,21 @@ export default function AdminAirports() {
 
   return (
     <>
+      <AdminThemeEnforcer />
       <div style={{ padding: "28px", maxWidth: "1100px", margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
-        <h2 style={{ color: "white", fontWeight: "800", fontSize: "26px", margin: 0, textShadow: "0 2px 8px rgba(0,0,0,0.6)" }}>Airport Management</h2>
+        <h2 style={{ color: "var(--text-primary)", fontWeight: "800", fontSize: "26px", margin: 0 }}>Airport Management</h2>
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search airports..." style={{ ...inputStyle, width: "200px" }} />
           <button onClick={openBulk} style={{ backgroundColor: "#17a2b8", color: "white", border: "none", padding: "10px 18px", borderRadius: "6px", fontWeight: "700", cursor: "pointer", fontSize: "14px" }}>⬆ Bulk Import</button>
-          <button onClick={openAdd} style={{ backgroundColor: "#d4af37", color: "#0b1220", border: "none", padding: "10px 20px", borderRadius: "6px", fontWeight: "700", cursor: "pointer", fontSize: "14px" }}>+ Add Airport</button>
+          <button onClick={openAdd} style={{ backgroundColor: "#d4af37", color: "var(--text-primary)", border: "none", padding: "10px 20px", borderRadius: "6px", fontWeight: "700", cursor: "pointer", fontSize: "14px" }}>+ Add Airport</button>
         </div>
       </div>
 
       {error && <div style={{ background: "#f8d7da", color: "#721c24", padding: "12px", borderRadius: "6px", marginBottom: "16px" }}>{error}</div>}
 
-      {loading ? <div style={{ color: "rgba(255,255,255,0.7)", textAlign: "center", padding: "60px" }}>Loading...</div> : (
-        <div style={{ backgroundColor: "white", borderRadius: "12px", boxShadow: "0 4px 12px rgba(0,0,0,0.12)", overflow: "hidden" }}>
+      {loading ? <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "60px" }}>Loading...</div> : (
+        <div style={{ backgroundColor: "var(--surface)", borderRadius: "12px", boxShadow: "0 4px 12px rgba(0,0,0,0.12)", overflow: "hidden" }}>
           <div style={{ overflowX: "auto" }}>
             <table className="as-admin-table" style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
@@ -137,7 +153,7 @@ export default function AdminAirports() {
                     <td style={{ padding: "12px 16px", fontSize: "14px" }}>{a.country}</td>
                     <td style={{ padding: "12px 16px" }}>
                       <div style={{ display: "flex", gap: "6px" }}>
-                        <button onClick={() => openEdit(a)} style={{ backgroundColor: "#0b1220", color: "white", border: "none", padding: "5px 12px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontWeight: "600" }}>Edit</button>
+                        <button onClick={() => openEdit(a)} style={{ backgroundColor: "#d4af37", color: "#0b1220", border: "none", padding: "5px 12px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontWeight: "600" }}>Edit</button>
                         <button onClick={() => handleDelete(a.id)} style={{ backgroundColor: "#dc3545", color: "white", border: "none", padding: "5px 12px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontWeight: "600" }}>Delete</button>
                       </div>
                     </td>
@@ -153,9 +169,9 @@ export default function AdminAirports() {
       {/* Single add/edit modal */}
       {(modal === "add" || modal === "edit") && (
         <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: "20px" }}>
-          <div style={{ backgroundColor: "white", borderRadius: "12px", padding: "28px", width: "100%", maxWidth: "480px", boxShadow: "0 20px 60px rgba(0,0,0,0.4)" }}>
+          <div style={{ backgroundColor: "var(--surface)", borderRadius: "12px", padding: "28px", width: "100%", maxWidth: "480px", boxShadow: "0 20px 60px rgba(0,0,0,0.4)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <h3 style={{ margin: 0, color: "#0b1220", fontSize: "20px", fontWeight: "700" }}>{modal === "add" ? "Add Airport" : "Edit Airport"}</h3>
+              <h3 style={{ margin: 0, color: "var(--text-primary)", fontSize: "20px", fontWeight: "700" }}>{modal === "add" ? "Add Airport" : "Edit Airport"}</h3>
               <button onClick={() => setModal(null)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#6c757d" }}>✕</button>
             </div>
             {formErr && <div style={{ background: "#f8d7da", color: "#721c24", padding: "10px", borderRadius: "6px", marginBottom: "14px", fontSize: "13px" }}>{formErr}</div>}
@@ -185,20 +201,20 @@ export default function AdminAirports() {
       {/* Bulk import modal */}
       {modal === "bulk" && (
         <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: "20px" }}>
-          <div style={{ backgroundColor: "white", borderRadius: "12px", padding: "28px", width: "100%", maxWidth: "720px", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
+          <div style={{ backgroundColor: "var(--surface)", borderRadius: "12px", padding: "28px", width: "100%", maxWidth: "720px", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-              <h3 style={{ margin: 0, color: "#0b1220", fontSize: "20px", fontWeight: "700" }}>Bulk Import Airports</h3>
+              <h3 style={{ margin: 0, color: "var(--text-primary)", fontSize: "20px", fontWeight: "700" }}>Bulk Import Airports</h3>
               <button onClick={() => setModal(null)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#6c757d" }}>✕</button>
             </div>
 
             {/* Format guide */}
-            <div style={{ backgroundColor: "#f8f9fa", borderRadius: "8px", padding: "12px 16px", marginBottom: "16px", fontSize: "13px", borderLeft: "4px solid #17a2b8" }}>
+            <div style={{ backgroundColor: "var(--background)", borderRadius: "8px", padding: "12px 16px", marginBottom: "16px", fontSize: "13px", borderLeft: "4px solid #17a2b8" }}>
               <strong>CSV Format:</strong> <code>CODE,Name,City,Country</code> &nbsp;(header row optional, one airport per line)
               <br />
               <span style={{ color: "#6c757d" }}>CODE must be exactly 3 letters (IATA code). Commas inside values are not supported.</span>
               <button
                 onClick={() => { setCsvText(AIRPORT_CSV_TEMPLATE); setCsvPreview(parseAirportCSV(AIRPORT_CSV_TEMPLATE)); }}
-                style={{ marginLeft: "12px", backgroundColor: "#0b1220", color: "white", border: "none", padding: "3px 10px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontWeight: "600" }}
+                style={{ marginLeft: "12px", backgroundColor: "var(--primary)", color: "white", border: "none", padding: "3px 10px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontWeight: "600" }}
               >Load Example</button>
             </div>
 
@@ -213,13 +229,13 @@ export default function AdminAirports() {
             {/* Preview */}
             {csvPreview.length > 0 && (
               <div style={{ marginTop: "14px" }}>
-                <div style={{ fontSize: "13px", fontWeight: "700", color: "#0b1220", marginBottom: "8px" }}>
+                <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "8px" }}>
                   Preview — {csvPreview.filter(r => !r._error).length} valid / {csvPreview.filter(r => r._error).length} errors
                 </div>
                 <div style={{ overflowX: "auto", borderRadius: "8px", border: "1px solid #dee2e6" }}>
                   <table className="as-admin-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                     <thead>
-                      <tr style={{ backgroundColor: "#f8f9fa" }}>
+                      <tr style={{ backgroundColor: "var(--background)" }}>
                         {["Row", "Code", "Name", "City", "Country", "Status"].map(h => (
                           <th key={h} style={{ padding: "8px 12px", textAlign: "left", fontWeight: "700", color: "#495057", borderBottom: "2px solid #dee2e6" }}>{h}</th>
                         ))}

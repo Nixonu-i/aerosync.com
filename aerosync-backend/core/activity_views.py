@@ -39,9 +39,6 @@ def get_user_activities(request):
     ip_address = request.GET.get('ip_address')
     search = request.GET.get('search', '')
     
-    # Debug logging
-    print(f'DEBUG: Received filters - user_id: {user_id}, action: {action}, ip_address: {ip_address}, search: {search}')
-    
     # Validate limits
     try:
         limit = min(int(limit), 100)  # Max 100 per page
@@ -51,26 +48,23 @@ def get_user_activities(request):
     # Build queryset
     UserActivityLog = apps.get_model('core', 'UserActivityLog')
     queryset = UserActivityLog.objects.all()
-    initial_count = queryset.count()
-    print(f'DEBUG: Initial queryset count: {initial_count}')
     
     # Apply filters
     if user_id:
-        # Check if user_id is numeric (ID) or string (username)
-        if user_id.isdigit():
+        # Try to filter by user ID (UUID) first
+        try:
+            from uuid import UUID
+            UUID(user_id)  # Validate if it's a valid UUID
             queryset = queryset.filter(user_id=user_id)
-        else:
-            # Assume it's a username
+        except ValueError:
+            # Not a UUID, try username
             queryset = queryset.filter(user__username__iexact=user_id)
-        print(f'DEBUG: After user_id filter ({user_id}): {queryset.count()}')
     
     if action:
         queryset = queryset.filter(action=action)
-        print(f'DEBUG: After action filter ({action}): {queryset.count()}')
     
     if ip_address:
-        queryset = queryset.filter(ip_address=ip_address)
-        print(f'DEBUG: After ip_address filter ({ip_address}): {queryset.count()}')
+        queryset = queryset.filter(ip_address__icontains=ip_address)
     
     if search:
         queryset = queryset.filter(
@@ -79,9 +73,6 @@ def get_user_activities(request):
             Q(path__icontains=search) |
             Q(user_agent__icontains=search)
         )
-        print(f'DEBUG: After search filter ({search}): {queryset.count()}')
-    
-    print(f'DEBUG: Final queryset count: {queryset.count()}')
     
     # Order by timestamp descending
     queryset = queryset.order_by('-timestamp')
