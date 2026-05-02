@@ -22,15 +22,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-<<<<<<< HEAD
+
+# Shell scripts and service files
 *.sh
+*.service
+
+# Environment variables
 *.env
 .env.local
 .env.development.local
 .env.production.local
-*.service
-=======
-*.env
-.env.local
 !.env.production
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
