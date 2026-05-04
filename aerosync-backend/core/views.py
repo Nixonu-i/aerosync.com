@@ -2221,6 +2221,7 @@ class VerifyQRView(APIView):
             "booking", "booking__flight",
             "booking__flight__departure_airport",
             "booking__flight__arrival_airport",
+            "booking__user__profile",
             "seat", "passenger",
         ).first()
         if not bp:
@@ -2231,10 +2232,17 @@ class VerifyQRView(APIView):
 
         already_onboard = bp.is_checked_in
 
-        # Build passenger photo URL
+        # Build passenger photo URL — prefer booking photo, fall back to user profile photo
         passenger_photo_url = None
         if bp.passenger_photo:
             passenger_photo_url = f"/api/auth/media/{bp.passenger_photo.name}"
+        else:
+            try:
+                profile = booking.user.profile
+                if profile.profile_photo:
+                    passenger_photo_url = f"/api/auth/media/{profile.profile_photo.name}"
+            except Exception:
+                pass
 
         payload = {
             "valid": True,

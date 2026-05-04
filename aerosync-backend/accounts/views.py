@@ -52,16 +52,16 @@ def protected_media(request, path):
     # if the media is in the profile_photos directory, enforce ownership
     rel = os.path.relpath(final_path, settings.MEDIA_ROOT)
     
-    if rel.startswith("profile_photos") and not (
-        request.user.is_staff or request.user.is_superuser
-    ):
-        filename = os.path.basename(final_path)
-        # Check if file belongs to current user (supports both old and new naming)
-        user_uuid_str = str(request.user.pk)
-        if not (filename.startswith(f"user{request.user.pk}-") or 
-                filename.startswith(f"user_{user_uuid_str}_")):
-            # users may only see their own uploads
-            raise Http404()
+    if rel.startswith("profile_photos"):
+        # Agents and admins need profile photos for boarding verification
+        if request.user.is_staff or request.user.is_superuser or getattr(request.user, 'role', None) in ['AGENT', 'ADMIN']:
+            pass  # Allow access
+        else:
+            filename = os.path.basename(final_path)
+            user_uuid_str = str(request.user.pk)
+            if not (filename.startswith(f"user{request.user.pk}-") or
+                    filename.startswith(f"user_{user_uuid_str}_")):
+                raise Http404()
     
     # passenger_photos can be viewed by agents and admins (for boarding verification)
     # or by the user who made the booking
