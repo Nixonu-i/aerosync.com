@@ -1,26 +1,14 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-<<<<<<< HEAD
-from .models import Payment
-=======
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from .models import Payment, Booking, Flight
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
 
 
 @receiver(post_save, sender=Payment)
 def auto_confirm_booking_on_payment_success(sender, instance, created, update_fields, **kwargs):
     """
     Automatically confirm the booking when its payment is marked SUCCESS.
-<<<<<<< HEAD
-    """
-    if instance.status == 'SUCCESS':
-        booking = instance.booking
-        if booking.booking_status != 'CONFIRMED':
-            booking.booking_status = 'CONFIRMED'
-            booking.save(update_fields=['booking_status'])
-=======
     Also sends boarding pass email when booking becomes confirmed.
     """
     import logging
@@ -277,4 +265,3 @@ def broadcast_booking_update(sender, instance, created, update_fields, **kwargs)
         "agents",
         {'type': 'booking_updated', **update_data}
     )
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b

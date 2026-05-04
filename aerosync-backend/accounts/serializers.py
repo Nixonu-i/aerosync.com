@@ -4,27 +4,17 @@ from .models import User, Profile
 
 class RegisterSerializer(serializers.ModelSerializer):
     password2 = serializers.CharField(write_only=True)
-<<<<<<< HEAD
-    full_name = serializers.CharField(required=False, allow_blank=True)
-
-    class Meta:
-        model = User
-        fields = ["username", "email", "full_name", "password", "password2"]
-=======
     first_name = serializers.CharField(required=True, max_length=30)
     last_name = serializers.CharField(required=True, max_length=30)
 
     class Meta:
         model = User
         fields = ["username", "email", "first_name", "last_name", "password", "password2"]
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         extra_kwargs = {"password": {"write_only": True}}
 
     def validate(self, attrs):
         if attrs["password"] != attrs["password2"]:
             raise serializers.ValidationError({"password": "Passwords do not match."})
-<<<<<<< HEAD
-=======
         
         # Validate password length (minimum 8 characters)
         if len(attrs["password"]) < 8:
@@ -54,26 +44,10 @@ class RegisterSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({"email": "This email is already registered. Please use a different email or login."})
             attrs["email"] = email  # Ensure email is stored lowercase
         
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         return attrs
 
     def create(self, validated_data):
         validated_data.pop("password2")
-<<<<<<< HEAD
-        full_name = validated_data.pop("full_name", "").strip().upper()
-
-        first, last = "", ""
-        if full_name:
-            parts = full_name.split()
-            first = parts[0]
-            last = " ".join(parts[1:]) if len(parts) > 1 else ""
-
-        user = User(
-            username=validated_data["username"],
-            email=validated_data.get("email", ""),
-            first_name=first,
-            last_name=last,
-=======
         # Convert names to uppercase for consistency
         validated_data["first_name"] = validated_data.get("first_name", "").strip().upper()
         validated_data["last_name"] = validated_data.get("last_name", "").strip().upper()
@@ -83,7 +57,6 @@ class RegisterSerializer(serializers.ModelSerializer):
             email=validated_data.get("email", ""),
             first_name=validated_data["first_name"],
             last_name=validated_data["last_name"],
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
             role=User.Role.CUST,
         )
         user.set_password(validated_data["password"])
@@ -93,18 +66,6 @@ class RegisterSerializer(serializers.ModelSerializer):
 class MeSerializer(serializers.ModelSerializer):
     is_admin = serializers.SerializerMethodField()
     is_agent = serializers.SerializerMethodField()
-<<<<<<< HEAD
-
-    def get_is_admin(self, obj):
-        return obj.role == 'ADMIN' or obj.is_staff or obj.is_superuser
-
-    def get_is_agent(self, obj):
-        return obj.role == 'AGENT'
-
-    class Meta:
-        model = User
-        fields = ["id", "username", "email", "full_name", "role", "is_admin", "is_agent", "staff_id", "created_at"]
-=======
     profile = serializers.SerializerMethodField()
     theme_preference = serializers.CharField(read_only=True)
     
@@ -134,7 +95,6 @@ class MeSerializer(serializers.ModelSerializer):
             "id", "username", "email", "full_name", "role", "is_admin", 
             "is_agent", "staff_id", "created_at", "profile", "theme_preference"
         ]
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
 
 
 class ProfileSerializer(serializers.ModelSerializer):
@@ -144,8 +104,6 @@ class ProfileSerializer(serializers.ModelSerializer):
         model = Profile
         fields = ["date_of_birth", "gender", "nationality", "phone_area_code", "phone_number", "profile_photo", "profile_photo_url", "initial_setup_done"]
     
-<<<<<<< HEAD
-=======
     def validate_date_of_birth(self, value):
         """
         Validate that the user is at least 18 years old.
@@ -162,7 +120,6 @@ class ProfileSerializer(serializers.ModelSerializer):
                 )
         return value
     
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     def get_profile_photo_url(self, obj):
         try:
             if obj.profile_photo:
@@ -194,8 +151,6 @@ class ProfileDetailSerializer(serializers.ModelSerializer):
         model = Profile
         fields = ["date_of_birth", "gender", "nationality", "phone_area_code", "phone_number", "profile_photo", "profile_photo_url", "initial_setup_done"]
     
-<<<<<<< HEAD
-=======
     def validate_date_of_birth(self, value):
         """
         Validate that the user is at least 18 years old.
@@ -212,7 +167,6 @@ class ProfileDetailSerializer(serializers.ModelSerializer):
                 )
         return value
     
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     def get_profile_photo_url(self, obj):
         try:
             if obj.profile_photo:

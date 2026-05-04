@@ -1,5 +1,5 @@
 asgiref==3.11.1
-Django==6.0.2
+Django==5.0.6
 django-cors-headers==4.9.0
 djangorestframework==3.16.1
 djangorestframework_simplejwt==5.5.1
@@ -13,12 +13,11 @@ python-dotenv==1.2.1
 qrcode==8.2
 sqlparse==0.5.5
 whitenoise==6.5.0
-<<<<<<< HEAD
-=======
 channels==4.2.0
 channels-redis==4.2.0
 daphne==4.2.0
 sendgrid-django==4.2.0
 python-decouple==3.8
 redis==5.2.1
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
+
+sib-api-v3-sdk==8.5.0

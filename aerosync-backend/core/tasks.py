@@ -20,16 +20,12 @@ def mark_completed_flights():
     """
     # Import here to avoid AppRegistry-not-ready errors when called early
     from core.models import Flight
-<<<<<<< HEAD
-
-=======
     from django.utils import timezone
     from datetime import timedelta
     import logging
     
     logger = logging.getLogger(__name__)
     
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     cutoff = timezone.now() - timedelta(hours=1)
     updated = Flight.objects.filter(
         status__in=["SCHEDULED", "DELAYED"],
@@ -40,8 +36,6 @@ def mark_completed_flights():
         logger.info("[AeroSync] Auto-completed %d flight(s).", updated)
 
     return updated
-<<<<<<< HEAD
-=======
 
 
 def mark_completed_bookings():
@@ -89,4 +83,3 @@ def mark_completed_bookings():
         logger.info(f"[AeroSync] Auto-completed {total} booking(s): {confirmed_count} confirmed, {failed_count} failed")
     
     return total
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b

@@ -1,16 +1,9 @@
-<<<<<<< HEAD
-from rest_framework import generics, permissions
-=======
 from rest_framework import generics, permissions, status
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.decorators import api_view
 from django.shortcuts import get_object_or_404
-<<<<<<< HEAD
-=======
 from django.db.models import Q
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
 
 from .models import Profile
 from .serializers import RegisterSerializer, MeSerializer, ProfileSerializer, ProfileDetailSerializer, ThemePreferenceSerializer
@@ -24,13 +17,10 @@ from django.utils._os import safe_join
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
-<<<<<<< HEAD
-=======
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 # Email verification service
 from .services.email_service import EmailVerificationService
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
 
 # IP Risk checking service
 from core.ip_risk_service import check_ip_risk
@@ -66,14 +56,10 @@ def protected_media(request, path):
         request.user.is_staff or request.user.is_superuser
     ):
         filename = os.path.basename(final_path)
-<<<<<<< HEAD
-        if not filename.startswith(f"user{request.user.id}-"):
-=======
         # Check if file belongs to current user (supports both old and new naming)
         user_uuid_str = str(request.user.pk)
         if not (filename.startswith(f"user{request.user.pk}-") or 
                 filename.startswith(f"user_{user_uuid_str}_")):
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
             # users may only see their own uploads
             raise Http404()
     
@@ -95,8 +81,6 @@ def protected_media(request, path):
 class RegisterView(generics.CreateAPIView):
     permission_classes = [permissions.AllowAny]
     serializer_class = RegisterSerializer
-<<<<<<< HEAD
-=======
     
     def create(self, request, *args, **kwargs):
         # Create user account (marked as pending verification)
@@ -289,9 +273,6 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 {'detail': 'Invalid email/username or password'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
-<<<<<<< HEAD
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
-=======
     
     def get_client_ip(self, request):
         """Get client IP address from request"""
@@ -301,7 +282,6 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         else:
             ip = request.META.get('REMOTE_ADDR')
         return ip
->>>>>>> 1f8170445e5037c8d4a27ddab2757e5b5f376943
 
 
 class MeView(APIView):
@@ -318,9 +298,6 @@ def profile_view(request):
         return Response(serializer.data)
     
     elif request.method == 'POST':
-<<<<<<< HEAD
-        serializer = ProfileSerializer(profile, data=request.data, partial=True, context={'request': request})
-=======
         # SECURITY: Prevent updates to locked fields after initial setup
         # Only phone_number, phone_area_code, and profile_photo can be updated after setup
         # Use QueryDict copy instead of deep copy to handle file uploads properly
@@ -349,7 +326,6 @@ def profile_view(request):
             # First-time setup - allow all fields
             serializer = ProfileSerializer(profile, data=mutable_data, partial=True, context={'request': request})
         
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         if serializer.is_valid():
             serializer.save()
             # mark initial_setup_done for first-time customer/agent users
@@ -360,27 +336,17 @@ def profile_view(request):
                 # Re-fetch the profile to get the updated data including profile_photo_url
                 profile.refresh_from_db()
                 data = ProfileDetailSerializer(profile, context={'request': request}).data
-<<<<<<< HEAD
-=======
                 # Required fields for profile completion (photo is optional)
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
                 required = [
                     'date_of_birth',
                     'gender',
                     'nationality',
                     'phone_number',
-<<<<<<< HEAD
-                    'profile_photo_url',
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
                 ]
                 if all(data.get(f) for f in required):
                     profile.initial_setup_done = True
                     profile.save(update_fields=['initial_setup_done'])
             return Response(serializer.data)
-<<<<<<< HEAD
-        return Response(serializer.errors, status=400)
-=======
         return Response(serializer.errors, status=400)
 
 
@@ -697,4 +663,3 @@ class ResendVerificationView(APIView):
             return Response({
                 'detail': str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b

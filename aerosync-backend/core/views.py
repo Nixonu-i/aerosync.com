@@ -1,14 +1,8 @@
 import random
 import string
-<<<<<<< HEAD
-=======
 import json
 import time
-<<<<<<< HEAD
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
-=======
 import threading
->>>>>>> 1f8170445e5037c8d4a27ddab2757e5b5f376943
 from datetime import datetime, date, timedelta, time as dt_time
 from decimal import Decimal
 
@@ -16,14 +10,6 @@ from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponse
 from django.utils import timezone
-<<<<<<< HEAD
-
-from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.response import Response
-from rest_framework.views import APIView
-=======
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
@@ -35,7 +21,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.http import StreamingHttpResponse, HttpResponse
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
 
 from .models import Airport, Seat, Flight, Booking, Passenger, Payment, BoardingPass, User, Aircraft, Airline, ScanLog
 from accounts.models import User as UserAccount
@@ -59,11 +44,7 @@ class FlightPagePagination(PageNumberPagination):
 class FlightViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Flight.objects.select_related("departure_airport", "arrival_airport").all()
     serializer_class = FlightSerializer
-<<<<<<< HEAD
-    permission_classes = [permissions.IsAuthenticated]
-=======
     permission_classes = [permissions.AllowAny]  # Public access - no auth required
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     pagination_class = FlightPagePagination
 
     def list(self, request, *args, **kwargs):
@@ -74,13 +55,10 @@ class FlightViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-<<<<<<< HEAD
-=======
         
         # Exclude completed flights from public view
         qs = qs.exclude(status='COMPLETED')
         
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         dep = self.request.query_params.get("departure_code")
         arr = self.request.query_params.get("arrival_code")
         date = self.request.query_params.get("date")
@@ -237,8 +215,6 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
         if flight.status != 'SCHEDULED':
             return Response({"detail":"This flight is not available for booking. Only SCHEDULED flights can be booked."}, status=400)
         
-<<<<<<< HEAD
-=======
         passenger_data = data["passengers"]
         seat_assignments = data["seat_assignments"]
         stopover_city = data.get("stopover_city", "").strip()
@@ -297,19 +273,11 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
                         "detail": f"You already have a booking for a flight departing around the same time ({existing_flight.departure_time.strftime('%Y-%m-%d %H:%M')}). You cannot book overlapping flights."
                     }, status=400)
         
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         # Validate seat assignments
         seat_assignments = data["seat_assignments"]
         passenger_data = data["passengers"]
 
         # --- Server-side profile field validation (tamper prevention) ---
-<<<<<<< HEAD
-        # Only enforced for single-passenger bookings where the sole passenger
-        # is the authenticated user themselves. Multi-passenger bookings are
-        # exempt because the other passengers are companions (children, family)
-        # whose details naturally differ from the booking user's profile.
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         if request.user.role == "CUST" and request.data.get("for_self") is True:
             try:
                 profile = request.user.profile
@@ -333,10 +301,6 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
                         status=400,
                     )
             except Exception:
-<<<<<<< HEAD
-                # No profile yet — allow the booking (profile fields were editable)
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
                 pass
         # ----------------------------------------------------------------
 
@@ -446,17 +410,9 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
     def cancel(self, request, pk=None):
         booking = self.get_object()
         
-<<<<<<< HEAD
-        # Ensure only the booking owner can cancel
         if booking.user != request.user:
             return Response({"detail": "You do not have permission to cancel this booking."}, status=403)
         
-        # Can only cancel if not already confirmed or cancelled
-=======
-        if booking.user != request.user:
-            return Response({"detail": "You do not have permission to cancel this booking."}, status=403)
-        
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         if booking.booking_status in ['CONFIRMED', 'CANCELLED']:
             return Response({"detail": "Cannot cancel a confirmed or already cancelled booking."}, status=400)
         
@@ -468,24 +424,12 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
     def delete_booking(self, request, pk=None):
         booking = self.get_object()
         
-<<<<<<< HEAD
-        # Ensure only the booking owner can delete
-        if booking.user != request.user:
-            return Response({"detail": "You do not have permission to delete this booking."}, status=403)
-        
-        # Can only delete if flight has ended (status is COMPLETED)
-        if booking.flight.status != 'COMPLETED':
-            return Response({"detail": "Can only delete bookings for completed flights."}, status=400)
-        
-        # Delete the booking (this will cascade delete passengers and boarding passes)
-=======
         if booking.user != request.user:
             return Response({"detail": "You do not have permission to delete this booking."}, status=403)
         
         if booking.flight.status != 'COMPLETED':
             return Response({"detail": "Can only delete bookings for completed flights."}, status=400)
         
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         booking_id = booking.id
         booking.delete()
         
@@ -495,25 +439,13 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
     def initiate_payment(self, request, pk=None):
         booking = self.get_object()
         
-<<<<<<< HEAD
-        # Ensure only the booking owner can initiate payment
         if booking.user != request.user:
             return Response({"detail": "You do not have permission to initiate payment for this booking."}, status=403)
         
-        # Check if booking is already confirmed
-=======
-        if booking.user != request.user:
-            return Response({"detail": "You do not have permission to initiate payment for this booking."}, status=403)
-        
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         if booking.booking_status == 'CONFIRMED':
             return Response({"detail": "Booking is already confirmed."}, status=400)
 
         # --- Seat availability check ---
-<<<<<<< HEAD
-        # PENDING bookings don't lock seats; verify no CONFIRMED booking took them first.
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         boarding_pass_seat_ids = booking.boarding_passes.values_list('seat_id', flat=True)
         conflicting = (
             BoardingPass.objects
@@ -528,20 +460,12 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
                 status=409,
             )
         
-<<<<<<< HEAD
-        # Check if a payment already exists for this booking that is not FAILED
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         existing_payment = Payment.objects.filter(
             booking=booking
         ).exclude(status='FAILED').first()
         
         if existing_payment:
             if existing_payment.status == 'SUCCESS':
-<<<<<<< HEAD
-                # Already successfully paid — do not allow overwrite
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
                 return Response({
                     "detail": "This booking has already been paid.",
                     "booking_id": booking.id,
@@ -554,15 +478,8 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
                         "provider_reference": existing_payment.provider_reference
                     }
                 }, status=200)
-<<<<<<< HEAD
-            # PENDING payment — user is switching provider; delete and re-create
             existing_payment.delete()
         
-        # Create a Payment record
-=======
-            existing_payment.delete()
-        
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         PROVIDER_MAP = {
             "mpesa": "MPESA",
             "paypal": "PAYPAL",
@@ -575,10 +492,6 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
         if not provider:
             return Response({"detail": "Invalid payment provider. Choose mpesa, paypal, card, or bank."}, status=400)
 
-<<<<<<< HEAD
-        # Per-provider validation, reference generation, and detail storage
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         if provider == "MPESA":
             phone = str(request.data.get("phone_number", "")).strip()
             if not phone:
@@ -610,11 +523,7 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
             provider_reference = f"CARD-{masked}-{booking.confirmation_code}"
             payment_detail = masked
 
-<<<<<<< HEAD
-        else:  # BANK_TRANSFER — detail filled by admin after verifying the transfer
-=======
         else:  # BANK_TRANSFER
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
             provider_reference = f"BANK-{booking.confirmation_code}"
             payment_detail = None
 
@@ -655,10 +564,6 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
             "booking_id": booking.id,
             "booking_status": booking.booking_status,
             "latest_payment": PaymentSerializer(latest_payment).data if latest_payment else None,
-<<<<<<< HEAD
-            # Pass is available once confirmed/onboarding AND payment succeeded
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
             "boarding_pass_available": booking.booking_status in ('CONFIRMED', 'ONBOARD') and payment_success,
         })
 
@@ -686,19 +591,11 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["get"], url_path="boarding_pass")
     def boarding_pass(self, request, pk=None):
         booking = self.get_object()
-<<<<<<< HEAD
-        # Return all boarding passes for the booking
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         boarding_passes = booking.boarding_passes.all()
         
         if not boarding_passes.exists():
             return Response({"detail": "No boarding passes found for this booking"}, status=404)
         
-<<<<<<< HEAD
-        # Return first boarding pass (backward compatibility)
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         bp = boarding_passes.first()
         qr_png_base64 = make_qr_png_base64(bp.qr_code_data)
         out = BoardingPassSerializer(bp).data
@@ -725,10 +622,6 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
         if not boarding_passes.exists():
             return Response({"detail": "No boarding passes found for this booking"}, status=404)
         
-<<<<<<< HEAD
-        # Return list of all boarding passes with QR codes
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         result = []
         for bp in boarding_passes:
             qr_png_base64 = make_qr_png_base64(bp.qr_code_data)
@@ -751,10 +644,6 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
         if not boarding_passes.exists():
             return Response({"detail": "No boarding passes found for this booking"}, status=404)
         
-<<<<<<< HEAD
-        # Create ZIP file containing all boarding passes
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         import zipfile
         from io import BytesIO
         
@@ -763,19 +652,11 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
             for bp in boarding_passes:
                 try:
-<<<<<<< HEAD
-                    # Generate boarding pass PNG for this passenger
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
                     passenger = bp.passenger
                     png_bytes = build_boarding_pass_png(booking, passenger)
                     filename = f"boarding-pass-{booking.confirmation_code}-{passenger.full_name.replace(' ', '_')}-{passenger.id}.png"
                     zip_file.writestr(filename, png_bytes)
                 except Exception as e:
-<<<<<<< HEAD
-                    # Log error but continue with other passes
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
                     print(f"Error generating pass for passenger {bp.passenger.id}: {e}")
                     continue
         
@@ -793,17 +674,9 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
         if booking.booking_status not in ('CONFIRMED', 'ONBOARD') or not latest_payment or latest_payment.status != 'SUCCESS':
             return Response({"detail": "Payment required. Complete payment to download boarding pass."}, status=402)
         
-<<<<<<< HEAD
-        # Get passenger ID from query params (optional)
         passenger_id = request.query_params.get("passenger_id")
         
         if passenger_id:
-            # Generate boarding pass for specific passenger
-=======
-        passenger_id = request.query_params.get("passenger_id")
-        
-        if passenger_id:
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
             try:
                 passenger = booking.passengers.get(id=passenger_id)
                 png_bytes = build_boarding_pass_png(booking, passenger)
@@ -811,10 +684,6 @@ class BookingViewSet(viewsets.ReadOnlyModelViewSet):
             except Passenger.DoesNotExist:
                 return Response({"detail": "Passenger not found in this booking"}, status=404)
         else:
-<<<<<<< HEAD
-            # Generate boarding pass for first passenger (backward compatibility)
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
             passenger = booking.passengers.first()
             if not passenger:
                 return Response({"detail": "No passengers found in booking"}, status=404)
@@ -846,16 +715,11 @@ class PaymentProviderView(APIView):
                     "routing_number": "011000016",
                 },
             },
-<<<<<<< HEAD
-=======
             {"id": "pesapal", "name": "Pesapal", "icon": "💳"},
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         ]
         return Response(providers)
 
 
-<<<<<<< HEAD
-=======
 # ------------------ PESAPAL PAYMENT GATEWAY ------------------
 
 class PesapalInitiatePaymentView(APIView):
@@ -1324,7 +1188,6 @@ class PesapalStatusCheckView(APIView):
             )
 
 
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
 # ------------------ ADMIN CRUD ------------------
 
 class AircraftAdminViewSet(viewsets.ModelViewSet):
@@ -1346,13 +1209,6 @@ class AircraftAdminViewSet(viewsets.ModelViewSet):
                 status=400
             )
 
-<<<<<<< HEAD
-        # Class distribution — roughly realistic
-        # First:    rows 1-2      (12 seats)  or 10% whichever smaller
-        # Business: rows 3-8      (36 seats)  or 20%
-        # Economy:  rest
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         first_count    = min(12, max(1, int(total * 0.10)))
         business_count = min(36, max(1, int(total * 0.20)))
         economy_count  = total - first_count - business_count
@@ -1437,12 +1293,6 @@ class AirportAdminViewSet(viewsets.ModelViewSet):
         return Response({"created": len(created), "errors": errors, "data": created}, status=status_code)
 
 
-<<<<<<< HEAD
-
-
-
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
 class SeatAdminViewSet(viewsets.ModelViewSet):
     queryset = Seat.objects.select_related("aircraft").all().order_by("aircraft__number_plate", "seat_number")
     serializer_class = SeatSerializer
@@ -1752,172 +1602,10 @@ class FlightAdminViewSet(viewsets.ModelViewSet):
         return qs
 
     def list(self, request, *args, **kwargs):
-<<<<<<< HEAD
-        # Auto-complete past flights on every admin flight-list request
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         from core.tasks import mark_completed_flights
         mark_completed_flights()
         return super().list(request, *args, **kwargs)
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-    # ---- Allowed departure hours ----
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
-    DEPART_HOURS = [6, 10, 12, 14, 16, 18, 20]
-
-    @action(detail=False, methods=["post"], url_path="generate_flights")
-    def generate_flights(self, request):
-        import itertools
-
-        DAYS  = 30
-<<<<<<< HEAD
-        CYCLE = 3   # all routes covered within 3 days
-        HOURS = self.DEPART_HOURS
-
-        # ---- Data checks ----
-=======
-        CYCLE = 3
-        HOURS = self.DEPART_HOURS
-
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
-        airports     = list(Airport.objects.all())
-        aircraft_list = list(Aircraft.objects.all())
-        airlines_list = list(Airline.objects.filter(is_active=True))
-
-        if len(airports) < 2:
-            return Response({"detail": "Need at least 2 airports to generate flights."}, status=400)
-        if not aircraft_list:
-            return Response({"detail": "No aircraft available. Please add aircraft first."}, status=400)
-        if not airlines_list:
-            return Response({"detail": "No active airlines. Please seed or add airlines first."}, status=400)
-
-        today = date.today()
-
-<<<<<<< HEAD
-        # ---- All directed airport pairs ----
-        all_pairs = list(itertools.permutations(airports, 2))
-        # Split into CYCLE buckets so each bucket is covered once per cycle
-=======
-        all_pairs = list(itertools.permutations(airports, 2))
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
-        buckets = [[] for _ in range(CYCLE)]
-        for i, pair in enumerate(all_pairs):
-            buckets[i % CYCLE].append(pair)
-
-<<<<<<< HEAD
-        # ---- Pre-load existing bookings to avoid aircraft double-booking ----
-        #  key: (aircraft_id, date_obj, hour_int)
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
-        existing_slots = set(
-            Flight.objects.filter(
-                departure_time__date__gte=today + timedelta(days=1),
-                departure_time__date__lte=today + timedelta(days=DAYS),
-            ).values_list("aircraft_id", "departure_time__date", "departure_time__hour")
-        )
-
-<<<<<<< HEAD
-        # ---- Pre-generate unique flight numbers ----
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
-        existing_fns: set = set(Flight.objects.values_list("flight_number", flat=True))
-        pending_fns:  set = set()
-
-        def _new_fn() -> str:
-            while True:
-                fn = "AS" + "".join(random.choices(string.digits, k=5))
-                if fn not in existing_fns and fn not in pending_fns:
-                    pending_fns.add(fn)
-                    return fn
-
-<<<<<<< HEAD
-        # ---- Build flight objects ----
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
-        flights_to_create = []
-        created  = 0
-        skipped  = 0
-        n_ac     = len(aircraft_list)
-        n_hr     = len(HOURS)
-        n_al     = len(airlines_list)
-
-        for day_offset in range(DAYS):
-            current_date = today + timedelta(days=day_offset + 1)
-            pairs_today  = buckets[day_offset % CYCLE]
-
-<<<<<<< HEAD
-            ac_idx  = day_offset % n_ac   # stagger starting aircraft per day
-=======
-            ac_idx  = day_offset % n_ac
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
-            hr_idx  = 0
-            al_idx  = day_offset % n_al
-
-            for dep_ap, arr_ap in pairs_today:
-<<<<<<< HEAD
-                # Find next free (aircraft, hour) slot for this day
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
-                found = False
-                for attempt in range(n_ac * n_hr):
-                    ac   = aircraft_list[(ac_idx + attempt) % n_ac]
-                    hour = HOURS[(hr_idx + attempt) % n_hr]
-                    key  = (ac.id, current_date, hour)
-                    if key not in existing_slots:
-                        existing_slots.add(key)
-                        ac_idx = (ac_idx + attempt + 1) % n_ac
-                        hr_idx = (hr_idx + attempt + 1) % n_hr
-                        found  = True
-                        break
-
-                if not found:
-                    skipped += 1
-                    continue
-
-                airline = airlines_list[al_idx % n_al]
-                al_idx += 1
-
-                dep_dt = timezone.make_aware(
-                    datetime.combine(current_date, dt_time(hour, 0))
-                )
-<<<<<<< HEAD
-                # Duration: same country = 1.5 h, else = 4 h
-                dur_h = 1.5 if dep_ap.country == arr_ap.country else 4.0
-                arr_dt = dep_dt + timedelta(hours=dur_h)
-
-                # Price: domestic vs international with small variance
-=======
-                dur_h = 1.5 if dep_ap.country == arr_ap.country else 4.0
-                arr_dt = dep_dt + timedelta(hours=dur_h)
-
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
-                base   = 8_000 if dep_ap.country == arr_ap.country else 35_000
-                price  = max(3_000, base + random.randint(-1_000, 5_000))
-
-                flights_to_create.append(Flight(
-                    flight_number    = _new_fn(),
-                    aircraft         = ac,
-                    airline          = airline.name,
-                    departure_airport = dep_ap,
-                    arrival_airport  = arr_ap,
-                    departure_time   = dep_dt,
-                    arrival_time     = arr_dt,
-                    price            = price,
-                    trip_type        = "ONE_WAY",
-                    stops            = 0,
-                    status           = "SCHEDULED",
-                ))
-                created += 1
-
-<<<<<<< HEAD
-        # bulk_create is safe here because flight_number is already set
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
-        Flight.objects.bulk_create(flights_to_create, batch_size=500)
-
-=======
     @action(detail=False, methods=["post"], url_path="generate_flights")
     def generate_flights(self, request):
         import uuid
@@ -1946,7 +1634,6 @@ class FlightAdminViewSet(viewsets.ModelViewSet):
         
         logger.info(f"Flight generation task {task_id} started")
         
->>>>>>> 1f8170445e5037c8d4a27ddab2757e5b5f376943
         return Response({
             "detail": "Flight generation started. Use the task_id to check status.",
             "task_id": task_id,
@@ -2083,24 +1770,12 @@ class UserAdminViewSet(viewsets.ModelViewSet):
     queryset = UserAccount.objects.select_related('profile').all().order_by("-date_joined")
     serializer_class = AdminUserSerializer
     permission_classes = [IsAdmin]
-<<<<<<< HEAD
-    # Prevent deletion — deactivate instead ("post" is required for the set_password action)
-    http_method_names = ["get", "post", "patch", "head", "options"]
-
-    def perform_update(self, serializer):
-        """Auto-generate staff_id when a user is promoted to AGENT role."""
-        instance = serializer.instance
-        new_role = serializer.validated_data.get("role", instance.role)
-        if new_role == "AGENT" and not instance.staff_id:
-            # Generate unique AGT-XXXXXX id
-=======
     http_method_names = ["get", "post", "patch", "head", "options"]
 
     def perform_update(self, serializer):
         instance = serializer.instance
         new_role = serializer.validated_data.get("role", instance.role)
         if new_role == "AGENT" and not instance.staff_id:
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
             while True:
                 candidate = "AGT-" + "".join(random.choices(string.digits, k=6))
                 if not UserAccount.objects.filter(staff_id=candidate).exists():
@@ -2170,16 +1845,9 @@ SEED_AIRLINES = [
 
 
 class AirlinePublicViewSet(viewsets.ReadOnlyModelViewSet):
-<<<<<<< HEAD
-    """Public read-only endpoint — lists active airlines for dropdowns."""
-    queryset = Airline.objects.filter(is_active=True)
-    serializer_class = AirlineSerializer
-    permission_classes = [permissions.IsAuthenticated]
-=======
     queryset = Airline.objects.filter(is_active=True)
     serializer_class = AirlineSerializer
     permission_classes = [permissions.AllowAny]
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
 
 
 class AirlineAdminViewSet(viewsets.ModelViewSet):
@@ -2238,10 +1906,6 @@ class SummaryReportView(APIView):
         confirmed = qs.filter(booking_status='CONFIRMED').count()
         cancelled = qs.filter(booking_status='CANCELLED').count()
 
-<<<<<<< HEAD
-        # revenue: sum of successful payments
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         pay_qs = Payment.objects.filter(booking__in=qs, status='SUCCESS')
         revenue = sum([p.amount for p in pay_qs]) if pay_qs.exists() else 0
 
@@ -2295,10 +1959,6 @@ class FlightsWithBookingsView(APIView):
 # ------------------ AGENT ------------------
 
 class AgentFlightViewSet(viewsets.ReadOnlyModelViewSet):
-<<<<<<< HEAD
-    """Agents can browse flights but cannot edit them."""
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     queryset = Flight.objects.select_related("departure_airport", "arrival_airport").filter(status="SCHEDULED").order_by("departure_time")
     serializer_class = FlightSerializer
     permission_classes = [IsAgent]
@@ -2306,11 +1966,6 @@ class AgentFlightViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-<<<<<<< HEAD
-        # When a flight-number search is provided, bypass the SCHEDULED status filter
-        # and search across ALL flights so agents can find any flight by number.
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         search = self.request.query_params.get("search")
         if search:
             return (
@@ -2332,17 +1987,9 @@ class AgentFlightViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class AgentBookingViewSet(viewsets.ViewSet):
-<<<<<<< HEAD
-    """Agent-specific booking operations."""
     permission_classes = [IsAgent]
 
     def list(self, request):
-        """Return bookings created by this agent (last 7 days + upcoming)."""
-=======
-    permission_classes = [IsAgent]
-
-    def list(self, request):
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         from datetime import date, timedelta
         today = date.today()
         bookings = (
@@ -2361,11 +2008,8 @@ class AgentBookingViewSet(viewsets.ViewSet):
                 {"id": p.id, "full_name": p.full_name, "passenger_type": p.passenger_type}
                 for p in b.passengers.all()
             ]
-<<<<<<< HEAD
-=======
             seat_numbers = [bp.seat.seat_number for bp in b.boarding_passes.all() if bp.seat]
             
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
             data.append({
                 "id":               b.id,
                 "confirmation_code": b.confirmation_code,
@@ -2377,19 +2021,12 @@ class AgentBookingViewSet(viewsets.ViewSet):
                 "departure_time":   b.flight.departure_time,
                 "username":         b.user.username if b.user else "",
                 "total_amount":     b.total_amount,
-<<<<<<< HEAD
-=======
                 "seat_numbers":     seat_numbers,
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
                 "has_boarding_pass": b.boarding_passes.exists(),
             })
         return Response(data)
 
     def retrieve(self, request, pk=None):
-<<<<<<< HEAD
-        """Return the latest status for a single booking created by this agent."""
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         try:
             b = (
                 Booking.objects
@@ -2404,11 +2041,8 @@ class AgentBookingViewSet(viewsets.ViewSet):
             {"id": p.id, "full_name": p.full_name, "passenger_type": p.passenger_type}
             for p in b.passengers.all()
         ]
-<<<<<<< HEAD
-=======
         seat_numbers = [bp.seat.seat_number for bp in b.boarding_passes.all() if bp.seat]
         
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         return Response({
             "id":                b.id,
             "confirmation_code": b.confirmation_code,
@@ -2420,19 +2054,12 @@ class AgentBookingViewSet(viewsets.ViewSet):
             "departure_time":    b.flight.departure_time,
             "username":          b.user.username if b.user else "",
             "total_amount":      b.total_amount,
-<<<<<<< HEAD
-=======
             "seat_numbers":      seat_numbers,
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
             "has_boarding_pass": b.boarding_passes.exists(),
         })
 
     @action(detail=True, methods=["get"], url_path="boarding_pass_png")
     def boarding_pass_png(self, request, pk=None):
-<<<<<<< HEAD
-        """Download a boarding pass PNG — only for bookings this agent created."""
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         try:
             booking = Booking.objects.select_related("flight").prefetch_related("passengers").get(
                 pk=pk, created_by=request.user
@@ -2465,10 +2092,6 @@ class AgentBookingViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=["post"], url_path="create_for_customer")
     def create_for_customer(self, request):
-<<<<<<< HEAD
-        """Create a booking for a named customer."""
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         username   = request.data.get("username", "").strip()
         flight_id  = request.data.get("flight_id")
         passengers = request.data.get("passengers", [])
@@ -2493,10 +2116,6 @@ class AgentBookingViewSet(viewsets.ViewSet):
         if not passengers:
             return Response({"detail": "At least one passenger is required"}, status=400)
 
-<<<<<<< HEAD
-        # Username is optional — use agent's own account if not provided
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         if username:
             try:
                 target_user = UserAccount.objects.get(username=username)
@@ -2513,10 +2132,6 @@ class AgentBookingViewSet(viewsets.ViewSet):
         if flight.status != "SCHEDULED":
             return Response({"detail": "Only SCHEDULED flights can be booked"}, status=400)
 
-<<<<<<< HEAD
-        # Validate seats if provided
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         seats = []
         if seat_ids:
             for sid in seat_ids:
@@ -2529,19 +2144,11 @@ class AgentBookingViewSet(viewsets.ViewSet):
                     return Response({"detail": f"Seat {sid} not found"}, status=404)
 
         def calc_price(ptype, seat_multiplier):
-<<<<<<< HEAD
-            """Price = flight base × seat class multiplier × passenger-type discount."""
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
             base = flight.price * seat_multiplier
             if ptype == "KID":   return base * Decimal("0.5")
             if ptype == "CHILD": return base * Decimal("0.75")
             return base
 
-<<<<<<< HEAD
-        # Pre-compute total using per-seat multipliers (seats list matches passengers by index)
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         total_amount = Decimal("0.00")
         for i, p in enumerate(passengers):
             multiplier = seats[i].price_multiplier if i < len(seats) else Decimal("1.00")
@@ -2558,13 +2165,8 @@ class AgentBookingViewSet(viewsets.ViewSet):
                 user=target_user,
                 flight=flight,
                 total_amount=total_amount,
-<<<<<<< HEAD
-                booking_status="PENDING",   # Requires payment to confirm
-                created_by=request.user,    # Track which agent created this
-=======
                 booking_status="PENDING",
                 created_by=request.user,
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
             )
             for i, p in enumerate(passengers):
                 seat = seats[i] if i < len(seats) else None
@@ -2625,41 +2227,14 @@ class VerifyQRView(APIView):
             return Response({"valid": False, "detail": "Invalid or unrecognised QR code."}, status=404)
 
         booking   = bp.booking
-<<<<<<< HEAD
-        passenger = bp.passenger   # the specific passenger for THIS boarding pass
-
-        # ── Per-boarding-pass duplicate detection ──────────────────────────
-        # Each passenger has their own boarding pass with their own is_checked_in flag.
-        # This prevents a false "duplicate" when other passengers in the same
-        # multi-passenger booking are scanned for the first time.
-        already_onboard = bp.is_checked_in
-
-        if not already_onboard:
-            # Mark this individual boarding pass as checked in
-            bp.is_checked_in = True
-            bp.save(update_fields=["is_checked_in"])
-
-            # Update booking-level status to ONBOARD when the first passenger boards
-=======
         passenger = bp.passenger
 
         already_onboard = bp.is_checked_in
 
-<<<<<<< HEAD
-        if not already_onboard:
-            bp.is_checked_in = True
-            bp.save(update_fields=["is_checked_in"])
-
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
-            if booking.booking_status == "CONFIRMED":
-                booking.booking_status = "ONBOARD"
-                booking.save(update_fields=["booking_status"])
-=======
         # Build passenger photo URL
         passenger_photo_url = None
         if bp.passenger_photo:
             passenger_photo_url = f"/api/auth/media/{bp.passenger_photo.name}"
->>>>>>> 1f8170445e5037c8d4a27ddab2757e5b5f376943
 
         payload = {
             "valid": True,
@@ -2678,24 +2253,6 @@ class VerifyQRView(APIView):
             "flight_id": booking.flight_id,
         }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-        # Persist scan log
-=======
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
-        ScanLog.objects.create(
-            scanned_by=request.user,
-            boarding_pass=bp,
-            booking_reference=booking.confirmation_code or "",
-            passenger_name=passenger.full_name if passenger else "",
-            flight_number=booking.flight.flight_number if booking.flight else "",
-            seat_number=bp.seat.seat_number if bp.seat else "",
-            booking_status=booking.booking_status,
-            already_onboard=already_onboard,
-        )
-
-=======
->>>>>>> 1f8170445e5037c8d4a27ddab2757e5b5f376943
         return Response(payload)
 
 

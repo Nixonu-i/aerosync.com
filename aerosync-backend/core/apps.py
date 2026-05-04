@@ -8,10 +8,7 @@ class CoreConfig(AppConfig):
     def ready(self):
         import core.signals  # noqa: F401
         self._start_flight_auto_complete()
-<<<<<<< HEAD
-=======
         self._start_booking_auto_complete()
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
 
     # ------------------------------------------------------------------
     # Background scheduler: auto-complete past flights every 5 minutes.
@@ -39,8 +36,6 @@ class CoreConfig(AppConfig):
                 time.sleep(5 * 60)  # check every 5 minutes
 
         t = threading.Thread(target=loop, daemon=True, name="flight-auto-complete")
-<<<<<<< HEAD
-=======
         t.start()
     
     # ------------------------------------------------------------------
@@ -68,5 +63,4 @@ class CoreConfig(AppConfig):
                 time.sleep(5 * 60)  # check every 5 minutes
 
         t = threading.Thread(target=loop, daemon=True, name="booking-auto-complete")
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         t.start()

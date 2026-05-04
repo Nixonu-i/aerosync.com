@@ -4,11 +4,7 @@ from datetime import datetime
 from django.utils.deprecation import MiddlewareMixin
 from django.contrib.auth import get_user_model
 
-<<<<<<< HEAD
-logger = logging.getLogger('user_activity')
-=======
 logger = logging.getLogger('core.middleware')
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
 
 class UserActivityMiddleware(MiddlewareMixin):
     """
@@ -46,35 +42,12 @@ class UserActivityMiddleware(MiddlewareMixin):
         if hasattr(request, '_start_time'):
             duration = (datetime.now() - request._start_time).total_seconds()
         
-<<<<<<< HEAD
-        # Log the activity
-        log_data = {
-            'timestamp': datetime.now().isoformat(),
-            'user_id': user_id,
-            'username': username,
-            'ip_address': ip_address,
-            'method': method,
-            'path': path,
-            'status_code': status_code,
-            'user_agent': user_agent,
-            'duration': duration
-        }
-        
-        # Log different levels based on status code
-        if status_code >= 500:
-            logger.error(f"User Activity - Error: {json.dumps(log_data)}")
-        elif status_code >= 400:
-            logger.warning(f"User Activity - Warning: {json.dumps(log_data)}")
-        else:
-            logger.info(f"User Activity - Info: {json.dumps(log_data)}")
-=======
         # Log the activity (minimal format: timestamp, IP, method, endpoint only)
         import logging
         logger = logging.getLogger(__name__)
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         ip_address = self.get_client_ip(request)
         logger.info(f"[{timestamp}] {ip_address} {request.method} {request.path}")
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
             
         return response
     

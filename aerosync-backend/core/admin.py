@@ -109,9 +109,5 @@ class UserActivityLogAdmin(admin.ModelAdmin):
         return False  # Prevent editing of logs
     
     def has_delete_permission(self, request, obj=None):
-<<<<<<< HEAD
-        return False  # Prevent deletion of logs
-=======
         # Only superusers can delete logs (needed when deleting users with related logs)
         return request.user and request.user.is_superuser
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b

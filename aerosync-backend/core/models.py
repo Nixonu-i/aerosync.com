@@ -2,15 +2,7 @@ from django.conf import settings
 from django.db import models
 from accounts.models import User
 from django.core.validators import RegexValidator
-<<<<<<< HEAD
-<<<<<<< HEAD
-
-
-class Airline(models.Model):
-=======
-=======
 from django.core.exceptions import ValidationError
->>>>>>> 1f8170445e5037c8d4a27ddab2757e5b5f376943
 import uuid
 import os
 
@@ -54,7 +46,6 @@ def validate_passenger_photo_extension(file):
 
 class Airline(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     name = models.CharField(max_length=150, unique=True)
     iata_code = models.CharField(max_length=3, blank=True, default="")
     country = models.CharField(max_length=100, blank=True, default="")
@@ -68,10 +59,7 @@ class Airline(models.Model):
 
 
 class Aircraft(models.Model):
-<<<<<<< HEAD
-=======
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     model = models.CharField(max_length=120)
     total_seats = models.PositiveIntegerField()
     number_plate = models.CharField(max_length=50, unique=True)
@@ -81,10 +69,7 @@ class Aircraft(models.Model):
 
 
 class Airport(models.Model):
-<<<<<<< HEAD
-=======
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     code = models.CharField(max_length=3, unique=True)
     name = models.CharField(max_length=200)
     city = models.CharField(max_length=100)
@@ -95,10 +80,7 @@ class Airport(models.Model):
 
 
 class Flight(models.Model):
-<<<<<<< HEAD
-=======
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     TRIP_TYPE_CHOICES = [
         ('ONE_WAY', 'One Way'),
         ('ROUND_TRIP', 'Round Trip'),
@@ -165,10 +147,7 @@ class Flight(models.Model):
 
 
 class Seat(models.Model):
-<<<<<<< HEAD
-=======
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     FLIGHT_CLASS_CHOICES = [
         ('ECONOMY', 'Economy'),
         ('BUSINESS', 'Business'),
@@ -189,17 +168,11 @@ class Seat(models.Model):
 
 
 class Booking(models.Model):
-<<<<<<< HEAD
-    BOOKING_STATUS_CHOICES = [
-        ('PENDING', 'Pending Payment'),
-        ('CONFIRMED', 'Confirmed'),
-=======
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     BOOKING_STATUS_CHOICES = [
         ('PENDING', 'Pending Payment'),
         ('CONFIRMED', 'Confirmed'),
         ('COMPLETED', 'Completed'),
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         ('CANCELLED', 'Cancelled'),
         ('FAILED', 'Failed'),
         ('ONBOARD', 'On Board'),
@@ -235,11 +208,6 @@ class Booking(models.Model):
     
     def __str__(self):
         return f"Booking {self.confirmation_code} - {self.user.username}"
-<<<<<<< HEAD
-
-
-class Passenger(models.Model):
-=======
     
     def has_successful_payment(self):
         """Check if booking has at least one successful payment"""
@@ -293,7 +261,6 @@ class Passenger(models.Model):
 
 class Passenger(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     PASSENGER_TYPE_CHOICES = [
         ('ADULT', 'Adult'),
         ('CHILD', 'Child'),
@@ -321,10 +288,7 @@ class Passenger(models.Model):
 
 
 class Payment(models.Model):
-<<<<<<< HEAD
-=======
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     PAYMENT_STATUS_CHOICES = [
         ('PENDING', 'Pending'),
         ('SUCCESS', 'Success'),
@@ -338,19 +302,12 @@ class Payment(models.Model):
         ('STRIPE', 'Stripe'),
         ('CARD', 'Credit Card'),
         ('BANK_TRANSFER', 'Bank Transfer'),
-<<<<<<< HEAD
-=======
         ('PESAPAL', 'Pesapal'),
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     ]
     
     booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='payments')
     provider = models.CharField(max_length=20, choices=PAYMENT_PROVIDER_CHOICES)
-<<<<<<< HEAD
-    provider_reference = models.CharField(max_length=100, blank=True)
-=======
     provider_reference = models.CharField(max_length=100, blank=True, db_index=True)
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     payment_detail = models.CharField(
         max_length=255, blank=True, null=True,
         help_text="Phone (M-Pesa), email (PayPal), masked card (Card), bank ref (Bank Transfer)"
@@ -361,8 +318,6 @@ class Payment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
-<<<<<<< HEAD
-=======
     class Meta:
         # Each booking can only have ONE active Pesapal payment at a time
         # (excludes CANCELLED payments to allow retries after cancellation)
@@ -374,16 +329,12 @@ class Payment(models.Model):
             )
         ]
     
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     def __str__(self):
         return f"Payment {self.provider} - {self.amount} ({self.status})"
 
 
 class BoardingPass(models.Model):
-<<<<<<< HEAD
-=======
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='boarding_passes')
     passenger = models.ForeignKey(Passenger, on_delete=models.CASCADE, related_name='boarding_passes')
     seat = models.ForeignKey(Seat, on_delete=models.CASCADE, related_name='boarding_passes')
@@ -404,10 +355,7 @@ class BoardingPass(models.Model):
 
 
 class ScanLog(models.Model):
-<<<<<<< HEAD
-=======
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     """Persistent record of every QR scan attempt by an agent/admin."""
     scanned_by   = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -439,10 +387,7 @@ class ScanLog(models.Model):
 
 
 class UserActivityLog(models.Model):
-<<<<<<< HEAD
-=======
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     """Model to store user activity logs in database"""
     
     ACTION_CHOICES = [

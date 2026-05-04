@@ -16,7 +16,7 @@ if not SECRET_KEY:
     raise Exception("DJANGO_SECRET must be set in production")
 
 DEBUG = False
-
+DEBUG = os.getenv("DJANGO_DEBUG", "0") in ("1", "true", "True")
 # ALLOWED_HOSTS is read from environment so that CI and production
 # can control valid hostnames.  Earlier we were manually adding
 # everything, but when the frontend is served from a custom URL such as
@@ -57,10 +57,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "accounts",
     "core",
-<<<<<<< HEAD
-=======
     "channels",  # Django Channels for WebSocket support
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
 ]
 
 # -------------------------------------------------------------------
@@ -139,8 +136,6 @@ ROOT_URLCONF = "aerosync.urls"
 WSGI_APPLICATION = "aerosync.wsgi.application"
 ASGI_APPLICATION = "aerosync.asgi.application"
 
-<<<<<<< HEAD
-=======
 # Cache configuration for Pesapal token caching
 CACHES = {
     'default': {
@@ -150,7 +145,6 @@ CACHES = {
     }
 }
 
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -169,20 +163,28 @@ TEMPLATES = [
 # Database
 # -------------------------------------------------------------------
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("DB_NAME"),
-        "USER": os.getenv("DB_USER"),
-        "PASSWORD": os.getenv("DB_PASSWORD"),
-        "HOST": os.getenv("DB_HOST"),
-        "PORT": os.getenv("DB_PORT", "5432"),
-        "CONN_MAX_AGE": 600,
-        "OPTIONS": {
-            "sslmode": "require" if not DEBUG else "disable",
-        },
+if os.getenv("USE_SQLITE") == "1":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("DB_NAME"),
+            "USER": os.getenv("DB_USER"),
+            "PASSWORD": os.getenv("DB_PASSWORD"),
+            "HOST": os.getenv("DB_HOST"),
+            "PORT": os.getenv("DB_PORT", "5432"),
+            "CONN_MAX_AGE": 600,
+            "OPTIONS": {
+                "sslmode": "require" if not DEBUG else "disable",
+            },
+        }
+    }
 
 AUTH_USER_MODEL = "accounts.User"
 
@@ -193,7 +195,7 @@ AUTH_USER_MODEL = "accounts.User"
 # Some requests (our frontend sets axios.withCredentials) are sent with
 # credentials mode "include".  if so the browser requires the response
 # to include Access-Control-Allow-Credentials: true.  we previously kept
-# this False because JSON‑Web‑Tokens live in the Authorization header, but
+# this False because JSONWebTokens live in the Authorization header, but
 # setting it to True is harmless and simplifies local tunnelling / proxy
 # scenarios where the browser might still attach cookies.
 CORS_ALLOW_CREDENTIALS = True
@@ -204,19 +206,13 @@ CORS_ALLOWED_ORIGINS = [
     "https://api.aerosync.live",  # <-- add backend tunnel domain
     "http://127.0.0.1:5173",       # local dev
     "http://localhost:5173",       # local dev
-<<<<<<< HEAD
-=======
     "https://*.pages.dev",         # Cloudflare Pages preview deployments
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
 ]
 
 # Allow Vercel deployments
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https://.*\.vercel\.app$",
-<<<<<<< HEAD
-=======
     r"^https://.*\.pages\.dev$",   # Cloudflare Pages
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
 ]
 
 # Allow your Cloudflare tunnel domain
@@ -248,13 +244,8 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-<<<<<<< HEAD
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(os.getenv("JWT_ACCESS_MIN", "15"))),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=int(os.getenv("JWT_REFRESH_DAYS", "7"))),
-=======
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(os.getenv("JWT_ACCESS_MIN", "480"))),  # 8 hours
     "REFRESH_TOKEN_LIFETIME": timedelta(days=int(os.getenv("JWT_REFRESH_DAYS", "30"))),  # 30 days
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
 }
@@ -267,10 +258,6 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-<<<<<<< HEAD
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
-=======
 # Media files configuration - store outside project directory
 MEDIA_URL = "/media/"
 # Store media files in a dedicated directory outside the project
@@ -278,7 +265,6 @@ MEDIA_URL = "/media/"
 # In production: Use cloud storage (S3, Cloudinary, etc.)
 import os
 MEDIA_ROOT = os.path.expanduser("~/aerosync-media/")  # Outside project
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
 
 # File upload limits
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
@@ -302,13 +288,10 @@ LOGGING = {
             "format": "{levelname} {asctime} {module} {message}",
             "style": "{",
         },
-<<<<<<< HEAD
-=======
         "simple": {
             "format": "{message}",
             "style": "{",
         },
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
     },
     "handlers": {
         "file": {
@@ -316,11 +299,6 @@ LOGGING = {
             "filename": LOG_DIR / "django.log",
             "formatter": "verbose",
         },
-<<<<<<< HEAD
-    },
-    "root": {
-        "handlers": ["file"],
-=======
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "simple",
@@ -341,7 +319,6 @@ LOGGING = {
     },
     "root": {
         "handlers": ["file", "console"],
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
         "level": "INFO",
     },
 }
@@ -361,52 +338,51 @@ INGRESS = [
     {
         "service": "http_status:404",
     },
-<<<<<<< HEAD
-]
-=======
 ]
 
-# -------------------------------------------------------------------
+
 # Email Configuration
 # -------------------------------------------------------------------
 
-# Check if Brevo API key is provided
+# BREVO_API_KEY is always defined (used by email_service.py)
 BREVO_API_KEY = os.getenv('BREVO_API_KEY', '')
 
-if BREVO_API_KEY and BREVO_API_KEY != 'xkeysib-your-api-key-here':
-    # Use Brevo (SendGrid) for professional emails
-    # Free tier: 300 emails/day
-    EMAIL_BACKEND = 'sgbackend.SendGridBackend'
-    SENDGRID_API_KEY = BREVO_API_KEY
-    DEFAULT_FROM_EMAIL = 'AeroSync <noreply@aerosync.live>'
-    SERVER_EMAIL = 'noreply@aerosync.live'
-    print("✅ Using Brevo email backend")
+# Development: console backend. Production: Brevo or Gmail.
+if DEBUG:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+    DEFAULT_FROM_EMAIL = "AeroSync <dev@example.com>"
+    SERVER_EMAIL = "dev@example.com"
+    print("[DEV] Console email backend")
 else:
-    # Fallback to Gmail OAuth 2.0
-    GMAIL_OAUTH_CLIENT_ID = os.getenv('GMAIL_OAUTH_CLIENT_ID', '')
-    GMAIL_OAUTH_CLIENT_SECRET = os.getenv('GMAIL_OAUTH_CLIENT_SECRET', '')
-    GMAIL_OAUTH_REFRESH_TOKEN = os.getenv('GMAIL_OAUTH_REFRESH_TOKEN', '')
-    GMAIL_OAUTH_TOKEN_URI = os.getenv('GMAIL_OAUTH_TOKEN_URI', 'https://oauth2.googleapis.com/token')
-    GMAIL_SENDER_EMAIL = os.getenv('GMAIL_SENDER_EMAIL', '')
-    
-    # Gmail SMTP settings (used if OAuth fails)
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_HOST = 'smtp.gmail.com'
-    EMAIL_PORT = 587
-    EMAIL_USE_TLS = True
-    EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
-    EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
-    DEFAULT_FROM_EMAIL = f'AeroSync <{GMAIL_SENDER_EMAIL}>' if GMAIL_SENDER_EMAIL else 'AeroSync <noreply@aerosync.live>'
-    print("ℹ️  Using Gmail OAuth email backend")
+    if BREVO_API_KEY and BREVO_API_KEY != 'xkeysib-your-api-key-here':
+        EMAIL_BACKEND = 'sgbackend.SendGridBackend'
+        SENDGRID_API_KEY = BREVO_API_KEY
+        DEFAULT_FROM_EMAIL = 'AeroSync <noreply@aerosync.live>'
+        SERVER_EMAIL = 'noreply@aerosync.live'
+        print("[OK] Brevo email backend")
+    else:
+        GMAIL_OAUTH_CLIENT_ID = os.getenv('GMAIL_OAUTH_CLIENT_ID', '')
+        GMAIL_OAUTH_CLIENT_SECRET = os.getenv('GMAIL_OAUTH_CLIENT_SECRET', '')
+        GMAIL_OAUTH_REFRESH_TOKEN = os.getenv('GMAIL_OAUTH_REFRESH_TOKEN', '')
+        GMAIL_OAUTH_TOKEN_URI = os.getenv('GMAIL_OAUTH_TOKEN_URI', 'https://oauth2.googleapis.com/token')
+        GMAIL_SENDER_EMAIL = os.getenv('GMAIL_SENDER_EMAIL', '')
+        EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+        EMAIL_HOST = 'smtp.gmail.com'
+        EMAIL_PORT = 587
+        EMAIL_USE_TLS = True
+        EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+        EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+        DEFAULT_FROM_EMAIL = f'AeroSync <{GMAIL_SENDER_EMAIL}>' if GMAIL_SENDER_EMAIL else 'AeroSync <noreply@aerosync.live>'
+        print("[INFO] Gmail SMTP backend")
 
 # Email verification settings
-EMAIL_VERIFICATION_EXPIRY_MINUTES = 15  # Code expires after 15 minutes
 
 # -------------------------------------------------------------------
 # Pesapal Payment Gateway Configuration
 # -------------------------------------------------------------------
 
 PESAPAL_CONSUMER_KEY = os.getenv('PESAPAL_CONSUMER_KEY', '')
+EMAIL_VERIFICATION_EXPIRY_MINUTES = 15
 PESAPAL_CONSUMER_SECRET = os.getenv('PESAPAL_CONSUMER_SECRET', '')
 PESAPAL_ENVIRONMENT = os.getenv('PESAPAL_ENVIRONMENT', 'sandbox')  # 'sandbox' or 'production'
 
@@ -437,4 +413,3 @@ CHANNEL_LAYERS = {
     },
 }
 PESAPAL_IPN_URL = os.getenv('PESAPAL_IPN_URL', 'https://api.aerosync.live/api/payments/pesapal/ipn/')
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b

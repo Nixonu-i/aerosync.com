@@ -121,11 +121,6 @@ class BookingSerializer(serializers.ModelSerializer):
     boarding_passes = BoardingPassSerializer(many=True, read_only=True)
     flight = FlightSerializer(read_only=True)
     
-<<<<<<< HEAD
-    class Meta:
-        model = Booking
-        fields = ["id", "user", "flight", "booking_date", "total_amount", "booking_status", "confirmation_code", "passengers", "boarding_passes"]
-=======
     # Additional computed fields
     flight_name = serializers.CharField(source="flight.flight_number", read_only=True)
     airline_name = serializers.CharField(source="flight.airline.name", read_only=True)
@@ -158,7 +153,6 @@ class BookingSerializer(serializers.ModelSerializer):
             "flight_name", "airline_name", "route", "departure", "arrival", 
             "flight_date", "seat_numbers", "stopover_city"
         ]
->>>>>>> 9007297460809f07bfaa364ef37dd6359fbbe48b
 
 
 class CreateBookingSerializer(serializers.Serializer):
