@@ -24,4 +24,7 @@ build/
 # Swap files
 *.swp
 *.env
+.env
 aerosync-backend/.env
+aerosync-frontend/.env
+aerosync-frontend/.env.*

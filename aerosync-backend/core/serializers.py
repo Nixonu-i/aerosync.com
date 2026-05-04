@@ -286,6 +286,7 @@ class AdminBookingSerializer(serializers.ModelSerializer):
     payment_amount = serializers.SerializerMethodField()
     flight_route_type = serializers.CharField(source="flight.route_type", read_only=True)
     flight_via_cities = serializers.JSONField(source="flight.via_cities", read_only=True)
+    seat_assignments = serializers.SerializerMethodField()
 
     def get_payment_status(self, obj):
         p = obj.payments.order_by("-created_at").first()
@@ -299,6 +300,18 @@ class AdminBookingSerializer(serializers.ModelSerializer):
         p = obj.payments.order_by("-created_at").first()
         return str(p.amount) if p else None
 
+    def get_seat_assignments(self, obj):
+        return [
+            {
+                "boarding_pass_id": str(bp.id),
+                "passenger_id": bp.passenger_id,
+                "seat_id": bp.seat_id,
+                "seat_number": bp.seat.seat_number,
+                "seat_class": bp.seat.flight_class,
+            }
+            for bp in obj.boarding_passes.select_related("seat").all()
+        ]
+
     class Meta:
         model = Booking
         fields = [
@@ -307,7 +320,7 @@ class AdminBookingSerializer(serializers.ModelSerializer):
             "booking_date", "total_amount", "booking_status",
             "confirmation_code", "passengers", "stopover_city",
             "payment_status", "payment_id", "payment_amount",
-            "flight_route_type", "flight_via_cities",
+            "flight_route_type", "flight_via_cities", "seat_assignments",
         ]
 
 

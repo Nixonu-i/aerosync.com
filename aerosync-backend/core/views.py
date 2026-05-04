@@ -1722,8 +1722,8 @@ class FlightAdminViewSet(viewsets.ModelViewSet):
 
 class BookingAdminViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Booking.objects.select_related(
-        "user", "flight", "flight__departure_airport", "flight__arrival_airport"
-    ).prefetch_related("passengers", "payments").order_by("-booking_date")
+        "user", "flight", "flight__departure_airport", "flight__arrival_airport", "flight__aircraft"
+    ).prefetch_related("passengers", "payments", "boarding_passes__seat").order_by("-booking_date")
     serializer_class = AdminBookingSerializer
     permission_classes = [IsAdmin]
 
@@ -1751,19 +1751,57 @@ class BookingAdminViewSet(viewsets.ReadOnlyModelViewSet):
     def update_status(self, request, pk=None):
         import logging
         logger = logging.getLogger(__name__)
-        
+
         booking = self.get_object()
         new_status = request.data.get("booking_status")
         valid = ["PENDING", "CONFIRMED", "CANCELLED", "FAILED"]
         if new_status not in valid:
             return Response({"detail": f"Invalid status. Choose from: {valid}"}, status=400)
-        
+
         logger.info(f"Admin updating booking {booking.id} status from {booking.booking_status} to {new_status}")
         booking.booking_status = new_status
         booking.save(update_fields=["booking_status"])  # This triggers broadcast_booking_update signal
-        
+
         logger.info(f"Booking status updated. WebSocket signal should have been triggered.")
         return Response({"detail": f"Status updated to {new_status}."})
+
+    @action(detail=True, methods=["get"], url_path="available_seats")
+    def available_seats(self, request, pk=None):
+        booking = self.get_object()
+        aircraft = booking.flight.aircraft
+        taken_seat_ids = set(
+            BoardingPass.objects.filter(booking__flight=booking.flight)
+            .exclude(booking=booking)
+            .values_list("seat_id", flat=True)
+        )
+        seats = Seat.objects.filter(aircraft=aircraft).exclude(id__in=taken_seat_ids).order_by("seat_number")
+        data = [{"id": s.id, "seat_number": s.seat_number, "flight_class": s.flight_class} for s in seats]
+        return Response(data)
+
+    @action(detail=True, methods=["post"], url_path="change_seat")
+    def change_seat(self, request, pk=None):
+        booking = self.get_object()
+        boarding_pass_id = request.data.get("boarding_pass_id")
+        seat_id = request.data.get("seat_id")
+        if not boarding_pass_id or not seat_id:
+            return Response({"detail": "boarding_pass_id and seat_id are required."}, status=400)
+        try:
+            bp = BoardingPass.objects.select_related("seat").get(id=boarding_pass_id, booking=booking)
+        except BoardingPass.DoesNotExist:
+            return Response({"detail": "Boarding pass not found for this booking."}, status=404)
+        try:
+            new_seat = Seat.objects.get(id=seat_id, aircraft=booking.flight.aircraft)
+        except Seat.DoesNotExist:
+            return Response({"detail": "Seat not found on this flight's aircraft."}, status=404)
+        # Ensure seat isn't already taken by another passenger on the same flight
+        conflict = BoardingPass.objects.filter(
+            booking__flight=booking.flight, seat=new_seat
+        ).exclude(id=bp.id).exists()
+        if conflict:
+            return Response({"detail": f"Seat {new_seat.seat_number} is already taken."}, status=400)
+        bp.seat = new_seat
+        bp.save(update_fields=["seat"])
+        return Response({"detail": f"Seat changed to {new_seat.seat_number}.", "seat_number": new_seat.seat_number})
 
 
 class UserAdminViewSet(viewsets.ModelViewSet):

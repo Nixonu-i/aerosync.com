@@ -43,13 +43,38 @@ class FlightAdmin(admin.ModelAdmin):
 
 
 
+class BoardingPassInline(admin.TabularInline):
+    model = BoardingPass
+    fields = ["passenger", "seat", "price", "is_checked_in"]
+    readonly_fields = ["passenger", "price"]
+    extra = 0
+    can_delete = False
+    verbose_name = "Seat Assignment"
+    verbose_name_plural = "Seat Assignments"
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "seat":
+            # Resolve the booking from the URL so we can filter by aircraft
+            booking_id = request.resolver_match.kwargs.get("object_id")
+            if booking_id:
+                try:
+                    booking = Booking.objects.select_related("flight__aircraft").get(pk=booking_id)
+                    kwargs["queryset"] = Seat.objects.filter(
+                        aircraft=booking.flight.aircraft
+                    ).order_by("seat_number")
+                except Booking.DoesNotExist:
+                    pass
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
     list_display = ["confirmation_code", "user", "flight", "booking_status", "total_amount", "booking_date"]
     list_filter = ["booking_status", "booking_date", "flight__departure_time"]
     search_fields = ["confirmation_code", "user__username", "user__email"]
     readonly_fields = ["total_amount", "booking_date"]
-    
+    inlines = [BoardingPassInline]
+
     def passenger_count(self, obj):
         return obj.passengers.count()
     passenger_count.short_description = "Passengers"

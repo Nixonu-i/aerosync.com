@@ -35,6 +35,10 @@ export default function AdminBookings() {
   const [statusFilter, setStatusFilter] = useState("");
   const [expanded, setExpanded] = useState(null);
   const [busy, setBusy] = useState({});
+  const [seatModal, setSeatModal] = useState(null); // { bookingId, bookingPassId, passengerName, currentSeat }
+  const [availableSeats, setAvailableSeats] = useState([]);
+  const [selectedSeat, setSelectedSeat] = useState("");
+  const [seatBusy, setSeatBusy] = useState(false);
   const { confirm, notify, ModalUI } = useAdminUI();
 
   const load = async () => {
@@ -68,6 +72,31 @@ export default function AdminBookings() {
       notify(`Status updated to ${newStatus}.`, "success");
     } catch (e) { notify(e.normalizedMessage || "Failed"); }
     finally { setBusy(p => ({ ...p, [`s_${id}`]: false })); }
+  };
+
+  const openSeatModal = async (booking, boardingPassId, passengerName, currentSeat) => {
+    setSeatModal({ bookingId: booking.id, boardingPassId, passengerName, currentSeat });
+    setSelectedSeat("");
+    setAvailableSeats([]);
+    try {
+      const res = await API.get(`admin/bookings/${booking.id}/available_seats/`);
+      setAvailableSeats(res.data);
+    } catch (e) { notify(e.normalizedMessage || "Failed to load seats", "error"); setSeatModal(null); }
+  };
+
+  const changeSeat = async () => {
+    if (!selectedSeat) return;
+    setSeatBusy(true);
+    try {
+      await API.post(`admin/bookings/${seatModal.bookingId}/change_seat/`, {
+        boarding_pass_id: seatModal.boardingPassId,
+        seat_id: selectedSeat,
+      });
+      await load();
+      notify(`Seat changed to ${availableSeats.find(s => s.id == selectedSeat)?.seat_number}.`, "success");
+      setSeatModal(null);
+    } catch (e) { notify(e.normalizedMessage || "Failed to change seat", "error"); }
+    finally { setSeatBusy(false); }
   };
 
   const filtered = bookings.filter(b => {
@@ -163,13 +192,29 @@ export default function AdminBookings() {
                     <div>
                       <div style={{ fontWeight: "700", color: "var(--text-primary)", marginBottom: "8px", fontSize: "13px" }}>Passengers ({b.passengers.length})</div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
-                        {b.passengers.map(p => (
-                          <div key={p.id} style={{ backgroundColor: "var(--surface)", border: "1px solid #dee2e6", borderRadius: "6px", padding: "10px 14px", fontSize: "13px", minWidth: "200px" }}>
-                            <div style={{ fontWeight: "700", color: "var(--text-primary)" }}>{p.full_name}</div>
-                            <div style={{ color: "#6c757d" }}>{p.passenger_type} · {p.nationality}</div>
-                            <div style={{ color: "#6c757d" }}>DOB: {p.date_of_birth}</div>
-                          </div>
-                        ))}
+                        {b.passengers.map(p => {
+                          const assignment = b.seat_assignments?.find(a => a.passenger_id === p.id);
+                          return (
+                            <div key={p.id} style={{ backgroundColor: "var(--surface)", border: "1px solid #dee2e6", borderRadius: "6px", padding: "10px 14px", fontSize: "13px", minWidth: "200px" }}>
+                              <div style={{ fontWeight: "700", color: "var(--text-primary)" }}>{p.full_name}</div>
+                              <div style={{ color: "#6c757d" }}>{p.passenger_type} · {p.nationality}</div>
+                              <div style={{ color: "#6c757d" }}>DOB: {p.date_of_birth}</div>
+                              {assignment && (
+                                <div style={{ marginTop: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+                                  <span style={{ fontSize: "12px", background: "#e9ecef", borderRadius: "4px", padding: "2px 8px", fontWeight: "600", color: "#495057" }}>
+                                    Seat {assignment.seat_number} · {assignment.seat_class}
+                                  </span>
+                                  <button
+                                    onClick={() => openSeatModal(b, assignment.boarding_pass_id, p.full_name, assignment.seat_number)}
+                                    style={{ fontSize: "11px", background: "#0b1220", color: "white", border: "none", borderRadius: "4px", padding: "3px 8px", cursor: "pointer", fontWeight: "600" }}
+                                  >
+                                    Change
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -184,6 +229,47 @@ export default function AdminBookings() {
       )}
     </div>
       {ModalUI}
+
+      {/* Change Seat Modal */}
+      {seatModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
+          <div style={{ background: "white", borderRadius: "10px", padding: "28px", minWidth: "340px", boxShadow: "0 8px 32px rgba(0,0,0,0.2)" }}>
+            <h3 style={{ margin: "0 0 6px", fontSize: "17px", fontWeight: "800", color: "#0b1220" }}>Change Seat</h3>
+            <p style={{ margin: "0 0 16px", fontSize: "13px", color: "#6c757d" }}>
+              {seatModal.passengerName} · current seat: <strong>{seatModal.currentSeat}</strong>
+            </p>
+            {availableSeats.length === 0 ? (
+              <div style={{ color: "#6c757d", fontSize: "13px", marginBottom: "16px" }}>Loading available seats…</div>
+            ) : (
+              <select
+                value={selectedSeat}
+                onChange={e => setSelectedSeat(e.target.value)}
+                style={{ width: "100%", padding: "9px 12px", border: "1px solid #ced4da", borderRadius: "6px", fontSize: "14px", marginBottom: "16px", boxSizing: "border-box" }}
+              >
+                <option value="">Select a seat…</option>
+                {["ECONOMY", "BUSINESS", "FIRST"].map(cls => {
+                  const group = availableSeats.filter(s => s.flight_class === cls);
+                  return group.length ? (
+                    <optgroup key={cls} label={cls}>
+                      {group.map(s => <option key={s.id} value={s.id}>{s.seat_number}</option>)}
+                    </optgroup>
+                  ) : null;
+                })}
+              </select>
+            )}
+            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+              <button onClick={() => setSeatModal(null)} style={{ padding: "8px 16px", borderRadius: "6px", border: "1px solid #ced4da", background: "white", cursor: "pointer", fontSize: "13px" }}>Cancel</button>
+              <button
+                onClick={changeSeat}
+                disabled={!selectedSeat || seatBusy}
+                style={{ padding: "8px 16px", borderRadius: "6px", border: "none", background: !selectedSeat || seatBusy ? "#adb5bd" : "#0b1220", color: "white", cursor: !selectedSeat || seatBusy ? "default" : "pointer", fontWeight: "700", fontSize: "13px" }}
+              >
+                {seatBusy ? "Saving…" : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
